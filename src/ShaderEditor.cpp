@@ -21,10 +21,7 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     , m_showErrorPanel(true)
     , m_leftPanelWidth(300.0f)
     , m_errorPanelHeight(200.0f)
-    , m_aspectMode(AspectMode::Free)
-    , m_resolutionPreset(ResolutionPreset::FHD_1080p)
-    , m_customWidth(1920)
-    , m_customHeight(1080)
+    , m_aspectMode(AspectMode::Fixed_16_9)
     , m_autoReload(true)
     , m_exitRequested(false)
     , m_time(0.0f)
@@ -33,8 +30,8 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     , m_previewFramebuffer(0)
     , m_previewTexture(0) {
     
-    m_resolution[0] = 512.0f;
-    m_resolution[1] = 512.0f;
+    m_resolution[0] = 1920.0f; // Default 16:9 values, will be updated dynamically
+    m_resolution[1] = 1080.0f;
 }
 
 ShaderEditor::~ShaderEditor() {
@@ -130,93 +127,31 @@ void ShaderEditor::renderRenderMenu() {
     if (ImGui::Combo("##aspect", &currentAspect, aspectModes, IM_ARRAYSIZE(aspectModes))) {
         m_aspectMode = static_cast<AspectMode>(currentAspect);
     }
-    
-    ImGui::Separator();
-    ImGui::Text("Resolution Preset:");
-    
-    const char* resolutionPresets[] = { 
-        "Custom", "HD 720p (1280x720)", "FHD 1080p (1920x1080)", 
-        "QHD 1440p (2560x1440)", "UHD 4K (3840x2160)",
-        "Mobile 720p (720x1280)", "Mobile 1080p (1080x1920)",
-        "Square 512 (512x512)", "Square 1024 (1024x1024)"
-    };
-    
-    int currentPreset = static_cast<int>(m_resolutionPreset);
-    if (ImGui::Combo("##resolution", &currentPreset, resolutionPresets, IM_ARRAYSIZE(resolutionPresets))) {
-        m_resolutionPreset = static_cast<ResolutionPreset>(currentPreset);
-        if (m_resolutionPreset != ResolutionPreset::Custom) {
-            getResolutionFromPreset(m_resolutionPreset, m_customWidth, m_customHeight);
-        }
-    }
-    
-    // Show custom resolution controls if Custom is selected
-    if (m_resolutionPreset == ResolutionPreset::Custom) {
-        ImGui::Separator();
-        ImGui::Text("Custom Resolution:");
-        ImGui::InputInt("Width", &m_customWidth, 1, 100);
-        ImGui::InputInt("Height", &m_customHeight, 1, 100);
-        
-        // Clamp to reasonable values
-        if (m_customWidth < 64) m_customWidth = 64;
-        if (m_customWidth > 7680) m_customWidth = 7680;
-        if (m_customHeight < 64) m_customHeight = 64;
-        if (m_customHeight > 4320) m_customHeight = 4320;
-    }
-    
-    ImGui::Separator();
-    
-    // Show current effective resolution
-    int effectiveWidth, effectiveHeight;
-    getResolutionFromPreset(m_resolutionPreset, effectiveWidth, effectiveHeight);
-    ImGui::Text("Current: %dx%d", effectiveWidth, effectiveHeight);
-    
-    // Update shader uniforms with current resolution
-    m_resolution[0] = static_cast<float>(effectiveWidth);
-    m_resolution[1] = static_cast<float>(effectiveHeight);
-}
-
-void ShaderEditor::getResolutionFromPreset(ResolutionPreset preset, int& width, int& height) {
-    switch (preset) {
-        case ResolutionPreset::Custom:
-            width = m_customWidth;
-            height = m_customHeight;
-            break;
-        case ResolutionPreset::HD_720p:
-            width = 1280; height = 720;
-            break;
-        case ResolutionPreset::FHD_1080p:
-            width = 1920; height = 1080;
-            break;
-        case ResolutionPreset::QHD_1440p:
-            width = 2560; height = 1440;
-            break;
-        case ResolutionPreset::UHD_4K:
-            width = 3840; height = 2160;
-            break;
-        case ResolutionPreset::Mobile_720p:
-            width = 720; height = 1280;
-            break;
-        case ResolutionPreset::Mobile_1080p:
-            width = 1080; height = 1920;
-            break;
-        case ResolutionPreset::Square_512:
-            width = 512; height = 512;
-            break;
-        case ResolutionPreset::Square_1024:
-            width = 1024; height = 1024;
-            break;
-    }
 }
 
 ImVec2 ShaderEditor::calculatePreviewSize(ImVec2 availableSize) {
-    int targetWidth, targetHeight;
-    getResolutionFromPreset(m_resolutionPreset, targetWidth, targetHeight);
-    
     if (m_aspectMode == AspectMode::Free) {
         return availableSize;
     }
     
-    float targetAspect = static_cast<float>(targetWidth) / static_cast<float>(targetHeight);
+    float targetAspect;
+    switch (m_aspectMode) {
+        case AspectMode::Fixed_16_9:
+            targetAspect = 16.0f / 9.0f;
+            break;
+        case AspectMode::Fixed_4_3:
+            targetAspect = 4.0f / 3.0f;
+            break;
+        case AspectMode::Fixed_1_1:
+            targetAspect = 1.0f;
+            break;
+        case AspectMode::Fixed_21_9:
+            targetAspect = 21.0f / 9.0f;
+            break;
+        default:
+            return availableSize;
+    }
+    
     float availableAspect = availableSize.x / availableSize.y;
     
     ImVec2 previewSize;
@@ -392,11 +327,10 @@ void ShaderEditor::renderErrorPanel() {
 void ShaderEditor::renderPreviewPanel() {
     ImGui::Text("Shader Preview");
     
-    // Show current resolution and aspect ratio
-    int width, height;
-    getResolutionFromPreset(m_resolutionPreset, width, height);
+    // Show current aspect ratio
+    const char* aspectNames[] = { "Free", "16:9", "4:3", "1:1", "21:9" };
     ImGui::SameLine();
-    ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "(%dx%d)", width, height);
+    ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "(%s)", aspectNames[static_cast<int>(m_aspectMode)]);
     
     ImGui::Separator();
     
@@ -407,29 +341,45 @@ void ShaderEditor::renderPreviewPanel() {
         if (shader && shader->isValid) {
             ImGui::TextColored(ImVec4(0, 1, 0, 1), "✓ Shader compiled successfully");
             
-            // Update uniforms with current resolution settings
-            m_shaderManager->useShader(m_selectedShader);
-            m_shaderManager->setUniform("u_time", m_time);
-            m_shaderManager->setUniform("u_resolution", m_resolution, 2);
-            
             // Calculate preview size based on aspect ratio settings
             ImVec2 availableSize = ImGui::GetContentRegionAvail();
             availableSize.y -= 60; // Leave space for text above
             
             ImVec2 previewSize = calculatePreviewSize(availableSize);
             
-            // Center the preview if it's smaller than available space
-            ImVec2 offset = ImVec2((availableSize.x - previewSize.x) * 0.5f, (availableSize.y - previewSize.y) * 0.5f);
-            if (offset.x > 0) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset.x);
-            if (offset.y > 0) ImGui::SetCursorPosY(ImGui::GetCursorPosY() + offset.y);
+            // Update uniforms with current preview resolution
+            m_shaderManager->useShader(m_selectedShader);
+            m_shaderManager->setUniform("u_time", m_time);
+            m_resolution[0] = previewSize.x;
+            m_resolution[1] = previewSize.y;
+            m_shaderManager->setUniform("u_resolution", m_resolution, 2);
             
+            // Center the preview if it's smaller than available space
+            ImVec2 offset = ImVec2(0.0f, 0.0f); //ImVec2((availableSize.x - previewSize.x) * 0.5f, (availableSize.y - previewSize.y) * 0.5f);
+            ImVec2 drawOffset = ImVec2(0.0f, 0.0f); // Offset to use for drawing coordinates
+            /*
+            if (offset.x > 0) {
+                float newPosX = ImGui::GetCursorPosX() + offset.x;
+                if (newPosX >= 0) {
+                    ImGui::SetCursorPosX(newPosX);
+                    drawOffset.x = offset.x;
+                }
+            }
+            if (offset.y > 0) {
+                float newPosY = ImGui::GetCursorPosY() + offset.y;
+                if (newPosY >= 0) {
+                    ImGui::SetCursorPosY(newPosY);
+                    drawOffset.y = offset.y;
+                }
+            }
+            */
             // Draw preview
             ImGui::Dummy(previewSize);
             
             // Draw a placeholder with proper aspect ratio
             ImDrawList* draw_list = ImGui::GetWindowDrawList();
             ImVec2 screen_pos = ImGui::GetCursorScreenPos();
-            ImVec2 canvas_pos = ImVec2(screen_pos.x - offset.x, screen_pos.y - previewSize.y - offset.y);
+            ImVec2 canvas_pos = ImVec2(screen_pos.x - drawOffset.x, screen_pos.y - previewSize.y - drawOffset.y);
             ImVec2 canvas_size = previewSize;
             
             // Background (dark gray)
@@ -454,7 +404,7 @@ void ShaderEditor::renderPreviewPanel() {
             
             // Resolution text
             char resText[64];
-            snprintf(resText, sizeof(resText), "%dx%d", width, height);
+            snprintf(resText, sizeof(resText), "%.0fx%.0f", previewSize.x, previewSize.y);
             draw_list->AddText(ImVec2(canvas_pos.x + 10, canvas_pos.y + 10), 
                              IM_COL32(255, 255, 255, 200), resText);
                              
