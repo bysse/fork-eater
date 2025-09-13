@@ -17,12 +17,14 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
                            std::shared_ptr<FileWatcher> fileWatcher)
     : m_shaderManager(shaderManager)
     , m_fileWatcher(fileWatcher)
-    , m_showDemo(false)
     , m_showLeftPanel(true)
-    , m_showPreviewPanel(true)
     , m_showErrorPanel(true)
     , m_leftPanelWidth(300.0f)
     , m_errorPanelHeight(200.0f)
+    , m_aspectMode(AspectMode::Free)
+    , m_resolutionPreset(ResolutionPreset::FHD_1080p)
+    , m_customWidth(1920)
+    , m_customHeight(1080)
     , m_autoReload(true)
     , m_exitRequested(false)
     , m_time(0.0f)
@@ -75,10 +77,7 @@ void ShaderEditor::render() {
     }
     ImGui::End();
     
-    // Show demo if requested
-    if (m_showDemo) {
-        ImGui::ShowDemoWindow(&m_showDemo);
-    }
+    // Demo removed
     
     // Update time for shader uniforms
     m_time += ImGui::GetIO().DeltaTime;
@@ -108,10 +107,12 @@ void ShaderEditor::renderMenuBar() {
     
     if (ImGui::BeginMenu("View")) {
         ImGui::MenuItem("Left Panel", nullptr, &m_showLeftPanel);
-        ImGui::MenuItem("Preview Panel", nullptr, &m_showPreviewPanel);
         ImGui::MenuItem("Error Panel", nullptr, &m_showErrorPanel);
-        ImGui::Separator();
-        ImGui::MenuItem("ImGui Demo", nullptr, &m_showDemo);
+        ImGui::EndMenu();
+    }
+    
+    if (ImGui::BeginMenu("Render")) {
+        renderRenderMenu();
         ImGui::EndMenu();
     }
     
@@ -119,6 +120,118 @@ void ShaderEditor::renderMenuBar() {
         ImGui::MenuItem("Auto Reload", nullptr, &m_autoReload);
         ImGui::EndMenu();
     }
+}
+
+void ShaderEditor::renderRenderMenu() {
+    ImGui::Text("Aspect Ratio:");
+    
+    const char* aspectModes[] = { "Free", "16:9", "4:3", "1:1 (Square)", "21:9" };
+    int currentAspect = static_cast<int>(m_aspectMode);
+    if (ImGui::Combo("##aspect", &currentAspect, aspectModes, IM_ARRAYSIZE(aspectModes))) {
+        m_aspectMode = static_cast<AspectMode>(currentAspect);
+    }
+    
+    ImGui::Separator();
+    ImGui::Text("Resolution Preset:");
+    
+    const char* resolutionPresets[] = { 
+        "Custom", "HD 720p (1280x720)", "FHD 1080p (1920x1080)", 
+        "QHD 1440p (2560x1440)", "UHD 4K (3840x2160)",
+        "Mobile 720p (720x1280)", "Mobile 1080p (1080x1920)",
+        "Square 512 (512x512)", "Square 1024 (1024x1024)"
+    };
+    
+    int currentPreset = static_cast<int>(m_resolutionPreset);
+    if (ImGui::Combo("##resolution", &currentPreset, resolutionPresets, IM_ARRAYSIZE(resolutionPresets))) {
+        m_resolutionPreset = static_cast<ResolutionPreset>(currentPreset);
+        if (m_resolutionPreset != ResolutionPreset::Custom) {
+            getResolutionFromPreset(m_resolutionPreset, m_customWidth, m_customHeight);
+        }
+    }
+    
+    // Show custom resolution controls if Custom is selected
+    if (m_resolutionPreset == ResolutionPreset::Custom) {
+        ImGui::Separator();
+        ImGui::Text("Custom Resolution:");
+        ImGui::InputInt("Width", &m_customWidth, 1, 100);
+        ImGui::InputInt("Height", &m_customHeight, 1, 100);
+        
+        // Clamp to reasonable values
+        if (m_customWidth < 64) m_customWidth = 64;
+        if (m_customWidth > 7680) m_customWidth = 7680;
+        if (m_customHeight < 64) m_customHeight = 64;
+        if (m_customHeight > 4320) m_customHeight = 4320;
+    }
+    
+    ImGui::Separator();
+    
+    // Show current effective resolution
+    int effectiveWidth, effectiveHeight;
+    getResolutionFromPreset(m_resolutionPreset, effectiveWidth, effectiveHeight);
+    ImGui::Text("Current: %dx%d", effectiveWidth, effectiveHeight);
+    
+    // Update shader uniforms with current resolution
+    m_resolution[0] = static_cast<float>(effectiveWidth);
+    m_resolution[1] = static_cast<float>(effectiveHeight);
+}
+
+void ShaderEditor::getResolutionFromPreset(ResolutionPreset preset, int& width, int& height) {
+    switch (preset) {
+        case ResolutionPreset::Custom:
+            width = m_customWidth;
+            height = m_customHeight;
+            break;
+        case ResolutionPreset::HD_720p:
+            width = 1280; height = 720;
+            break;
+        case ResolutionPreset::FHD_1080p:
+            width = 1920; height = 1080;
+            break;
+        case ResolutionPreset::QHD_1440p:
+            width = 2560; height = 1440;
+            break;
+        case ResolutionPreset::UHD_4K:
+            width = 3840; height = 2160;
+            break;
+        case ResolutionPreset::Mobile_720p:
+            width = 720; height = 1280;
+            break;
+        case ResolutionPreset::Mobile_1080p:
+            width = 1080; height = 1920;
+            break;
+        case ResolutionPreset::Square_512:
+            width = 512; height = 512;
+            break;
+        case ResolutionPreset::Square_1024:
+            width = 1024; height = 1024;
+            break;
+    }
+}
+
+ImVec2 ShaderEditor::calculatePreviewSize(ImVec2 availableSize) {
+    int targetWidth, targetHeight;
+    getResolutionFromPreset(m_resolutionPreset, targetWidth, targetHeight);
+    
+    if (m_aspectMode == AspectMode::Free) {
+        return availableSize;
+    }
+    
+    float targetAspect = static_cast<float>(targetWidth) / static_cast<float>(targetHeight);
+    float availableAspect = availableSize.x / availableSize.y;
+    
+    ImVec2 previewSize;
+    
+    if (availableAspect > targetAspect) {
+        // Available area is wider than target aspect ratio
+        previewSize.y = availableSize.y;
+        previewSize.x = previewSize.y * targetAspect;
+    } else {
+        // Available area is taller than target aspect ratio
+        previewSize.x = availableSize.x;
+        previewSize.y = previewSize.x / targetAspect;
+    }
+    
+    return previewSize;
 }
 
 void ShaderEditor::renderMainLayout() {
@@ -148,25 +261,24 @@ void ShaderEditor::renderMainLayout() {
     // Right side - preview and error panels
     ImGui::BeginChild("RightSide", windowSize, false);
     
-    if (m_showPreviewPanel) {
-        float previewHeight = m_showErrorPanel ? windowSize.y - m_errorPanelHeight - 4 : windowSize.y;
-        ImGui::BeginChild("PreviewPanel", ImVec2(windowSize.x, previewHeight), true);
-        renderPreviewPanel();
-        ImGui::EndChild();
-        
-        if (m_showErrorPanel) {
-            // Horizontal splitter
-            ImGui::Button("##hsplitter", ImVec2(windowSize.x, 4));
-            if (ImGui::IsItemActive()) {
-                m_errorPanelHeight -= ImGui::GetIO().MouseDelta.y;
-                if (m_errorPanelHeight < 100.0f) m_errorPanelHeight = 100.0f;
-                if (m_errorPanelHeight > windowSize.y - 100.0f) m_errorPanelHeight = windowSize.y - 100.0f;
-            }
+    // Always show preview panel
+    float previewHeight = m_showErrorPanel ? windowSize.y - m_errorPanelHeight - 4 : windowSize.y;
+    ImGui::BeginChild("PreviewPanel", ImVec2(windowSize.x, previewHeight), true);
+    renderPreviewPanel();
+    ImGui::EndChild();
+    
+    if (m_showErrorPanel) {
+        // Horizontal splitter
+        ImGui::Button("##hsplitter", ImVec2(windowSize.x, 4));
+        if (ImGui::IsItemActive()) {
+            m_errorPanelHeight -= ImGui::GetIO().MouseDelta.y;
+            if (m_errorPanelHeight < 100.0f) m_errorPanelHeight = 100.0f;
+            if (m_errorPanelHeight > windowSize.y - 100.0f) m_errorPanelHeight = windowSize.y - 100.0f;
         }
     }
     
     if (m_showErrorPanel) {
-        float errorHeight = m_showPreviewPanel ? m_errorPanelHeight : windowSize.y;
+        float errorHeight = m_errorPanelHeight;
         ImGui::BeginChild("ErrorPanel", ImVec2(windowSize.x, errorHeight), true);
         renderErrorPanel();
         ImGui::EndChild();
@@ -279,6 +391,13 @@ void ShaderEditor::renderErrorPanel() {
 
 void ShaderEditor::renderPreviewPanel() {
     ImGui::Text("Shader Preview");
+    
+    // Show current resolution and aspect ratio
+    int width, height;
+    getResolutionFromPreset(m_resolutionPreset, width, height);
+    ImGui::SameLine();
+    ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "(%dx%d)", width, height);
+    
     ImGui::Separator();
     
     if (!m_selectedShader.empty()) {
@@ -288,41 +407,60 @@ void ShaderEditor::renderPreviewPanel() {
         if (shader && shader->isValid) {
             ImGui::TextColored(ImVec4(0, 1, 0, 1), "✓ Shader compiled successfully");
             
-            // Update uniforms
+            // Update uniforms with current resolution settings
             m_shaderManager->useShader(m_selectedShader);
             m_shaderManager->setUniform("u_time", m_time);
             m_shaderManager->setUniform("u_resolution", m_resolution, 2);
             
-            // TODO: Render preview quad to texture and display as image
-            // For now, just show a placeholder
-            ImVec2 previewSize = ImGui::GetContentRegionAvail();
-            if (previewSize.y > 50) {
-                previewSize.y -= 50; // Leave space for text above
-                ImGui::Dummy(previewSize);
-                
-                // Draw a simple placeholder
-                ImDrawList* draw_list = ImGui::GetWindowDrawList();
-                ImVec2 screen_pos = ImGui::GetCursorScreenPos();
-                ImVec2 canvas_pos = ImVec2(screen_pos.x, screen_pos.y - previewSize.y);
-                ImVec2 canvas_size = previewSize;
-                
-                // Background
-                draw_list->AddRectFilled(canvas_pos, 
-                                       ImVec2(canvas_pos.x + canvas_size.x, canvas_pos.y + canvas_size.y), 
-                                       IM_COL32(50, 50, 50, 255));
-                
-                // Animated color based on time
-                float r = 0.5f + 0.5f * sinf(m_time);
-                float g = 0.5f + 0.5f * sinf(m_time + 2.0f);
-                float b = 0.5f + 0.5f * sinf(m_time + 4.0f);
-                
-                draw_list->AddRectFilled(ImVec2(canvas_pos.x + 20, canvas_pos.y + 20),
-                                       ImVec2(canvas_pos.x + canvas_size.x - 20, canvas_pos.y + canvas_size.y - 20),
-                                       IM_COL32((int)(r * 255), (int)(g * 255), (int)(b * 255), 255));
-                
-                draw_list->AddText(ImVec2(canvas_pos.x + canvas_size.x/2 - 50, canvas_pos.y + canvas_size.y/2), 
-                                 IM_COL32(255, 255, 255, 255), "Preview");
-            }
+            // Calculate preview size based on aspect ratio settings
+            ImVec2 availableSize = ImGui::GetContentRegionAvail();
+            availableSize.y -= 60; // Leave space for text above
+            
+            ImVec2 previewSize = calculatePreviewSize(availableSize);
+            
+            // Center the preview if it's smaller than available space
+            ImVec2 offset = ImVec2((availableSize.x - previewSize.x) * 0.5f, (availableSize.y - previewSize.y) * 0.5f);
+            if (offset.x > 0) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset.x);
+            if (offset.y > 0) ImGui::SetCursorPosY(ImGui::GetCursorPosY() + offset.y);
+            
+            // Draw preview
+            ImGui::Dummy(previewSize);
+            
+            // Draw a placeholder with proper aspect ratio
+            ImDrawList* draw_list = ImGui::GetWindowDrawList();
+            ImVec2 screen_pos = ImGui::GetCursorScreenPos();
+            ImVec2 canvas_pos = ImVec2(screen_pos.x - offset.x, screen_pos.y - previewSize.y - offset.y);
+            ImVec2 canvas_size = previewSize;
+            
+            // Background (dark gray)
+            draw_list->AddRectFilled(canvas_pos, 
+                                   ImVec2(canvas_pos.x + canvas_size.x, canvas_pos.y + canvas_size.y), 
+                                   IM_COL32(30, 30, 30, 255));
+            
+            // Preview border
+            draw_list->AddRect(canvas_pos, 
+                             ImVec2(canvas_pos.x + canvas_size.x, canvas_pos.y + canvas_size.y), 
+                             IM_COL32(100, 100, 100, 255));
+            
+            // Animated content
+            float r = 0.5f + 0.5f * sinf(m_time);
+            float g = 0.5f + 0.5f * sinf(m_time + 2.0f);
+            float b = 0.5f + 0.5f * sinf(m_time + 4.0f);
+            
+            float margin = 10.0f;
+            draw_list->AddRectFilled(ImVec2(canvas_pos.x + margin, canvas_pos.y + margin),
+                                   ImVec2(canvas_pos.x + canvas_size.x - margin, canvas_pos.y + canvas_size.y - margin),
+                                   IM_COL32((int)(r * 255), (int)(g * 255), (int)(b * 255), 255));
+            
+            // Resolution text
+            char resText[64];
+            snprintf(resText, sizeof(resText), "%dx%d", width, height);
+            draw_list->AddText(ImVec2(canvas_pos.x + 10, canvas_pos.y + 10), 
+                             IM_COL32(255, 255, 255, 200), resText);
+                             
+            // Preview label
+            draw_list->AddText(ImVec2(canvas_pos.x + canvas_size.x/2 - 30, canvas_pos.y + canvas_size.y/2 - 10), 
+                             IM_COL32(255, 255, 255, 255), "Preview");
         } else if (shader) {
             ImGui::TextColored(ImVec4(1, 0, 0, 1), "✗ Compilation failed");
         }

@@ -7,6 +7,9 @@
 // Forward declare OpenGL types
 typedef unsigned int GLuint;
 
+// Forward declare ImGui types
+struct ImVec2;
+
 class ShaderManager;
 class FileWatcher;
 
@@ -33,12 +36,36 @@ private:
     std::shared_ptr<FileWatcher> m_fileWatcher;
     
     // GUI state
-    bool m_showDemo;
     bool m_showLeftPanel;
-    bool m_showPreviewPanel;
     bool m_showErrorPanel;
     float m_leftPanelWidth;
     float m_errorPanelHeight;
+    
+    // Render settings
+    enum class AspectMode {
+        Free,
+        Fixed_16_9,
+        Fixed_4_3,
+        Fixed_1_1,
+        Fixed_21_9
+    };
+    
+    enum class ResolutionPreset {
+        Custom,
+        HD_720p,      // 1280x720
+        FHD_1080p,    // 1920x1080
+        QHD_1440p,    // 2560x1440
+        UHD_4K,       // 3840x2160
+        Mobile_720p,  // 720x1280 (portrait)
+        Mobile_1080p, // 1080x1920 (portrait)
+        Square_512,   // 512x512
+        Square_1024   // 1024x1024
+    };
+    
+    AspectMode m_aspectMode;
+    ResolutionPreset m_resolutionPreset;
+    int m_customWidth;
+    int m_customHeight;
     
     // Editor state
     std::string m_selectedShader;
@@ -58,6 +85,7 @@ private:
     
     // Private methods
     void renderMenuBar();
+    void renderRenderMenu();
     void renderMainLayout();
     void renderLeftPanel();
     void renderPassList();
@@ -66,6 +94,10 @@ private:
     void renderErrorPanel();
     void setupPreviewQuad();
     void cleanupPreview();
+    
+    // Helper methods
+    void getResolutionFromPreset(ResolutionPreset preset, int& width, int& height);
+    ImVec2 calculatePreviewSize(ImVec2 availableSize);
     void onShaderCompiled(const std::string& name, bool success, const std::string& error);
     void onFileChanged(const std::string& filePath);
     void loadShaderFromFile(const std::string& shaderName);
