@@ -34,6 +34,11 @@ set(SOURCES
     src/ShaderManager.cpp
     src/FileWatcher.cpp
     src/ShaderEditor.cpp
+    src/PreviewPanel.cpp
+    src/MenuSystem.cpp
+    src/LeftPanel.cpp
+    src/FileManager.cpp
+    src/ErrorPanel.cpp
 )
 
 # Create executable
