@@ -63,32 +63,25 @@ void PreviewPanel::renderPreviewPanel(const std::string& selectedShader, float t
             m_resolution[1] = previewSize.y;
             m_shaderManager->setUniform("u_resolution", m_resolution, 2);
             
-            // Center the preview if it's smaller than available space
-            ImVec2 offset = ImVec2((availableSize.x - previewSize.x) * 0.5f, (availableSize.y - previewSize.y) * 0.5f);
-            ImVec2 drawOffset = ImVec2(0.0f, 0.0f); // Offset to use for drawing coordinates
+            // Calculate centering offset
+            ImVec2 offset = ImVec2(
+                std::max(0.0f, (availableSize.x - previewSize.x) * 0.5f),
+                std::max(0.0f, (availableSize.y - previewSize.y) * 0.5f)
+            );
             
-            if (offset.x > 0) {
-                float newPosX = ImGui::GetCursorPosX() + offset.x;
-                if (newPosX >= 0) {
-                    ImGui::SetCursorPosX(newPosX);
-                    drawOffset.x = offset.x;
-                }
-            }
-            if (offset.y > 0) {
-                float newPosY = ImGui::GetCursorPosY() + offset.y;
-                if (newPosY >= 0) {
-                    ImGui::SetCursorPosY(newPosY);
-                    drawOffset.y = offset.y;
-                }
-            }
+            // Center the preview by moving cursor position
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset.x);
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + offset.y);
             
-            // Draw preview
+            // Record the position where we'll draw
+            ImVec2 draw_start_pos = ImGui::GetCursorScreenPos();
+            
+            // Draw preview (this moves the cursor)
             ImGui::Dummy(previewSize);
             
             // Draw a placeholder with proper aspect ratio
             ImDrawList* draw_list = ImGui::GetWindowDrawList();
-            ImVec2 screen_pos = ImGui::GetCursorScreenPos();
-            ImVec2 canvas_pos = ImVec2(screen_pos.x - drawOffset.x, screen_pos.y - previewSize.y - drawOffset.y);
+            ImVec2 canvas_pos = draw_start_pos;
             ImVec2 canvas_size = previewSize;
             
             // Background (dark gray)
