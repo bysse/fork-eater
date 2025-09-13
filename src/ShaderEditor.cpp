@@ -21,7 +21,7 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     , m_fileWatcher(fileWatcher)
     , m_leftPanelWidth(300.0f)
     , m_errorPanelHeight(200.0f)
-    , m_timelineHeight(60.0f)  // Match Timeline::TIMELINE_HEIGHT
+    , m_timelineHeight(65.0f)  // Match Timeline::TIMELINE_HEIGHT
     , m_exitRequested(false) {
     
     // Create component classes

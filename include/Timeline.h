@@ -44,7 +44,7 @@ private:
     bool m_wasDragging;
     
     // UI constants
-    static constexpr float TIMELINE_HEIGHT = 60.0f;  // Reduced height
+    static constexpr float TIMELINE_HEIGHT = 65.0f;  // Increased by 5px
     static constexpr float BUTTON_SIZE = 22.0f;      // Slightly smaller buttons
     static constexpr float MIN_SPEED = 0.1f;
     static constexpr float MAX_SPEED = 4.0f;
