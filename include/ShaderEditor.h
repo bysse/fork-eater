@@ -34,10 +34,11 @@ private:
     
     // GUI state
     bool m_showDemo;
-    bool m_showShaderList;
-    bool m_showShaderEditor;
-    bool m_showCompileLog;
-    bool m_showPreview;
+    bool m_showLeftPanel;
+    bool m_showPreviewPanel;
+    bool m_showErrorPanel;
+    float m_leftPanelWidth;
+    float m_errorPanelHeight;
     
     // Editor state
     std::string m_selectedShader;
@@ -57,10 +58,12 @@ private:
     
     // Private methods
     void renderMenuBar();
-    void renderShaderList();
-    void renderShaderEditor();
-    void renderCompileLog();
-    void renderPreview();
+    void renderMainLayout();
+    void renderLeftPanel();
+    void renderPassList();
+    void renderFileList();
+    void renderPreviewPanel();
+    void renderErrorPanel();
     void setupPreviewQuad();
     void cleanupPreview();
     void onShaderCompiled(const std::string& name, bool success, const std::string& error);

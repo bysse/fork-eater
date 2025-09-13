@@ -8,6 +8,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
+#include <cmath>
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
@@ -17,10 +18,11 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     : m_shaderManager(shaderManager)
     , m_fileWatcher(fileWatcher)
     , m_showDemo(false)
-    , m_showShaderList(true)
-    , m_showShaderEditor(true)
-    , m_showCompileLog(true)
-    , m_showPreview(true)
+    , m_showLeftPanel(true)
+    , m_showPreviewPanel(true)
+    , m_showErrorPanel(true)
+    , m_leftPanelWidth(300.0f)
+    , m_errorPanelHeight(200.0f)
     , m_autoReload(true)
     , m_exitRequested(false)
     , m_time(0.0f)
@@ -61,25 +63,21 @@ void ShaderEditor::render() {
         ImGui::EndMainMenuBar();
     }
     
-    // Render windows as separate windows (no docking for now)
+    // Get the main viewport and create a fullscreen window
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->WorkPos);
+    ImGui::SetNextWindowSize(viewport->WorkSize);
+    
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings;
+    
+    if (ImGui::Begin("MainLayout", nullptr, window_flags)) {
+        renderMainLayout();
+    }
+    ImGui::End();
+    
+    // Show demo if requested
     if (m_showDemo) {
         ImGui::ShowDemoWindow(&m_showDemo);
-    }
-    
-    if (m_showShaderList) {
-        renderShaderList();
-    }
-    
-    if (m_showShaderEditor) {
-        renderShaderEditor();
-    }
-    
-    if (m_showCompileLog) {
-        renderCompileLog();
-    }
-    
-    if (m_showPreview) {
-        renderPreview();
     }
     
     // Update time for shader uniforms
@@ -109,10 +107,9 @@ void ShaderEditor::renderMenuBar() {
     }
     
     if (ImGui::BeginMenu("View")) {
-        ImGui::MenuItem("Shader List", nullptr, &m_showShaderList);
-        ImGui::MenuItem("Shader Editor", nullptr, &m_showShaderEditor);
-        ImGui::MenuItem("Compile Log", nullptr, &m_showCompileLog);
-        ImGui::MenuItem("Preview", nullptr, &m_showPreview);
+        ImGui::MenuItem("Left Panel", nullptr, &m_showLeftPanel);
+        ImGui::MenuItem("Preview Panel", nullptr, &m_showPreviewPanel);
+        ImGui::MenuItem("Error Panel", nullptr, &m_showErrorPanel);
         ImGui::Separator();
         ImGui::MenuItem("ImGui Demo", nullptr, &m_showDemo);
         ImGui::EndMenu();
@@ -124,14 +121,101 @@ void ShaderEditor::renderMenuBar() {
     }
 }
 
-void ShaderEditor::renderShaderList() {
-    ImGui::Begin("Shader List", &m_showShaderList);
+void ShaderEditor::renderMainLayout() {
+    ImVec2 windowSize = ImGui::GetContentRegionAvail();
     
-    if (ImGui::Button("New Shader")) {
+    // Create horizontal splitter between left panel and right side
+    if (m_showLeftPanel) {
+        // Left panel
+        ImGui::BeginChild("LeftPanel", ImVec2(m_leftPanelWidth, windowSize.y), true);
+        renderLeftPanel();
+        ImGui::EndChild();
+        
+        ImGui::SameLine();
+        
+        // Vertical splitter
+        ImGui::Button("##vsplitter", ImVec2(4, windowSize.y));
+        if (ImGui::IsItemActive()) {
+            m_leftPanelWidth += ImGui::GetIO().MouseDelta.x;
+            if (m_leftPanelWidth < 150.0f) m_leftPanelWidth = 150.0f;
+            if (m_leftPanelWidth > windowSize.x - 150.0f) m_leftPanelWidth = windowSize.x - 150.0f;
+        }
+        ImGui::SameLine();
+        
+        windowSize.x -= m_leftPanelWidth + 4;
+    }
+    
+    // Right side - preview and error panels
+    ImGui::BeginChild("RightSide", windowSize, false);
+    
+    if (m_showPreviewPanel) {
+        float previewHeight = m_showErrorPanel ? windowSize.y - m_errorPanelHeight - 4 : windowSize.y;
+        ImGui::BeginChild("PreviewPanel", ImVec2(windowSize.x, previewHeight), true);
+        renderPreviewPanel();
+        ImGui::EndChild();
+        
+        if (m_showErrorPanel) {
+            // Horizontal splitter
+            ImGui::Button("##hsplitter", ImVec2(windowSize.x, 4));
+            if (ImGui::IsItemActive()) {
+                m_errorPanelHeight -= ImGui::GetIO().MouseDelta.y;
+                if (m_errorPanelHeight < 100.0f) m_errorPanelHeight = 100.0f;
+                if (m_errorPanelHeight > windowSize.y - 100.0f) m_errorPanelHeight = windowSize.y - 100.0f;
+            }
+        }
+    }
+    
+    if (m_showErrorPanel) {
+        float errorHeight = m_showPreviewPanel ? m_errorPanelHeight : windowSize.y;
+        ImGui::BeginChild("ErrorPanel", ImVec2(windowSize.x, errorHeight), true);
+        renderErrorPanel();
+        ImGui::EndChild();
+    }
+    
+    ImGui::EndChild();
+}
+
+void ShaderEditor::renderLeftPanel() {
+    ImVec2 leftSize = ImGui::GetContentRegionAvail();
+    
+    // Pass list (top half)
+    ImGui::BeginChild("PassList", ImVec2(leftSize.x, leftSize.y * 0.4f), true);
+    renderPassList();
+    ImGui::EndChild();
+    
+    ImGui::Separator();
+    
+    // File list (bottom half)
+    ImGui::BeginChild("FileList", ImVec2(leftSize.x, leftSize.y * 0.6f - 10), true);
+    renderFileList();
+    ImGui::EndChild();
+}
+
+void ShaderEditor::renderPassList() {
+    ImGui::Text("Shader Passes");
+    ImGui::Separator();
+    
+    // For now, just show a single pass
+    bool selected = true;
+    if (ImGui::Selectable("Main Pass", selected)) {
+        // Pass selection logic here
+    }
+    
+    ImGui::Spacing();
+    if (ImGui::Button("Add Pass", ImVec2(-1, 0))) {
+        // Add new pass logic
+    }
+}
+
+void ShaderEditor::renderFileList() {
+    ImGui::Text("Shader Files");
+    ImGui::Separator();
+    
+    if (ImGui::Button("New Shader", ImVec2(-1, 0))) {
         createNewShader();
     }
     
-    ImGui::Separator();
+    ImGui::Spacing();
     
     auto shaderNames = m_shaderManager->getShaderNames();
     for (const auto& name : shaderNames) {
@@ -145,103 +229,107 @@ void ShaderEditor::renderShaderList() {
             // Double-click to reload
             m_shaderManager->reloadShader(name);
         }
+        
+        // Show file path as tooltip
+        if (ImGui::IsItemHovered()) {
+            auto shader = m_shaderManager->getShader(name);
+            if (shader) {
+                ImGui::BeginTooltip();
+                ImGui::Text("Vertex: %s", shader->vertexPath.c_str());
+                ImGui::Text("Fragment: %s", shader->fragmentPath.c_str());
+                ImGui::EndTooltip();
+            }
+        }
     }
-    
-    ImGui::End();
 }
 
-void ShaderEditor::renderShaderEditor() {
-    ImGui::Begin("Shader Editor", &m_showShaderEditor);
+// Shader editing is now done externally - this method is no longer needed
+
+void ShaderEditor::renderErrorPanel() {
+    ImGui::Text("Compilation Log");
     
-    if (!m_selectedShader.empty()) {
-        ImGui::Text("Editing: %s", m_selectedShader.c_str());
+    if (ImGui::Button("Clear")) {
+        m_compileLog.clear();
+    }
+    
+    ImGui::SameLine();
+    ImGui::Checkbox("Auto-scroll", &m_autoReload); // Reuse this flag for auto-scroll
+    
+    ImGui::Separator();
+    
+    // Show compilation log in a scrollable text area
+    ImVec2 textSize = ImGui::GetContentRegionAvail();
+    textSize.y -= 30; // Leave space for buttons above
+    
+    ImGui::BeginChild("LogArea", textSize, false, ImGuiWindowFlags_HorizontalScrollbar);
+    
+    if (!m_compileLog.empty()) {
+        ImGui::TextUnformatted(m_compileLog.c_str());
         
-        if (ImGui::Button("Compile")) {
-            saveShaderToFile(m_selectedShader);
-            m_shaderManager->reloadShader(m_selectedShader);
-        }
-        
-        ImGui::SameLine();
-        if (ImGui::Button("Save")) {
-            saveShaderToFile(m_selectedShader);
-        }
-        
-        ImGui::Separator();
-        
-        // Vertex shader editor
-        ImGui::Text("Vertex Shader:");
-        char* vertexBuffer = const_cast<char*>(m_vertexShaderText.c_str());
-        if (ImGui::InputTextMultiline("##vertex", vertexBuffer, m_vertexShaderText.capacity() + 1, 
-                                      ImVec2(-1, 200), ImGuiInputTextFlags_CallbackResize,
-                                      [](ImGuiInputTextCallbackData* data) {
-                                          if (data->EventFlag == ImGuiInputTextFlags_CallbackResize) {
-                                              std::string* str = (std::string*)data->UserData;
-                                              str->resize(data->BufTextLen);
-                                              data->Buf = const_cast<char*>(str->c_str());
-                                          }
-                                          return 0;
-                                      }, &m_vertexShaderText)) {
-            m_vertexShaderText = vertexBuffer;
-        }
-        
-        ImGui::Separator();
-        
-        // Fragment shader editor
-        ImGui::Text("Fragment Shader:");
-        char* fragmentBuffer = const_cast<char*>(m_fragmentShaderText.c_str());
-        if (ImGui::InputTextMultiline("##fragment", fragmentBuffer, m_fragmentShaderText.capacity() + 1, 
-                                      ImVec2(-1, 200), ImGuiInputTextFlags_CallbackResize,
-                                      [](ImGuiInputTextCallbackData* data) {
-                                          if (data->EventFlag == ImGuiInputTextFlags_CallbackResize) {
-                                              std::string* str = (std::string*)data->UserData;
-                                              str->resize(data->BufTextLen);
-                                              data->Buf = const_cast<char*>(str->c_str());
-                                          }
-                                          return 0;
-                                      }, &m_fragmentShaderText)) {
-            m_fragmentShaderText = fragmentBuffer;
+        // Auto-scroll to bottom if enabled
+        if (m_autoReload && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
+            ImGui::SetScrollHereY(1.0f);
         }
     } else {
-        ImGui::Text("No shader selected");
-        if (ImGui::Button("Create New Shader")) {
-            createNewShader();
-        }
+        ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "No compilation messages");
     }
     
-    ImGui::End();
+    ImGui::EndChild();
 }
 
-void ShaderEditor::renderCompileLog() {
-    ImGui::Begin("Compile Log", &m_showCompileLog);
-    
-    ImGui::TextWrapped("%s", m_compileLog.c_str());
-    
-    if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
-        ImGui::SetScrollHereY(1.0f);
-    }
-    
-    ImGui::End();
-}
-
-void ShaderEditor::renderPreview() {
-    ImGui::Begin("Preview", &m_showPreview);
+void ShaderEditor::renderPreviewPanel() {
+    ImGui::Text("Shader Preview");
+    ImGui::Separator();
     
     if (!m_selectedShader.empty()) {
+        ImGui::Text("Current: %s", m_selectedShader.c_str());
+        
         auto shader = m_shaderManager->getShader(m_selectedShader);
         if (shader && shader->isValid) {
+            ImGui::TextColored(ImVec4(0, 1, 0, 1), "✓ Shader compiled successfully");
+            
             // Update uniforms
             m_shaderManager->useShader(m_selectedShader);
             m_shaderManager->setUniform("u_time", m_time);
             m_shaderManager->setUniform("u_resolution", m_resolution, 2);
             
-            // Render preview quad
-            glBindVertexArray(m_previewVAO);
-            glDrawArrays(GL_TRIANGLES, 0, 6);
-            glBindVertexArray(0);
+            // TODO: Render preview quad to texture and display as image
+            // For now, just show a placeholder
+            ImVec2 previewSize = ImGui::GetContentRegionAvail();
+            if (previewSize.y > 50) {
+                previewSize.y -= 50; // Leave space for text above
+                ImGui::Dummy(previewSize);
+                
+                // Draw a simple placeholder
+                ImDrawList* draw_list = ImGui::GetWindowDrawList();
+                ImVec2 screen_pos = ImGui::GetCursorScreenPos();
+                ImVec2 canvas_pos = ImVec2(screen_pos.x, screen_pos.y - previewSize.y);
+                ImVec2 canvas_size = previewSize;
+                
+                // Background
+                draw_list->AddRectFilled(canvas_pos, 
+                                       ImVec2(canvas_pos.x + canvas_size.x, canvas_pos.y + canvas_size.y), 
+                                       IM_COL32(50, 50, 50, 255));
+                
+                // Animated color based on time
+                float r = 0.5f + 0.5f * sinf(m_time);
+                float g = 0.5f + 0.5f * sinf(m_time + 2.0f);
+                float b = 0.5f + 0.5f * sinf(m_time + 4.0f);
+                
+                draw_list->AddRectFilled(ImVec2(canvas_pos.x + 20, canvas_pos.y + 20),
+                                       ImVec2(canvas_pos.x + canvas_size.x - 20, canvas_pos.y + canvas_size.y - 20),
+                                       IM_COL32((int)(r * 255), (int)(g * 255), (int)(b * 255), 255));
+                
+                draw_list->AddText(ImVec2(canvas_pos.x + canvas_size.x/2 - 50, canvas_pos.y + canvas_size.y/2), 
+                                 IM_COL32(255, 255, 255, 255), "Preview");
+            }
+        } else if (shader) {
+            ImGui::TextColored(ImVec4(1, 0, 0, 1), "✗ Compilation failed");
         }
+    } else {
+        ImGui::Text("No shader selected");
+        ImGui::Text("Select a shader from the file list to preview");
     }
-    
-    ImGui::End();
 }
 
 void ShaderEditor::setupPreviewQuad() {
@@ -298,7 +386,17 @@ void ShaderEditor::cleanupPreview() {
 }
 
 void ShaderEditor::onShaderCompiled(const std::string& name, bool success, const std::string& error) {
-    m_compileLog += "[" + name + "] " + (success ? "SUCCESS" : "ERROR") + ": " + error + "\n";
+    std::string logMessage = "[" + name + "] " + (success ? "SUCCESS" : "ERROR") + ": " + error + "\n";
+    
+    // Add to GUI log
+    m_compileLog += logMessage;
+    
+    // Output to terminal as well
+    if (success) {
+        std::cout << "\033[32m" << logMessage << "\033[0m"; // Green for success
+    } else {
+        std::cerr << "\033[31m" << logMessage << "\033[0m"; // Red for errors
+    }
 }
 
 void ShaderEditor::onFileChanged(const std::string& filePath) {

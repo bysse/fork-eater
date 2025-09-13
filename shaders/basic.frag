@@ -9,8 +9,8 @@ void main()
 {
     vec2 uv = TexCoord;
     
-    // Create animated rainbow colors
-    vec3 col = 0.5 + 0.5 * cos(u_time + uv.xyx + vec3(0, 2, 4));
+    // Create animated rainbow colors (modified for testing)
+    vec3 col = 0.3 + 0.7 * cos(u_time * 2.0 + uv.xyx + vec3(0, 2, 4));
     
     // Add some movement
     float wave = sin(uv.x * 10.0 + u_time) * sin(uv.y * 10.0 + u_time * 0.5);
