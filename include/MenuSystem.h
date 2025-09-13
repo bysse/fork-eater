@@ -27,6 +27,7 @@ public:
     std::function<void()> onNewShader;
     std::function<void()> onSave;
     std::function<void()> onExit;
+    std::function<void()> onShowHelp;
     
 private:
     // GUI state

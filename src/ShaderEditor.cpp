@@ -7,6 +7,7 @@
 #include "FileManager.h"
 #include "ErrorPanel.h"
 #include "Timeline.h"
+#include "ShortcutManager.h"
 
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -22,7 +23,8 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     , m_leftPanelWidth(300.0f)
     , m_errorPanelHeight(200.0f)
     , m_timelineHeight(65.0f)  // Match Timeline::TIMELINE_HEIGHT
-    , m_exitRequested(false) {
+    , m_exitRequested(false)
+    , m_showShortcutsHelp(false) {
     
     // Create component classes
     m_previewPanel = std::make_unique<PreviewPanel>(m_shaderManager);
@@ -31,6 +33,7 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     m_fileManager = std::make_unique<FileManager>(m_shaderManager, m_fileWatcher);
     m_errorPanel = std::make_unique<ErrorPanel>();
     m_timeline = std::make_unique<Timeline>();
+    m_shortcutManager = std::make_unique<ShortcutManager>();
 }
 
 ShaderEditor::~ShaderEditor() {
@@ -53,6 +56,9 @@ bool ShaderEditor::initialize() {
     // Setup callbacks between components
     setupCallbacks();
     
+    // Setup keyboard shortcuts
+    setupShortcuts();
+    
     // Load default shader if it exists
     m_shaderManager->loadShader("basic", "shaders/basic.vert", "shaders/basic.frag");
     
@@ -74,6 +80,10 @@ void ShaderEditor::setupCallbacks() {
     m_menuSystem->onExit = [this]() {
         std::cout << "File->Exit selected" << std::endl;
         std::exit(0);  // Immediate exit to avoid cleanup hanging
+    };
+    
+    m_menuSystem->onShowHelp = [this]() {
+        m_showShortcutsHelp = true;
     };
     
     // Left panel callbacks
@@ -120,6 +130,9 @@ void ShaderEditor::render() {
     
     // Update timeline
     m_timeline->update(ImGui::GetIO().DeltaTime);
+    
+    // Show shortcuts help if requested
+    showShortcutsHelp();
 }
 
 void ShaderEditor::handleResize(int width, int height) {
@@ -218,4 +231,98 @@ void ShaderEditor::onShaderCompiled(const std::string& name, bool success, const
 
 bool ShaderEditor::shouldExit() const {
     return m_exitRequested;
+}
+
+bool ShaderEditor::handleKeyPress(int key, int scancode, int action, int mods) {
+    // Handle shortcuts first
+    return m_shortcutManager->handleKeyPress(nullptr, key, scancode, action, mods);
+}
+
+void ShaderEditor::setupShortcuts() {
+    // Timeline shortcuts
+    m_shortcutManager->registerShortcut(GLFW_KEY_SPACE, KeyModifier::None, 
+        [this]() { m_timeline->togglePlayPause(); },
+        "Space", "Toggle Play/Pause", "Timeline");
+    
+    // Time navigation - normal steps
+    m_shortcutManager->registerShortcut(GLFW_KEY_LEFT, KeyModifier::None, 
+        [this]() { m_timeline->jumpTime(-1.0f); },
+        "Left Arrow", "Jump back 1 second", "Timeline");
+    
+    m_shortcutManager->registerShortcut(GLFW_KEY_RIGHT, KeyModifier::None, 
+        [this]() { m_timeline->jumpTime(1.0f); },
+        "Right Arrow", "Jump forward 1 second", "Timeline");
+    
+    // Time navigation - fine steps (Ctrl + Arrow)
+    m_shortcutManager->registerShortcut(GLFW_KEY_LEFT, KeyModifier::Ctrl, 
+        [this]() { m_timeline->jumpTime(-0.1f); },
+        "Ctrl + Left Arrow", "Jump back 0.1 second", "Timeline");
+    
+    m_shortcutManager->registerShortcut(GLFW_KEY_RIGHT, KeyModifier::Ctrl, 
+        [this]() { m_timeline->jumpTime(0.1f); },
+        "Ctrl + Right Arrow", "Jump forward 0.1 second", "Timeline");
+    
+    // Time navigation - big steps (Shift + Arrow)
+    m_shortcutManager->registerShortcut(GLFW_KEY_LEFT, KeyModifier::Shift, 
+        [this]() { m_timeline->jumpTime(-10.0f); },
+        "Shift + Left Arrow", "Jump back 10 seconds", "Timeline");
+    
+    m_shortcutManager->registerShortcut(GLFW_KEY_RIGHT, KeyModifier::Shift, 
+        [this]() { m_timeline->jumpTime(10.0f); },
+        "Shift + Right Arrow", "Jump forward 10 seconds", "Timeline");
+    
+    // Home/End navigation
+    m_shortcutManager->registerShortcut(GLFW_KEY_HOME, KeyModifier::None, 
+        [this]() { m_timeline->jumpToStart(); },
+        "Home", "Jump to start", "Timeline");
+    
+    m_shortcutManager->registerShortcut(GLFW_KEY_END, KeyModifier::None, 
+        [this]() { m_timeline->jumpToEnd(); },
+        "End", "Jump to end", "Timeline");
+    
+    // Speed control (Shift + Up/Down)
+    m_shortcutManager->registerShortcut(GLFW_KEY_UP, KeyModifier::Shift, 
+        [this]() { m_timeline->adjustSpeed(0.1f); },
+        "Shift + Up Arrow", "Increase playback speed", "Timeline");
+    
+    m_shortcutManager->registerShortcut(GLFW_KEY_DOWN, KeyModifier::Shift, 
+        [this]() { m_timeline->adjustSpeed(-0.1f); },
+        "Shift + Down Arrow", "Decrease playback speed", "Timeline");
+    
+    // Help shortcut
+    m_shortcutManager->registerShortcut(GLFW_KEY_F1, KeyModifier::None, 
+        [this]() { m_showShortcutsHelp = true; },
+        "F1", "Show keyboard shortcuts", "Help");
+}
+
+void ShaderEditor::showShortcutsHelp() {
+    if (!m_showShortcutsHelp) return;
+    
+    ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Keyboard Shortcuts", &m_showShortcutsHelp)) {
+        auto shortcuts = m_shortcutManager->getAllShortcuts();
+        
+        std::string currentCategory;
+        for (const auto& shortcut : shortcuts) {
+            if (shortcut.category != currentCategory) {
+                if (!currentCategory.empty()) {
+                    ImGui::Separator();
+                }
+                currentCategory = shortcut.category;
+                ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f), "%s", currentCategory.c_str());
+                ImGui::Separator();
+            }
+            
+            ImGui::Columns(2, nullptr, false);
+            ImGui::SetColumnWidth(0, 200);
+            
+            ImGui::Text("%s", shortcut.keys.c_str());
+            ImGui::NextColumn();
+            ImGui::Text("%s", shortcut.description.c_str());
+            ImGui::NextColumn();
+            
+            ImGui::Columns(1);
+        }
+    }
+    ImGui::End();
 }

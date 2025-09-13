@@ -40,6 +40,7 @@ set(SOURCES
     src/FileManager.cpp
     src/ErrorPanel.cpp
     src/Timeline.cpp
+    src/ShortcutManager.cpp
 )
 
 # Create executable

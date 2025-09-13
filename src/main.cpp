@@ -181,6 +181,12 @@ public:
     }
     
     void handleKey(int key, int scancode, int action, int mods) {
+        // Let ShaderEditor handle shortcuts first
+        if (m_shaderEditor && m_shaderEditor->handleKeyPress(key, scancode, action, mods)) {
+            return; // Key was handled by shortcuts
+        }
+        
+        // Handle application-level keys
         if (action == GLFW_PRESS) {
             if (key == GLFW_KEY_ESCAPE) {
                 std::cout << "ESC pressed - exiting" << std::endl;

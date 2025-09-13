@@ -263,3 +263,26 @@ void Timeline::formatTime(float timeSeconds, char* buffer, size_t bufferSize) {
     
     snprintf(buffer, bufferSize, "%d:%02d.%02d", minutes, seconds, centiseconds);
 }
+
+// Keyboard shortcut implementations
+void Timeline::togglePlayPause() {
+    handlePlayPause();
+}
+
+void Timeline::jumpTime(float seconds) {
+    float newTime = m_currentTime + seconds;
+    setCurrentTime(newTime);
+}
+
+void Timeline::jumpToStart() {
+    setCurrentTime(0.0f);
+}
+
+void Timeline::jumpToEnd() {
+    setCurrentTime(m_duration);
+}
+
+void Timeline::adjustSpeed(float delta) {
+    m_playbackSpeed += delta;
+    m_playbackSpeed = std::clamp(m_playbackSpeed, MIN_SPEED, MAX_SPEED);
+}

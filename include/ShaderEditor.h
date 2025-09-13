@@ -15,6 +15,7 @@ class LeftPanel;
 class FileManager;
 class ErrorPanel;
 class Timeline;
+class ShortcutManager;
 
 class ShaderEditor {
 public:
@@ -31,8 +32,14 @@ public:
     // Handle window events
     void handleResize(int width, int height);
     
+    // Handle keyboard events
+    bool handleKeyPress(int key, int scancode, int action, int mods);
+    
     // Check if application should exit
     bool shouldExit() const;
+    
+    // Show shortcuts help window
+    void showShortcutsHelp();
 
 private:
     std::shared_ptr<ShaderManager> m_shaderManager;
@@ -45,6 +52,7 @@ private:
     std::unique_ptr<FileManager> m_fileManager;
     std::unique_ptr<ErrorPanel> m_errorPanel;
     std::unique_ptr<Timeline> m_timeline;
+    std::unique_ptr<ShortcutManager> m_shortcutManager;
     
     // Layout state
     float m_leftPanelWidth;
@@ -54,6 +62,7 @@ private:
     // Editor state
     std::string m_selectedShader;
     bool m_exitRequested;
+    bool m_showShortcutsHelp;
     
     // Private methods
     void renderMainLayout();
@@ -61,4 +70,5 @@ private:
     
     // Setup callbacks for component classes
     void setupCallbacks();
+    void setupShortcuts();
 };

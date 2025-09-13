@@ -46,6 +46,13 @@ void MenuSystem::renderMenuBar() {
         ImGui::MenuItem("Auto Reload", nullptr, &m_autoReload);
         ImGui::EndMenu();
     }
+    
+    if (ImGui::BeginMenu("Help")) {
+        if (ImGui::MenuItem("Keyboard Shortcuts", "F1")) {
+            if (onShowHelp) onShowHelp();
+        }
+        ImGui::EndMenu();
+    }
 }
 
 void MenuSystem::renderRenderMenu() {

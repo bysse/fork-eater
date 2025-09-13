@@ -30,6 +30,13 @@ public:
     // Reset timeline to start
     void reset();
     
+    // Keyboard shortcuts
+    void togglePlayPause();
+    void jumpTime(float seconds);
+    void jumpToStart();
+    void jumpToEnd();
+    void adjustSpeed(float delta);
+    
     // Callbacks for timeline events
     std::function<void(float)> onTimeChanged;
     std::function<void(bool)> onPlayStateChanged;
