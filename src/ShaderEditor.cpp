@@ -7,6 +7,7 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <fstream>
+#include <cstdlib>
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
@@ -101,7 +102,8 @@ void ShaderEditor::renderMenuBar() {
         }
         ImGui::Separator();
         if (ImGui::MenuItem("Exit", "Alt+F4")) {
-            m_exitRequested = true;
+            std::cout << "File->Exit selected" << std::endl;
+            std::exit(0);  // Immediate exit to avoid cleanup hanging
         }
         ImGui::EndMenu();
     }
