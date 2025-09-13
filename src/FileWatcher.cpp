@@ -111,6 +111,7 @@ void FileWatcher::watchThread() {
 }
 
 void FileWatcher::processEvents(char* buffer, ssize_t length) {
+    const size_t EVENT_SIZE = sizeof(struct inotify_event);
     ssize_t i = 0;
     
     while (i < length) {

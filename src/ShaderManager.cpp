@@ -1,5 +1,5 @@
 #include "ShaderManager.h"
-#include <GLFW/glfw3.h>
+#define GL_GLEXT_PROTOTYPES
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <fstream>
@@ -7,51 +7,8 @@
 #include <iostream>
 #include <vector>
 
-// Function pointers for OpenGL extensions
-PFNGLCREATESHADERPROC glCreateShader = nullptr;
-PFNGLSHADERSOURCEPROC glShaderSource = nullptr;
-PFNGLCOMPILESHADERPROC glCompileShader = nullptr;
-PFNGLGETSHADERIVPROC glGetShaderiv = nullptr;
-PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog = nullptr;
-PFNGLDELETESHADERPROC glDeleteShader = nullptr;
-PFNGLCREATEPROGRAMPROC glCreateProgram = nullptr;
-PFNGLATTACHSHADERPROC glAttachShader = nullptr;
-PFNGLLINKPROGRAMPROC glLinkProgram = nullptr;
-PFNGLGETPROGRAMIVPROC glGetProgramiv = nullptr;
-PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog = nullptr;
-PFNGLDELETEPROGRAMPROC glDeleteProgram = nullptr;
-PFNGLUSEPROGRAMPROC glUseProgram = nullptr;
-PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation = nullptr;
-PFNGLUNIFORM1FPROC glUniform1f = nullptr;
-PFNGLUNIFORM1IPROC glUniform1i = nullptr;
-PFNGLUNIFORM2FVPROC glUniform2fv = nullptr;
-PFNGLUNIFORM3FVPROC glUniform3fv = nullptr;
-PFNGLUNIFORM4FVPROC glUniform4fv = nullptr;
-
-void loadGLExtensions() {
-    glCreateShader = (PFNGLCREATESHADERPROC)glfwGetProcAddress("glCreateShader");
-    glShaderSource = (PFNGLSHADERSOURCEPROC)glfwGetProcAddress("glShaderSource");
-    glCompileShader = (PFNGLCOMPILESHADERPROC)glfwGetProcAddress("glCompileShader");
-    glGetShaderiv = (PFNGLGETSHADERIVPROC)glfwGetProcAddress("glGetShaderiv");
-    glGetShaderInfoLog = (PFNGLGETSHADERINFOLOGPROC)glfwGetProcAddress("glGetShaderInfoLog");
-    glDeleteShader = (PFNGLDELETESHADERPROC)glfwGetProcAddress("glDeleteShader");
-    glCreateProgram = (PFNGLCREATEPROGRAMPROC)glfwGetProcAddress("glCreateProgram");
-    glAttachShader = (PFNGLATTACHSHADERPROC)glfwGetProcAddress("glAttachShader");
-    glLinkProgram = (PFNGLLINKPROGRAMPROC)glfwGetProcAddress("glLinkProgram");
-    glGetProgramiv = (PFNGLGETPROGRAMIVPROC)glfwGetProcAddress("glGetProgramiv");
-    glGetProgramInfoLog = (PFNGLGETPROGRAMINFOLOGPROC)glfwGetProcAddress("glGetProgramInfoLog");
-    glDeleteProgram = (PFNGLDELETEPROGRAMPROC)glfwGetProcAddress("glDeleteProgram");
-    glUseProgram = (PFNGLUSEPROGRAMPROC)glfwGetProcAddress("glUseProgram");
-    glGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC)glfwGetProcAddress("glGetUniformLocation");
-    glUniform1f = (PFNGLUNIFORM1FPROC)glfwGetProcAddress("glUniform1f");
-    glUniform1i = (PFNGLUNIFORM1IPROC)glfwGetProcAddress("glUniform1i");
-    glUniform2fv = (PFNGLUNIFORM2FVPROC)glfwGetProcAddress("glUniform2fv");
-    glUniform3fv = (PFNGLUNIFORM3FVPROC)glfwGetProcAddress("glUniform3fv");
-    glUniform4fv = (PFNGLUNIFORM4FVPROC)glfwGetProcAddress("glUniform4fv");
-}
-
 ShaderManager::ShaderManager() {
-    loadGLExtensions();
+    // OpenGL functions are loaded by ImGui's loader
 }
 
 ShaderManager::~ShaderManager() {

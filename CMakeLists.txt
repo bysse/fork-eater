@@ -14,6 +14,7 @@ pkg_check_modules(GLFW REQUIRED glfw3)
 # Include directories
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/external)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/external/imgui)
 include_directories(${GLFW_INCLUDE_DIRS})
 
 # Dear ImGui source files
@@ -42,6 +43,7 @@ add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES})
 target_link_libraries(${PROJECT_NAME} 
     ${GLFW_LIBRARIES}
     ${OPENGL_LIBRARIES}
+    GL
     -ldl
     -lpthread
 )

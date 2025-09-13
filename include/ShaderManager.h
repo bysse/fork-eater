@@ -1,10 +1,14 @@
 #pragma once
 
-#include <GL/gl.h>
 #include <string>
 #include <unordered_map>
 #include <memory>
 #include <functional>
+#include <vector>
+
+// Forward declare OpenGL types
+typedef unsigned int GLuint;
+typedef unsigned int GLenum;
 
 class ShaderManager {
 public:

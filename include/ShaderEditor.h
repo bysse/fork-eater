@@ -1,9 +1,11 @@
 #pragma once
 
-#include <GL/gl.h>
 #include <memory>
 #include <string>
 #include <vector>
+
+// Forward declare OpenGL types
+typedef unsigned int GLuint;
 
 class ShaderManager;
 class FileWatcher;
@@ -22,6 +24,9 @@ public:
     
     // Handle window events
     void handleResize(int width, int height);
+    
+    // Check if application should exit
+    bool shouldExit() const;
 
 private:
     std::shared_ptr<ShaderManager> m_shaderManager;
@@ -40,6 +45,7 @@ private:
     std::string m_fragmentShaderText;
     std::string m_compileLog;
     bool m_autoReload;
+    bool m_exitRequested;
     
     // Preview state
     float m_time;

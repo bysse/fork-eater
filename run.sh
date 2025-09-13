@@ -13,5 +13,6 @@ if [ ! -f "build/fork-eater" ]; then
 fi
 
 echo "🎨 Launching Fork Eater..."
+echo "Tip: Press ESC or use File->Exit to exit gracefully"
 cd build
 ./fork-eater

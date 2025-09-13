@@ -1,8 +1,10 @@
 #include <GLFW/glfw3.h>
+#define GL_GLEXT_PROTOTYPES
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <iostream>
 #include <memory>
+#include <chrono>
 
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_glfw.h"
@@ -19,7 +21,7 @@ const char* WINDOW_TITLE = "Fork Eater - Shader Editor";
 
 class Application {
 public:
-    Application() : m_window(nullptr), m_running(false) {}
+    Application() : m_window(nullptr), m_running(false), m_testMode(false), m_testExitCode(0), m_testStartTime(), m_imguiInitialized(false) {}
     
     ~Application() {
         cleanup();
@@ -56,6 +58,10 @@ public:
         // Make OpenGL context current
         glfwMakeContextCurrent(m_window);
         
+        // Set up callbacks
+        glfwSetWindowUserPointer(m_window, this);
+        glfwSetKeyCallback(m_window, keyCallback);
+        
         // Enable vsync
         glfwSwapInterval(1);
         
@@ -64,7 +70,6 @@ public:
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         
         // Setup ImGui style
         ImGui::StyleColorsDark();
@@ -72,6 +77,7 @@ public:
         // Setup platform/renderer backends
         ImGui_ImplGlfw_InitForOpenGL(m_window, true);
         ImGui_ImplOpenGL3_Init("#version 330");
+        m_imguiInitialized = true;
         
         // Initialize components
         m_shaderManager = std::make_shared<ShaderManager>();
@@ -98,7 +104,21 @@ public:
     void run() {
         m_running = true;
         
+        if (m_testMode) {
+            m_testStartTime = std::chrono::steady_clock::now();
+        }
+        
         while (m_running && !glfwWindowShouldClose(m_window)) {
+            // Test mode timeout (5 seconds max)
+            if (m_testMode) {
+                auto now = std::chrono::steady_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - m_testStartTime).count();
+                if (duration > 5) {
+                    std::cout << "Test mode: timeout reached, forcing exit" << std::endl;
+                    m_running = false;
+                    break;
+                }
+            }
             // Poll events
             glfwPollEvents();
             
@@ -109,6 +129,11 @@ public:
             
             // Render the shader editor
             m_shaderEditor->render();
+            
+            // Check if shader editor requested exit
+            if (m_shaderEditor->shouldExit()) {
+                m_running = false;
+            }
             
             // Rendering
             ImGui::Render();
@@ -122,12 +147,47 @@ public:
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
             
             glfwSwapBuffers(m_window);
+            
+            // Test mode: exit after first render loop
+            if (m_testMode) {
+                std::cout << "Test mode: completed one render loop successfully" << std::endl;
+                return; // Exit immediately in test mode
+            }
+        }
+    }
+    
+    void setTestMode(bool enabled, int exitCode = 0) {
+        m_testMode = enabled;
+        m_testExitCode = exitCode;
+    }
+    
+    int getTestExitCode() const {
+        return m_testExitCode;
+    }
+    
+    static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+        Application* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
+        if (app) {
+            app->handleKey(key, scancode, action, mods);
+        }
+    }
+    
+    void handleKey(int key, int scancode, int action, int mods) {
+        if (action == GLFW_PRESS) {
+            if (key == GLFW_KEY_ESCAPE) {
+                m_running = false;
+                glfwSetWindowShouldClose(m_window, GLFW_TRUE);
+            }
         }
     }
 
 private:
     GLFWwindow* m_window;
     bool m_running;
+    bool m_testMode;
+    int m_testExitCode;
+    std::chrono::steady_clock::time_point m_testStartTime;
+    bool m_imguiInitialized;
     
     std::shared_ptr<ShaderManager> m_shaderManager;
     std::shared_ptr<FileWatcher> m_fileWatcher;
@@ -145,10 +205,12 @@ private:
         
         m_shaderManager.reset();
         
-        // Cleanup ImGui
-        ImGui_ImplOpenGL3_Shutdown();
-        ImGui_ImplGlfw_Shutdown();
-        ImGui::DestroyContext();
+        // Cleanup ImGui (only if it was initialized)
+        if (m_imguiInitialized) {
+            ImGui_ImplOpenGL3_Shutdown();
+            ImGui_ImplGlfw_Shutdown();
+            ImGui::DestroyContext();
+        }
         
         // Cleanup GLFW
         if (m_window) {
@@ -159,8 +221,51 @@ private:
     }
 };
 
+void printUsage(const char* programName) {
+    std::cout << "Usage: " << programName << " [options]" << std::endl;
+    std::cout << "Options:" << std::endl;
+    std::cout << "  --test [exit_code]    Run in test mode (exit after one render loop)" << std::endl;
+    std::cout << "  --help, -h            Show this help message" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Fork Eater - Real-time GLSL shader editor with hot reloading" << std::endl;
+}
+
 int main(int argc, char* argv[]) {
     Application app;
+    bool testMode = false;
+    int testExitCode = 0;
+    
+    // Parse command line arguments
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+        
+        if (arg == "--help" || arg == "-h") {
+            printUsage(argv[0]);
+            return 0;
+        }
+        else if (arg == "--test") {
+            testMode = true;
+            // Check if next argument is an exit code
+            if (i + 1 < argc) {
+                try {
+                    testExitCode = std::stoi(argv[i + 1]);
+                    i++; // Skip the next argument as it's the exit code
+                } catch (const std::exception&) {
+                    // If next argument is not a number, use default exit code 0
+                }
+            }
+            std::cout << "Test mode enabled (exit code: " << testExitCode << ")" << std::endl;
+        }
+        else {
+            std::cerr << "Unknown argument: " << arg << std::endl;
+            printUsage(argv[0]);
+            return 1;
+        }
+    }
+    
+    if (testMode) {
+        app.setTestMode(true, testExitCode);
+    }
     
     if (!app.initialize()) {
         std::cerr << "Failed to initialize application" << std::endl;
@@ -168,6 +273,11 @@ int main(int argc, char* argv[]) {
     }
     
     app.run();
+    
+    // Return test exit code if in test mode
+    if (testMode) {
+        return app.getTestExitCode();
+    }
     
     return 0;
 }

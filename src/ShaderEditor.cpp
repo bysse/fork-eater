@@ -1,6 +1,7 @@
 #include "ShaderEditor.h"
 #include "ShaderManager.h"
 #include "FileWatcher.h"
+#define GL_GLEXT_PROTOTYPES
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <GLFW/glfw3.h>
@@ -9,37 +10,6 @@
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
-
-// OpenGL function pointers for VAO/VBO
-extern PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
-extern PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
-extern PFNGLGENBUFFERSPROC glGenBuffers;
-extern PFNGLBINDBUFFERPROC glBindBuffer;
-extern PFNGLBUFFERDATAPROC glBufferData;
-extern PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
-extern PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
-extern PFNGLGENFRAMEBUFFERSPROC glGenFramebuffers;
-extern PFNGLBINDFRAMEBUFFERPROC glBindFramebuffer;
-extern PFNGLFRAMEBUFFERTEXTURE2DPROC glFramebufferTexture2D;
-extern PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays;
-extern PFNGLDELETEBUFFERSPROC glDeleteBuffers;
-extern PFNGLDELETEFRAMEBUFFERSPROC glDeleteFramebuffers;
-
-void loadAdditionalGLExtensions() {
-    glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)glfwGetProcAddress("glGenVertexArrays");
-    glBindVertexArray = (PFNGLBINDVERTEXARRAYPROC)glfwGetProcAddress("glBindVertexArray");
-    glGenBuffers = (PFNGLGENBUFFERSPROC)glfwGetProcAddress("glGenBuffers");
-    glBindBuffer = (PFNGLBINDBUFFERPROC)glfwGetProcAddress("glBindBuffer");
-    glBufferData = (PFNGLBUFFERDATAPROC)glfwGetProcAddress("glBufferData");
-    glEnableVertexAttribArray = (PFNGLENABLEVERTEXATTRIBARRAYPROC)glfwGetProcAddress("glEnableVertexAttribArray");
-    glVertexAttribPointer = (PFNGLVERTEXATTRIBPOINTERPROC)glfwGetProcAddress("glVertexAttribPointer");
-    glGenFramebuffers = (PFNGLGENFRAMEBUFFERSPROC)glfwGetProcAddress("glGenFramebuffers");
-    glBindFramebuffer = (PFNGLBINDFRAMEBUFFERPROC)glfwGetProcAddress("glBindFramebuffer");
-    glFramebufferTexture2D = (PFNGLFRAMEBUFFERTEXTURE2DPROC)glfwGetProcAddress("glFramebufferTexture2D");
-    glDeleteVertexArrays = (PFNGLDELETEVERTEXARRAYSPROC)glfwGetProcAddress("glDeleteVertexArrays");
-    glDeleteBuffers = (PFNGLDELETEBUFFERSPROC)glfwGetProcAddress("glDeleteBuffers");
-    glDeleteFramebuffers = (PFNGLDELETEFRAMEBUFFERSPROC)glfwGetProcAddress("glDeleteFramebuffers");
-}
 
 ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager, 
                            std::shared_ptr<FileWatcher> fileWatcher)
@@ -51,6 +21,7 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     , m_showCompileLog(true)
     , m_showPreview(true)
     , m_autoReload(true)
+    , m_exitRequested(false)
     , m_time(0.0f)
     , m_previewVAO(0)
     , m_previewVBO(0)
@@ -66,8 +37,6 @@ ShaderEditor::~ShaderEditor() {
 }
 
 bool ShaderEditor::initialize() {
-    loadAdditionalGLExtensions();
-    
     // Set up shader compilation callback
     m_shaderManager->setCompilationCallback(
         [this](const std::string& name, bool success, const std::string& error) {
@@ -85,27 +54,13 @@ bool ShaderEditor::initialize() {
 }
 
 void ShaderEditor::render() {
-    renderMenuBar();
+    // Render menu bar in main viewport
+    if (ImGui::BeginMainMenuBar()) {
+        renderMenuBar();
+        ImGui::EndMainMenuBar();
+    }
     
-    // Main dockspace
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->WorkPos);
-    ImGui::SetNextWindowSize(viewport->WorkSize);
-    ImGui::SetNextWindowViewport(viewport->ID);
-    
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-    window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-    window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-    
-    ImGui::Begin("DockSpace", nullptr, window_flags);
-    ImGui::PopStyleVar(2);
-    
-    ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
-    ImGui::DockSpace(dockspace_id);
-    
-    // Render windows
+    // Render windows as separate windows (no docking for now)
     if (m_showDemo) {
         ImGui::ShowDemoWindow(&m_showDemo);
     }
@@ -126,8 +81,6 @@ void ShaderEditor::render() {
         renderPreview();
     }
     
-    ImGui::End();
-    
     // Update time for shader uniforms
     m_time += ImGui::GetIO().DeltaTime;
 }
@@ -137,39 +90,35 @@ void ShaderEditor::handleResize(int width, int height) {
 }
 
 void ShaderEditor::renderMenuBar() {
-    if (ImGui::BeginMenuBar()) {
-        if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("New Shader", "Ctrl+N")) {
-                createNewShader();
-            }
-            if (ImGui::MenuItem("Save", "Ctrl+S")) {
-                if (!m_selectedShader.empty()) {
-                    saveShaderToFile(m_selectedShader);
-                }
-            }
-            ImGui::Separator();
-            if (ImGui::MenuItem("Exit", "Alt+F4")) {
-                // Send quit event
-            }
-            ImGui::EndMenu();
+    if (ImGui::BeginMenu("File")) {
+        if (ImGui::MenuItem("New Shader", "Ctrl+N")) {
+            createNewShader();
         }
-        
-        if (ImGui::BeginMenu("View")) {
-            ImGui::MenuItem("Shader List", nullptr, &m_showShaderList);
-            ImGui::MenuItem("Shader Editor", nullptr, &m_showShaderEditor);
-            ImGui::MenuItem("Compile Log", nullptr, &m_showCompileLog);
-            ImGui::MenuItem("Preview", nullptr, &m_showPreview);
-            ImGui::Separator();
-            ImGui::MenuItem("ImGui Demo", nullptr, &m_showDemo);
-            ImGui::EndMenu();
+        if (ImGui::MenuItem("Save", "Ctrl+S")) {
+            if (!m_selectedShader.empty()) {
+                saveShaderToFile(m_selectedShader);
+            }
         }
-        
-        if (ImGui::BeginMenu("Options")) {
-            ImGui::MenuItem("Auto Reload", nullptr, &m_autoReload);
-            ImGui::EndMenu();
+        ImGui::Separator();
+        if (ImGui::MenuItem("Exit", "Alt+F4")) {
+            m_exitRequested = true;
         }
-        
-        ImGui::EndMenuBar();
+        ImGui::EndMenu();
+    }
+    
+    if (ImGui::BeginMenu("View")) {
+        ImGui::MenuItem("Shader List", nullptr, &m_showShaderList);
+        ImGui::MenuItem("Shader Editor", nullptr, &m_showShaderEditor);
+        ImGui::MenuItem("Compile Log", nullptr, &m_showCompileLog);
+        ImGui::MenuItem("Preview", nullptr, &m_showPreview);
+        ImGui::Separator();
+        ImGui::MenuItem("ImGui Demo", nullptr, &m_showDemo);
+        ImGui::EndMenu();
+    }
+    
+    if (ImGui::BeginMenu("Options")) {
+        ImGui::MenuItem("Auto Reload", nullptr, &m_autoReload);
+        ImGui::EndMenu();
     }
 }
 
@@ -435,4 +384,8 @@ void ShaderEditor::createNewShader() {
     // Load shader
     m_shaderManager->loadShader(name, vertPath, fragPath);
     m_selectedShader = name;
+}
+
+bool ShaderEditor::shouldExit() const {
+    return m_exitRequested;
 }
