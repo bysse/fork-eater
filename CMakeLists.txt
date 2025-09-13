@@ -39,6 +39,7 @@ set(SOURCES
     src/LeftPanel.cpp
     src/FileManager.cpp
     src/ErrorPanel.cpp
+    src/Timeline.cpp
 )
 
 # Create executable

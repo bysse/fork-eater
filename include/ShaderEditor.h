@@ -14,6 +14,7 @@ class MenuSystem;
 class LeftPanel;
 class FileManager;
 class ErrorPanel;
+class Timeline;
 
 class ShaderEditor {
 public:
@@ -43,17 +44,16 @@ private:
     std::unique_ptr<LeftPanel> m_leftPanel;
     std::unique_ptr<FileManager> m_fileManager;
     std::unique_ptr<ErrorPanel> m_errorPanel;
+    std::unique_ptr<Timeline> m_timeline;
     
     // Layout state
     float m_leftPanelWidth;
     float m_errorPanelHeight;
+    float m_timelineHeight;
     
     // Editor state
     std::string m_selectedShader;
     bool m_exitRequested;
-    
-    // Time for shader uniforms
-    float m_time;
     
     // Private methods
     void renderMainLayout();

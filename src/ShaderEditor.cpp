@@ -6,6 +6,7 @@
 #include "LeftPanel.h"
 #include "FileManager.h"
 #include "ErrorPanel.h"
+#include "Timeline.h"
 
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -20,8 +21,8 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     , m_fileWatcher(fileWatcher)
     , m_leftPanelWidth(300.0f)
     , m_errorPanelHeight(200.0f)
-    , m_exitRequested(false)
-    , m_time(0.0f) {
+    , m_timelineHeight(60.0f)  // Match Timeline::TIMELINE_HEIGHT
+    , m_exitRequested(false) {
     
     // Create component classes
     m_previewPanel = std::make_unique<PreviewPanel>(m_shaderManager);
@@ -29,6 +30,7 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     m_leftPanel = std::make_unique<LeftPanel>(m_shaderManager);
     m_fileManager = std::make_unique<FileManager>(m_shaderManager, m_fileWatcher);
     m_errorPanel = std::make_unique<ErrorPanel>();
+    m_timeline = std::make_unique<Timeline>();
 }
 
 ShaderEditor::~ShaderEditor() {
@@ -116,8 +118,8 @@ void ShaderEditor::render() {
     }
     ImGui::End();
     
-    // Update time for shader uniforms
-    m_time += ImGui::GetIO().DeltaTime;
+    // Update timeline
+    m_timeline->update(ImGui::GetIO().DeltaTime);
 }
 
 void ShaderEditor::handleResize(int width, int height) {
@@ -127,54 +129,76 @@ void ShaderEditor::handleResize(int width, int height) {
 void ShaderEditor::renderMainLayout() {
     ImVec2 windowSize = ImGui::GetContentRegionAvail();
     
+    // Reserve space for timeline at the bottom
+    float availableHeight = windowSize.y - m_timelineHeight - 4; // 4px for splitter
+    
+    // Create main content area (everything except timeline)
+    ImGui::BeginChild("MainContent", ImVec2(windowSize.x, availableHeight), false);
+    
+    ImVec2 contentSize = ImGui::GetContentRegionAvail();
+    
     // Create horizontal splitter between left panel and right side
     if (m_menuSystem->shouldShowLeftPanel()) {
         // Left panel
-        ImGui::BeginChild("LeftPanel", ImVec2(m_leftPanelWidth, windowSize.y), true);
+        ImGui::BeginChild("LeftPanel", ImVec2(m_leftPanelWidth, contentSize.y), true);
         m_leftPanel->render(m_selectedShader);
         ImGui::EndChild();
         
         ImGui::SameLine();
         
         // Vertical splitter
-        ImGui::Button("##vsplitter", ImVec2(4, windowSize.y));
+        ImGui::Button("##vsplitter", ImVec2(4, contentSize.y));
         if (ImGui::IsItemActive()) {
             m_leftPanelWidth += ImGui::GetIO().MouseDelta.x;
             if (m_leftPanelWidth < 150.0f) m_leftPanelWidth = 150.0f;
-            if (m_leftPanelWidth > windowSize.x - 150.0f) m_leftPanelWidth = windowSize.x - 150.0f;
+            if (m_leftPanelWidth > contentSize.x - 150.0f) m_leftPanelWidth = contentSize.x - 150.0f;
         }
         ImGui::SameLine();
         
-        windowSize.x -= m_leftPanelWidth + 4;
+        contentSize.x -= m_leftPanelWidth + 4;
     }
     
     // Right side - preview and error panels
-    ImGui::BeginChild("RightSide", windowSize, false);
+    ImGui::BeginChild("RightSide", contentSize, false);
     
     // Always show preview panel
     float previewHeight = m_menuSystem->shouldShowErrorPanel() ? 
-                         windowSize.y - m_errorPanelHeight - 4 : windowSize.y;
-    ImGui::BeginChild("PreviewPanel", ImVec2(windowSize.x, previewHeight), true);
-    m_previewPanel->render(m_selectedShader, m_time);
+                         contentSize.y - m_errorPanelHeight - 4 : contentSize.y;
+    ImGui::BeginChild("PreviewPanel", ImVec2(contentSize.x, previewHeight), true);
+    m_previewPanel->render(m_selectedShader, m_timeline->getCurrentTime());
     ImGui::EndChild();
     
     if (m_menuSystem->shouldShowErrorPanel()) {
         // Horizontal splitter
-        ImGui::Button("##hsplitter", ImVec2(windowSize.x, 4));
+        ImGui::Button("##hsplitter", ImVec2(contentSize.x, 4));
         if (ImGui::IsItemActive()) {
             m_errorPanelHeight -= ImGui::GetIO().MouseDelta.y;
             if (m_errorPanelHeight < 100.0f) m_errorPanelHeight = 100.0f;
-            if (m_errorPanelHeight > windowSize.y - 100.0f) m_errorPanelHeight = windowSize.y - 100.0f;
+            if (m_errorPanelHeight > contentSize.y - 100.0f) m_errorPanelHeight = contentSize.y - 100.0f;
         }
     }
     
     if (m_menuSystem->shouldShowErrorPanel()) {
         float errorHeight = m_errorPanelHeight;
-        ImGui::BeginChild("ErrorPanel", ImVec2(windowSize.x, errorHeight), true);
+        ImGui::BeginChild("ErrorPanel", ImVec2(contentSize.x, errorHeight), true);
         m_errorPanel->render();
         ImGui::EndChild();
     }
     
+    ImGui::EndChild(); // End RightSide
+    ImGui::EndChild(); // End MainContent
+    
+    // Horizontal splitter between main content and timeline
+    ImGui::Button("##timeline_splitter", ImVec2(windowSize.x, 4));
+    if (ImGui::IsItemActive()) {
+        m_timelineHeight -= ImGui::GetIO().MouseDelta.y;
+        if (m_timelineHeight < 50.0f) m_timelineHeight = 50.0f;  // Reduced minimum
+        if (m_timelineHeight > windowSize.y - 200.0f) m_timelineHeight = windowSize.y - 200.0f;
+    }
+    
+    // Timeline panel at the bottom
+    ImGui::BeginChild("TimelinePanel", ImVec2(windowSize.x, m_timelineHeight), true);
+    m_timeline->render();
     ImGui::EndChild();
 }
 
