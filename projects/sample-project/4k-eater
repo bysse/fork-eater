@@ -1,0 +1,16 @@
+{
+  "name": "Sample Shader Project",
+  "description": "A sample 4k-eater shader project with music sync",
+  "version": "1.0",
+  "timelineLength": 120.0,
+  "bpm": 128.0,
+  "beatsPerBar": 4,
+  "passes": [
+    {
+      "name": "main",
+      "vertexShader": "basic.vert",
+      "fragmentShader": "colorful.frag",
+      "enabled": true
+    }
+  ]
+}

@@ -16,6 +16,7 @@ class FileManager;
 class ErrorPanel;
 class Timeline;
 class ShortcutManager;
+class ShaderProject;
 
 class ShaderEditor {
 public:
@@ -53,6 +54,9 @@ private:
     std::unique_ptr<ErrorPanel> m_errorPanel;
     std::unique_ptr<Timeline> m_timeline;
     std::unique_ptr<ShortcutManager> m_shortcutManager;
+    
+    // Project management
+    std::unique_ptr<ShaderProject> m_basicProject;
     
     // Layout state
     float m_leftPanelWidth;

@@ -8,6 +8,7 @@
 #include "ErrorPanel.h"
 #include "Timeline.h"
 #include "ShortcutManager.h"
+#include "ShaderProject.h"
 
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -34,6 +35,7 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     m_errorPanel = std::make_unique<ErrorPanel>();
     m_timeline = std::make_unique<Timeline>();
     m_shortcutManager = std::make_unique<ShortcutManager>();
+    m_basicProject = std::make_unique<ShaderProject>();
 }
 
 ShaderEditor::~ShaderEditor() {
@@ -59,8 +61,14 @@ bool ShaderEditor::initialize() {
     // Setup keyboard shortcuts
     setupShortcuts();
     
-    // Load default shader if it exists
-    m_shaderManager->loadShader("basic", "shaders/basic.vert", "shaders/basic.frag");
+    // Load basic shader project
+    if (m_basicProject->loadFromDirectory("shaders/basic")) {
+        m_basicProject->loadShadersIntoManager(m_shaderManager);
+        std::cout << "Loaded basic shader project successfully" << std::endl;
+    } else {
+        std::cerr << "Failed to load basic shader project, falling back to direct loading" << std::endl;
+        m_shaderManager->loadShader("basic", "shaders/basic.vert", "shaders/basic.frag");
+    }
     
     return true;
 }

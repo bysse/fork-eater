@@ -108,11 +108,7 @@ void PreviewPanel::renderPreviewPanel(const std::string& selectedShader, float t
             char resText[64];
             snprintf(resText, sizeof(resText), "%.0fx%.0f", previewSize.x, previewSize.y);
             draw_list->AddText(ImVec2(canvas_pos.x + 10, canvas_pos.y + 10), 
-                             IM_COL32(255, 255, 255, 200), resText);
-                             
-            // Preview label
-            draw_list->AddText(ImVec2(canvas_pos.x + canvas_size.x/2 - 30, canvas_pos.y + canvas_size.y/2 - 10), 
-                             IM_COL32(255, 255, 255, 255), "Preview");
+                             IM_COL32(255, 255, 255, 200), resText);                             
         } else if (shader) {
             ImGui::TextColored(ImVec4(1, 0, 0, 1), "✗ Compilation failed");
         }
