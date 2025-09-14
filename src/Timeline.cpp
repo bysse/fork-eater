@@ -54,44 +54,57 @@ void Timeline::reset() {
 void Timeline::render() {
     ImVec2 windowSize = ImGui::GetContentRegionAvail();
     
-    // Use available height directly without extra padding
-    ImGui::BeginChild("Timeline", ImVec2(windowSize.x, windowSize.y), true, ImGuiWindowFlags_NoScrollbar);
+    // Use available height directly without extra padding, ensure no scrollbars
+    ImGui::BeginChild("Timeline", ImVec2(windowSize.x, windowSize.y), true, 
+                     ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    
+    // Get actual content region after the child window border
+    ImVec2 contentSize = ImGui::GetContentRegionAvail();
     
     // Split into four sections: controls, current time, timeline bar, speed control
-    float controlsWidth = 180.0f;  // Reduced since no speed control here
+    float controlsWidth = 180.0f;
     float currentTimeWidth = 80.0f;
-    float speedControlWidth = 100.0f;  // For speed slider
-    float timelineBarWidth = std::max(200.0f, windowSize.x - controlsWidth - currentTimeWidth - speedControlWidth - 30.0f);
+    float speedControlWidth = 100.0f;
+    float spacing = ImGui::GetStyle().ItemSpacing.x * 3; // 3 SameLine() calls
+    float timelineBarWidth = std::max(200.0f, contentSize.x - controlsWidth - currentTimeWidth - speedControlWidth - spacing);
     
-    // Use the full available height minus a small margin
-    float childHeight = windowSize.y - 10.0f;
+    // Use consistent height that fits within content area
+    float childHeight = contentSize.y;
+    
+    // Push style to prevent any potential scrollbars in child windows and disable focus
+    ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 0.0f);
+    
+    // Define common flags to disable navigation and focus
+    ImGuiWindowFlags childFlags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | 
+                                  ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoNavInputs;
     
     // Playback controls (without speed)
-    ImGui::BeginChild("Controls", ImVec2(controlsWidth, childHeight), false);
+    ImGui::BeginChild("Controls", ImVec2(controlsWidth, childHeight), false, childFlags);
     renderPlaybackControls();
     ImGui::EndChild();
     
     ImGui::SameLine();
     
     // Current time display
-    ImGui::BeginChild("CurrentTime", ImVec2(currentTimeWidth, childHeight), false);
+    ImGui::BeginChild("CurrentTime", ImVec2(currentTimeWidth, childHeight), false, childFlags);
     renderCurrentTime();
     ImGui::EndChild();
     
     ImGui::SameLine();
     
     // Timeline bar
-    ImGui::BeginChild("TimelineBar", ImVec2(timelineBarWidth, childHeight), false);
+    ImGui::BeginChild("TimelineBar", ImVec2(timelineBarWidth, childHeight), false, childFlags);
     renderTimelineBar();
     ImGui::EndChild();
     
     ImGui::SameLine();
     
     // Speed control
-    ImGui::BeginChild("SpeedControl", ImVec2(speedControlWidth, childHeight), false);
+    ImGui::BeginChild("SpeedControl", ImVec2(speedControlWidth, childHeight), false, childFlags);
     renderSpeedControl();
     ImGui::EndChild();
     
+    ImGui::PopStyleVar(); // ScrollbarSize
     ImGui::EndChild();
 }
 

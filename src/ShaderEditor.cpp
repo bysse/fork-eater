@@ -121,18 +121,28 @@ void ShaderEditor::render() {
     
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | 
                                    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | 
-                                   ImGuiWindowFlags_NoSavedSettings;
+                                   ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoSavedSettings | 
+                                   ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoNavInputs;
+    
+    // Push style to ensure no scrollbars appear anywhere
+    ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 0.0f);
     
     if (ImGui::Begin("MainLayout", nullptr, window_flags)) {
         renderMainLayout();
     }
     ImGui::End();
     
+    ImGui::PopStyleVar(); // ScrollbarSize
+    
     // Update timeline
     m_timeline->update(ImGui::GetIO().DeltaTime);
     
     // Show shortcuts help if requested
     showShortcutsHelp();
+    
+    // Ensure ImGui doesn't capture navigation keys for internal use
+    ImGuiIO& io = ImGui::GetIO();
+    io.WantCaptureKeyboard = false; // Let our shortcuts always work
 }
 
 void ShaderEditor::handleResize(int width, int height) {
@@ -145,15 +155,20 @@ void ShaderEditor::renderMainLayout() {
     // Reserve space for timeline at the bottom
     float availableHeight = windowSize.y - m_timelineHeight - 4; // 4px for splitter
     
+    // Define flags for child windows without navigation
+    ImGuiWindowFlags noNavFlags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | 
+                                  ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoNavInputs;
+    
     // Create main content area (everything except timeline)
-    ImGui::BeginChild("MainContent", ImVec2(windowSize.x, availableHeight), false);
+    ImGui::BeginChild("MainContent", ImVec2(windowSize.x, availableHeight), false, noNavFlags);
     
     ImVec2 contentSize = ImGui::GetContentRegionAvail();
     
     // Create horizontal splitter between left panel and right side
     if (m_menuSystem->shouldShowLeftPanel()) {
-        // Left panel
-        ImGui::BeginChild("LeftPanel", ImVec2(m_leftPanelWidth, contentSize.y), true);
+        // Left panel - keep scrollbar but disable navigation
+        ImGui::BeginChild("LeftPanel", ImVec2(m_leftPanelWidth, contentSize.y), true, 
+                         ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoNavInputs);
         m_leftPanel->render(m_selectedShader);
         ImGui::EndChild();
         
@@ -172,12 +187,12 @@ void ShaderEditor::renderMainLayout() {
     }
     
     // Right side - preview and error panels
-    ImGui::BeginChild("RightSide", contentSize, false);
+    ImGui::BeginChild("RightSide", contentSize, false, noNavFlags);
     
     // Always show preview panel
     float previewHeight = m_menuSystem->shouldShowErrorPanel() ? 
                          contentSize.y - m_errorPanelHeight - 4 : contentSize.y;
-    ImGui::BeginChild("PreviewPanel", ImVec2(contentSize.x, previewHeight), true);
+    ImGui::BeginChild("PreviewPanel", ImVec2(contentSize.x, previewHeight), true, noNavFlags);
     m_previewPanel->render(m_selectedShader, m_timeline->getCurrentTime());
     ImGui::EndChild();
     
@@ -193,7 +208,8 @@ void ShaderEditor::renderMainLayout() {
     
     if (m_menuSystem->shouldShowErrorPanel()) {
         float errorHeight = m_errorPanelHeight;
-        ImGui::BeginChild("ErrorPanel", ImVec2(contentSize.x, errorHeight), true);
+        ImGui::BeginChild("ErrorPanel", ImVec2(contentSize.x, errorHeight), true, 
+                         ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoNavInputs);
         m_errorPanel->render();
         ImGui::EndChild();
     }
@@ -210,7 +226,7 @@ void ShaderEditor::renderMainLayout() {
     }
     
     // Timeline panel at the bottom
-    ImGui::BeginChild("TimelinePanel", ImVec2(windowSize.x, m_timelineHeight), true);
+    ImGui::BeginChild("TimelinePanel", ImVec2(windowSize.x, m_timelineHeight), true, noNavFlags);
     m_timeline->render();
     ImGui::EndChild();
 }

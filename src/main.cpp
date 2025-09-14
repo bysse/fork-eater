@@ -71,7 +71,9 @@ public:
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+        // Disable navigation to prevent focus jumping and pane selection
+        io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
+        io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableGamepad;
         
         // Setup ImGui style
         ImGui::StyleColorsDark();
