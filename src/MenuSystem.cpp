@@ -16,6 +16,10 @@ void MenuSystem::renderMenuBar() {
         if (ImGui::MenuItem("New Shader", "Ctrl+N")) {
             if (onNewShader) onNewShader();
         }
+        if (ImGui::MenuItem("Open...", "Ctrl+O")) {
+            if (onOpen) onOpen();
+        }
+        ImGui::Separator();
         if (ImGui::MenuItem("Save", "Ctrl+S")) {
             if (onSave) onSave();
         }

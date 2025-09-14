@@ -56,7 +56,8 @@ private:
     std::unique_ptr<ShortcutManager> m_shortcutManager;
     
     // Project management
-    std::unique_ptr<ShaderProject> m_basicProject;
+    std::shared_ptr<ShaderProject> m_currentProject;
+    std::string m_currentProjectPath;
     
     // Layout state
     float m_leftPanelWidth;
@@ -75,4 +76,12 @@ private:
     // Setup callbacks for component classes
     void setupCallbacks();
     void setupShortcuts();
+    
+public:
+    // Project management
+    void openProject(const std::string& projectPath);
+    
+private:
+    bool loadProjectFromPath(const std::string& projectPath);
+    void openProjectDialog();
 };

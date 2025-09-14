@@ -93,6 +93,11 @@ public:
             return false;
         }
         
+        // Load shader project if specified
+        if (!m_shaderProjectPath.empty()) {
+            m_shaderEditor->openProject(m_shaderProjectPath);
+        }
+        
         if (!m_fileWatcher->start()) {
             std::cerr << "Failed to start file watcher" << std::endl;
             return false;
@@ -209,6 +214,20 @@ private:
     std::shared_ptr<FileWatcher> m_fileWatcher;
     std::unique_ptr<ShaderEditor> m_shaderEditor;
     
+    // Shader project path
+    std::string m_shaderProjectPath;
+    
+public:
+    void setShaderProjectPath(const std::string& path) {
+        m_shaderProjectPath = path;
+    }
+    
+    const std::string& getShaderProjectPath() const {
+        return m_shaderProjectPath;
+    }
+    
+private:
+    
     void cleanup() {
         if (m_testMode) {
             // In test mode, skip all cleanup to avoid hanging and exit immediately
@@ -248,10 +267,11 @@ private:
 };
 
 void printUsage(const char* programName) {
-    std::cout << "Usage: " << programName << " [options]" << std::endl;
+    std::cout << "Usage: " << programName << " [options] [shader_path]" << std::endl;
     std::cout << "Options:" << std::endl;
     std::cout << "  --test [exit_code]    Run in test mode (exit after one render loop)" << std::endl;
     std::cout << "  --help, -h            Show this help message" << std::endl;
+    std::cout << "  shader_path           Path to shader directory or 4k-eater manifest file" << std::endl;
     std::cout << std::endl;
     std::cout << "Fork Eater - Real-time GLSL shader editor with hot reloading" << std::endl;
 }
@@ -260,6 +280,7 @@ int main(int argc, char* argv[]) {
     Application app;
     bool testMode = false;
     int testExitCode = 0;
+    std::string shaderProjectPath;
     
     // Parse command line arguments
     for (int i = 1; i < argc; i++) {
@@ -282,6 +303,17 @@ int main(int argc, char* argv[]) {
             }
             std::cout << "Test mode enabled (exit code: " << testExitCode << ")" << std::endl;
         }
+        else if (!arg.empty() && arg[0] != '-') {
+            // This is a shader project path
+            if (shaderProjectPath.empty()) {
+                shaderProjectPath = arg;
+                std::cout << "Shader project path: " << shaderProjectPath << std::endl;
+            } else {
+                std::cerr << "Multiple shader paths specified. Only one is allowed." << std::endl;
+                printUsage(argv[0]);
+                return 1;
+            }
+        }
         else {
             std::cerr << "Unknown argument: " << arg << std::endl;
             printUsage(argv[0]);
@@ -291,6 +323,10 @@ int main(int argc, char* argv[]) {
     
     if (testMode) {
         app.setTestMode(true, testExitCode);
+    }
+    
+    if (!shaderProjectPath.empty()) {
+        app.setShaderProjectPath(shaderProjectPath);
     }
     
     if (!app.initialize()) {

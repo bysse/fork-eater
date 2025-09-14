@@ -35,7 +35,7 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     m_errorPanel = std::make_unique<ErrorPanel>();
     m_timeline = std::make_unique<Timeline>();
     m_shortcutManager = std::make_unique<ShortcutManager>();
-    m_basicProject = std::make_unique<ShaderProject>();
+    m_currentProject = std::make_shared<ShaderProject>();
 }
 
 ShaderEditor::~ShaderEditor() {
@@ -61,14 +61,8 @@ bool ShaderEditor::initialize() {
     // Setup keyboard shortcuts
     setupShortcuts();
     
-    // Load basic shader project
-    if (m_basicProject->loadFromDirectory("shaders/basic")) {
-        m_basicProject->loadShadersIntoManager(m_shaderManager);
-        std::cout << "Loaded basic shader project successfully" << std::endl;
-    } else {
-        std::cerr << "Failed to load basic shader project, falling back to direct loading" << std::endl;
-        m_shaderManager->loadShader("basic", "shaders/basic.vert", "shaders/basic.frag");
-    }
+    // Load default project - basic if no project specified
+    loadProjectFromPath("shaders/basic");
     
     return true;
 }
@@ -92,6 +86,10 @@ void ShaderEditor::setupCallbacks() {
     
     m_menuSystem->onShowHelp = [this]() {
         m_showShortcutsHelp = true;
+    };
+    
+    m_menuSystem->onOpen = [this]() {
+        openProjectDialog();
     };
     
     // Left panel callbacks
@@ -317,6 +315,45 @@ void ShaderEditor::setupShortcuts() {
     m_shortcutManager->registerShortcut(GLFW_KEY_F1, KeyModifier::None, 
         [this]() { m_showShortcutsHelp = true; },
         "F1", "Show keyboard shortcuts", "Help");
+}
+
+void ShaderEditor::openProject(const std::string& projectPath) {
+    if (loadProjectFromPath(projectPath)) {
+        m_currentProjectPath = projectPath;
+        std::cout << "Opened project: " << m_currentProject->getManifest().name << std::endl;
+    }
+}
+
+bool ShaderEditor::loadProjectFromPath(const std::string& projectPath) {
+    // Clear current shaders
+    // TODO: Add method to clear shaders from ShaderManager
+    
+    bool success = false;
+    
+    if (m_currentProject->loadFromDirectory(projectPath)) {
+        if (m_currentProject->loadShadersIntoManager(m_shaderManager)) {
+            std::cout << "Loaded shader project: " << m_currentProject->getManifest().name << std::endl;
+            m_leftPanel->setCurrentProject(m_currentProject);
+            success = true;
+        } else {
+            std::cerr << "Failed to load shaders from project: " << projectPath << std::endl;
+        }
+    } else {
+        std::cerr << "Failed to load project from: " << projectPath << std::endl;
+        // Try direct shader loading as fallback for legacy projects
+        if (projectPath == "shaders/basic") {
+            m_shaderManager->loadShader("basic", "shaders/basic.vert", "shaders/basic.frag");
+            success = true;
+        }
+    }
+    
+    return success;
+}
+
+void ShaderEditor::openProjectDialog() {
+    // For now, just show an info message. 
+    // In the future, this could open a native file dialog
+    std::cout << "Open project dialog requested. Use command line argument to specify project path." << std::endl;
 }
 
 void ShaderEditor::showShortcutsHelp() {
