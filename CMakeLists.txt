@@ -41,6 +41,7 @@ set(SOURCES
     src/ErrorPanel.cpp
     src/Timeline.cpp
     src/ShortcutManager.cpp
+    src/ShaderProject.cpp
 )
 
 # Create executable

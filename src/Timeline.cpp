@@ -10,7 +10,10 @@ Timeline::Timeline()
     , m_playbackSpeed(1.0f)
     , m_isPlaying(false)
     , m_isLooping(true) // Default to looping
-    , m_wasDragging(false) {
+    , m_wasDragging(false)
+    , m_useBPM(false)
+    , m_bpm(120.0f)
+    , m_beatsPerBar(4) {
 }
 
 Timeline::~Timeline() {
@@ -165,28 +168,63 @@ void Timeline::renderTimelineBar() {
         draw_list->AddRectFilled(bar_start, progress_end, IM_COL32(60, 150, 60, 255));
     }
     
-    // Time markers (every 10 seconds)
-    for (float time = 0.0f; time <= m_duration; time += 10.0f) {
-        float marker_progress = time / m_duration;
-        float marker_x = bar_start.x + bar_width * marker_progress;
+    // Time markers
+    if (m_useBPM) {
+        // Draw beat markers
+        float beatsPerSecond = getBeatsPerSecond();
+        float totalBeats = m_duration * beatsPerSecond;
         
-        // Draw tick mark
-        draw_list->AddLine(
-            ImVec2(marker_x, bar_start.y),
-            ImVec2(marker_x, bar_start.y + 5.0f),
-            IM_COL32(150, 150, 150, 255),
-            1.0f
-        );
-        
-        // Draw time label for major markers
-        if (fmod(time, 30.0f) < 0.1f) { // Every 30 seconds
-            char timeText[16];
-            formatTime(time, timeText, sizeof(timeText));
-            draw_list->AddText(
-                ImVec2(marker_x - 15.0f, bar_start.y - 20.0f),
-                IM_COL32(200, 200, 200, 255),
-                timeText
+        for (float beat = 0.0f; beat <= totalBeats; beat += 1.0f) {
+            float time = beat / beatsPerSecond;
+            float marker_progress = time / m_duration;
+            float marker_x = bar_start.x + bar_width * marker_progress;
+            
+            bool isMajorBeat = (fmod(beat, m_beatsPerBar) < 0.1f);
+            
+            // Draw tick mark
+            draw_list->AddLine(
+                ImVec2(marker_x, bar_start.y),
+                ImVec2(marker_x, bar_start.y + (isMajorBeat ? 8.0f : 5.0f)),
+                isMajorBeat ? IM_COL32(200, 200, 200, 255) : IM_COL32(150, 150, 150, 255),
+                isMajorBeat ? 2.0f : 1.0f
             );
+            
+            // Draw bar numbers for major beats
+            if (isMajorBeat && fmod(beat, m_beatsPerBar * 4) < 0.1f) { // Every 4 bars
+                int bar = (int)(beat / m_beatsPerBar) + 1;
+                char barText[16];
+                snprintf(barText, sizeof(barText), "%d", bar);
+                draw_list->AddText(
+                    ImVec2(marker_x - 8.0f, bar_start.y - 20.0f),
+                    IM_COL32(200, 200, 200, 255),
+                    barText
+                );
+            }
+        }
+    } else {
+        // Draw time markers (every 10 seconds)
+        for (float time = 0.0f; time <= m_duration; time += 10.0f) {
+            float marker_progress = time / m_duration;
+            float marker_x = bar_start.x + bar_width * marker_progress;
+            
+            // Draw tick mark
+            draw_list->AddLine(
+                ImVec2(marker_x, bar_start.y),
+                ImVec2(marker_x, bar_start.y + 5.0f),
+                IM_COL32(150, 150, 150, 255),
+                1.0f
+            );
+            
+            // Draw time label for major markers
+            if (fmod(time, 30.0f) < 0.1f) { // Every 30 seconds
+                char timeText[16];
+                formatTime(time, timeText, sizeof(timeText));
+                draw_list->AddText(
+                    ImVec2(marker_x - 15.0f, bar_start.y - 20.0f),
+                    IM_COL32(200, 200, 200, 255),
+                    timeText
+                );
+            }
         }
     }
     
@@ -224,9 +262,15 @@ void Timeline::renderTimelineBar() {
 
 void Timeline::renderCurrentTime() {
     char currentTimeText[16];
-    formatTime(m_currentTime, currentTimeText, sizeof(currentTimeText));
     
-    ImGui::Text("Time:");
+    if (m_useBPM) {
+        formatTimeBPM(m_currentTime, currentTimeText, sizeof(currentTimeText));
+        ImGui::Text("Beat:");
+    } else {
+        formatTime(m_currentTime, currentTimeText, sizeof(currentTimeText));
+        ImGui::Text("Time:");
+    }
+    
     ImGui::Text("%s", currentTimeText);
 }
 
@@ -298,4 +342,36 @@ void Timeline::jumpToEnd() {
 void Timeline::adjustSpeed(float delta) {
     m_playbackSpeed += delta;
     m_playbackSpeed = std::clamp(m_playbackSpeed, MIN_SPEED, MAX_SPEED);
+}
+
+// BPM support methods
+void Timeline::setBPM(float bpm, int beatsPerBar) {
+    m_bpm = bpm;
+    m_beatsPerBar = beatsPerBar;
+    m_useBPM = (bpm > 0);
+}
+
+float Timeline::getBeatsPerSecond() const {
+    return m_bpm / 60.0f;
+}
+
+float Timeline::getBarsPerSecond() const {
+    return getBeatsPerSecond() / m_beatsPerBar;
+}
+
+float Timeline::secondsToBeats(float seconds) const {
+    return seconds * getBeatsPerSecond();
+}
+
+float Timeline::beatsToSeconds(float beats) const {
+    return beats / getBeatsPerSecond();
+}
+
+void Timeline::formatTimeBPM(float timeSeconds, char* buffer, size_t bufferSize) {
+    float beats = secondsToBeats(timeSeconds);
+    int bar = static_cast<int>(beats / m_beatsPerBar) + 1;
+    int beat = static_cast<int>(fmod(beats, m_beatsPerBar)) + 1;
+    float subBeat = fmod(beats, 1.0f);
+    
+    snprintf(buffer, bufferSize, "%d:%d.%02d", bar, beat, static_cast<int>(subBeat * 100));
 }

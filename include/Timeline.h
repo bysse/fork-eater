@@ -19,6 +19,12 @@ public:
     // Set timeline duration
     void setDuration(float duration) { m_duration = duration; }
     
+    // BPM support
+    void setBPM(float bpm, int beatsPerBar = 4);
+    float getBPM() const { return m_bpm; }
+    int getBeatsPerBar() const { return m_beatsPerBar; }
+    bool isBPMMode() const { return m_useBPM; }
+    
     // Playback state
     bool isPlaying() const { return m_isPlaying; }
     bool isLooping() const { return m_isLooping; }
@@ -50,6 +56,11 @@ private:
     bool m_isLooping;
     bool m_wasDragging;
     
+    // BPM support
+    bool m_useBPM;
+    float m_bpm;
+    int m_beatsPerBar;
+    
     // UI constants
     static constexpr float TIMELINE_HEIGHT = 65.0f;  // Increased by 5px
     static constexpr float BUTTON_SIZE = 22.0f;      // Slightly smaller buttons
@@ -65,4 +76,11 @@ private:
     void handleStop();
     void setCurrentTime(float time);
     void formatTime(float timeSeconds, char* buffer, size_t bufferSize);
+    
+    // BPM helper methods
+    float getBeatsPerSecond() const;
+    float getBarsPerSecond() const;
+    float secondsToBeats(float seconds) const;
+    float beatsToSeconds(float beats) const;
+    void formatTimeBPM(float timeSeconds, char* buffer, size_t bufferSize);
 };
