@@ -24,9 +24,6 @@ public:
     void setAspectMode(AspectMode mode) { m_aspectMode = mode; }
     
     // Menu action callbacks - these will be set by ShaderEditor
-    std::function<void()> onNewShader;
-    std::function<void()> onOpen;
-    std::function<void()> onSave;
     std::function<void()> onExit;
     std::function<void()> onShowHelp;
     

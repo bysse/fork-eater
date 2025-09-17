@@ -14,6 +14,9 @@
 #include "ShaderManager.h"
 #include "FileWatcher.h"
 #include "ShaderEditor.h"
+#include "ShaderProject.h"
+#include "ShaderTemplates.h"
+#include <filesystem>
 
 // Constants
 const int WINDOW_WIDTH = 1280;
@@ -267,20 +270,40 @@ private:
 };
 
 void printUsage(const char* programName) {
-    std::cout << "Usage: " << programName << " [options] [shader_path]" << std::endl;
+    std::cout << "Usage: " << programName << " [options] [shader_directory]" << std::endl;
     std::cout << "Options:" << std::endl;
-    std::cout << "  --test [exit_code]    Run in test mode (exit after one render loop)" << std::endl;
-    std::cout << "  --help, -h            Show this help message" << std::endl;
-    std::cout << "  shader_path           Path to shader directory or 4k-eater manifest file" << std::endl;
+    std::cout << "  --new [path] [-t template]  Create new shader project" << std::endl;
+    std::cout << "  --templates                 List available shader templates" << std::endl;
+    std::cout << "  --test [exit_code]          Run in test mode (exit after one render loop)" << std::endl;
+    std::cout << "  --help, -h                  Show this help message" << std::endl;
+    std::cout << "  shader_directory            Path to shader project directory containing 4k-eater manifest" << std::endl;
     std::cout << std::endl;
     std::cout << "Fork Eater - Real-time GLSL shader editor with hot reloading" << std::endl;
+    std::cout << std::endl;
+    std::cout << "If no directory is specified, uses current directory." << std::endl;
+    std::cout << "Program will exit if no 4k-eater manifest is found (except in test mode)." << std::endl;
+}
+
+void printTemplates() {
+    std::cout << "Available shader templates:" << std::endl;
+    const auto& templateManager = ShaderTemplateManager::getInstance();
+    const auto& templateNames = templateManager.getTemplateNames();
+    
+    for (const auto& name : templateNames) {
+        const auto* templ = templateManager.getTemplate(name);
+        if (templ) {
+            std::cout << "  " << name << " - " << templ->description << std::endl;
+        }
+    }
 }
 
 int main(int argc, char* argv[]) {
     Application app;
     bool testMode = false;
     int testExitCode = 0;
+    bool newProject = false;
     std::string shaderProjectPath;
+    std::string templateName = "basic";
     
     // Parse command line arguments
     for (int i = 1; i < argc; i++) {
@@ -303,6 +326,27 @@ int main(int argc, char* argv[]) {
             }
             std::cout << "Test mode enabled (exit code: " << testExitCode << ")" << std::endl;
         }
+        else if (arg == "--templates") {
+            printTemplates();
+            return 0;
+        }
+        else if (arg == "--new") {
+            newProject = true;
+            // Check if next argument is a path
+            if (i + 1 < argc && argv[i + 1][0] != '-') {
+                shaderProjectPath = argv[i + 1];
+                i++; // Skip the next argument as it's the path
+            } else {
+                shaderProjectPath = "."; // Use current directory
+            }
+            std::cout << "Creating new project in: " << shaderProjectPath << std::endl;
+        }
+        else if (arg == "-t" && i + 1 < argc) {
+            // Template selection (only valid with --new)
+            templateName = argv[i + 1];
+            i++; // Skip the template name
+            std::cout << "Using template: " << templateName << std::endl;
+        }
         else if (!arg.empty() && arg[0] != '-') {
             // This is a shader project path
             if (shaderProjectPath.empty()) {
@@ -321,8 +365,38 @@ int main(int argc, char* argv[]) {
         }
     }
     
+    // Handle --new flag
+    if (newProject) {
+        ShaderProject newProj;
+        if (!newProj.createNew(shaderProjectPath, "New Shader Project", templateName)) {
+            std::cerr << "Failed to create new project in: " << shaderProjectPath << std::endl;
+            return 1;
+        }
+        std::cout << "Successfully created new shader project in: " << shaderProjectPath << std::endl;
+        return 0; // Exit after creating project
+    }
+    
+    // If no path specified and not in test mode, use current directory
+    if (shaderProjectPath.empty() && !testMode) {
+        shaderProjectPath = ".";
+    }
+    
+    // If not in test mode, validate that manifest exists
+    if (!testMode && !shaderProjectPath.empty()) {
+        std::string manifestPath = shaderProjectPath + "/4k-eater";
+        if (!std::filesystem::exists(manifestPath)) {
+            std::cerr << "No 4k-eater manifest found in: " << shaderProjectPath << std::endl;
+            std::cerr << "Use --new to create a new project, or specify a directory with a 4k-eater manifest." << std::endl;
+            return 1;
+        }
+    }
+    
     if (testMode) {
         app.setTestMode(true, testExitCode);
+        // In test mode, use basic shader if no project specified
+        if (shaderProjectPath.empty()) {
+            shaderProjectPath = "shaders/basic";
+        }
     }
     
     if (!shaderProjectPath.empty()) {

@@ -56,12 +56,6 @@ void LeftPanel::renderFileList(const std::string& selectedShader) {
     ImGui::Text("Shader Files");
     ImGui::Separator();
     
-    if (ImGui::Button("New Shader", ImVec2(-1, 0))) {
-        if (onNewShader) onNewShader();
-    }
-    
-    ImGui::Spacing();
-    
     if (m_currentProject && m_currentProject->isLoaded()) {
         const auto& passes = m_currentProject->getPasses();
         

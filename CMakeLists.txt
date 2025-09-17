@@ -42,6 +42,7 @@ set(SOURCES
     src/Timeline.cpp
     src/ShortcutManager.cpp
     src/ShaderProject.cpp
+    src/ShaderTemplates.cpp
 )
 
 # Create executable

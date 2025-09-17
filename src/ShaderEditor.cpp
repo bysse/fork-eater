@@ -69,16 +69,6 @@ bool ShaderEditor::initialize() {
 
 void ShaderEditor::setupCallbacks() {
     // Menu system callbacks
-    m_menuSystem->onNewShader = [this]() {
-        m_fileManager->createNewShader();
-    };
-    
-    m_menuSystem->onSave = [this]() {
-        if (!m_selectedShader.empty()) {
-            m_fileManager->saveShaderToFile(m_selectedShader);
-        }
-    };
-    
     m_menuSystem->onExit = [this]() {
         std::cout << "File->Exit selected" << std::endl;
         std::exit(0);  // Immediate exit to avoid cleanup hanging
@@ -86,10 +76,6 @@ void ShaderEditor::setupCallbacks() {
     
     m_menuSystem->onShowHelp = [this]() {
         m_showShortcutsHelp = true;
-    };
-    
-    m_menuSystem->onOpen = [this]() {
-        openProjectDialog();
     };
     
     // Left panel callbacks
@@ -103,9 +89,6 @@ void ShaderEditor::setupCallbacks() {
         m_shaderManager->reloadShader(name);
     };
     
-    m_leftPanel->onNewShader = [this]() {
-        m_fileManager->createNewShader();
-    };
 }
 
 void ShaderEditor::render() {

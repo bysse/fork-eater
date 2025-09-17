@@ -48,7 +48,7 @@ public:
     bool saveToDirectory(const std::string& projectPath) const;
     
     // Create new project
-    bool createNew(const std::string& projectPath, const std::string& name);
+    bool createNew(const std::string& projectPath, const std::string& name, const std::string& templateName = "basic");
     
     // Manifest access
     const ShaderProjectManifest& getManifest() const { return m_manifest; }
@@ -94,4 +94,5 @@ private:
     void parsePassesFromJson(const std::string& jsonContent);
     ShaderPass parsePassObject(const std::string& passJson);
     void createDefaultShaders() const;
+    bool createShadersFromTemplate(const struct ShaderTemplate& shaderTemplate) const;
 };

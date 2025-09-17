@@ -1,5 +1,6 @@
 #include "ShaderProject.h"
 #include "ShaderManager.h"
+#include "ShaderTemplates.h"
 #include <fstream>
 #include <sstream>
 #include <filesystem>
@@ -52,25 +53,33 @@ bool ShaderProject::saveToDirectory(const std::string& projectPath) const {
     return saveManifest();
 }
 
-bool ShaderProject::createNew(const std::string& projectPath, const std::string& name) {
+bool ShaderProject::createNew(const std::string& projectPath, const std::string& name, const std::string& templateName) {
     m_projectPath = projectPath;
     m_isLoaded = false;
     
-    // Initialize manifest with defaults
-    m_manifest = ShaderProjectManifest();
-    m_manifest.name = name;
-    m_manifest.description = "A new Fork Eater shader project";
-    m_manifest.timelineLength = 120.0f;
-    m_manifest.bpm = 120.0f;
-    m_manifest.beatsPerBar = 4;
+    // Get template from template manager
+    const auto& templateManager = ShaderTemplateManager::getInstance();
+    const ShaderTemplate* shaderTemplate = templateManager.getTemplate(templateName);
     
-    // Add a default pass
-    ShaderPass defaultPass;
-    defaultPass.name = "main";
-    defaultPass.vertexShader = "basic.vert";
-    defaultPass.fragmentShader = "basic.frag";
-    defaultPass.enabled = true;
-    m_manifest.passes.push_back(defaultPass);
+    if (!shaderTemplate) {
+        std::cerr << "Template not found: " << templateName << ". Using default template." << std::endl;
+        shaderTemplate = templateManager.getDefaultTemplate();
+        if (!shaderTemplate) {
+            std::cerr << "No default template available!" << std::endl;
+            return false;
+        }
+    }
+    
+    // Parse manifest from template
+    if (!parseManifestJson(shaderTemplate->manifestJson)) {
+        std::cerr << "Failed to parse template manifest" << std::endl;
+        return false;
+    }
+    
+    // Override name with provided name
+    if (!name.empty()) {
+        m_manifest.name = name;
+    }
     
     if (!createDirectoryStructure()) {
         return false;
@@ -80,8 +89,10 @@ bool ShaderProject::createNew(const std::string& projectPath, const std::string&
         return false;
     }
     
-    // Create default shader files
-    createDefaultShaders();
+    // Create shader files from template
+    if (!createShadersFromTemplate(*shaderTemplate)) {
+        return false;
+    }
     
     m_isLoaded = true;
     return true;
@@ -463,4 +474,40 @@ void ShaderProject::movePass(size_t from, size_t to) {
         m_manifest.passes.erase(m_manifest.passes.begin() + from);
         m_manifest.passes.insert(m_manifest.passes.begin() + to, pass);
     }
+}
+
+bool ShaderProject::createShadersFromTemplate(const ShaderTemplate& shaderTemplate) const {
+    // Get the first pass to determine shader filenames
+    if (m_manifest.passes.empty()) {
+        std::cerr << "No passes defined in manifest" << std::endl;
+        return false;
+    }
+    
+    const auto& firstPass = m_manifest.passes[0];
+    
+    // Create vertex shader
+    if (!firstPass.vertexShader.empty()) {
+        std::string vertexPath = getShaderPath(firstPass.vertexShader);
+        std::ofstream vertFile(vertexPath);
+        if (!vertFile.is_open()) {
+            std::cerr << "Failed to create vertex shader file: " << vertexPath << std::endl;
+            return false;
+        }
+        vertFile << shaderTemplate.vertexShader;
+        vertFile.close();
+    }
+    
+    // Create fragment shader
+    if (!firstPass.fragmentShader.empty()) {
+        std::string fragmentPath = getShaderPath(firstPass.fragmentShader);
+        std::ofstream fragFile(fragmentPath);
+        if (!fragFile.is_open()) {
+            std::cerr << "Failed to create fragment shader file: " << fragmentPath << std::endl;
+            return false;
+        }
+        fragFile << shaderTemplate.fragmentShader;
+        fragFile.close();
+    }
+    
+    return true;
 }

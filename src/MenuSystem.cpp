@@ -13,17 +13,6 @@ MenuSystem::MenuSystem()
 
 void MenuSystem::renderMenuBar() {
     if (ImGui::BeginMenu("File")) {
-        if (ImGui::MenuItem("New Shader", "Ctrl+N")) {
-            if (onNewShader) onNewShader();
-        }
-        if (ImGui::MenuItem("Open...", "Ctrl+O")) {
-            if (onOpen) onOpen();
-        }
-        ImGui::Separator();
-        if (ImGui::MenuItem("Save", "Ctrl+S")) {
-            if (onSave) onSave();
-        }
-        ImGui::Separator();
         if (ImGui::MenuItem("Exit", "Alt+F4")) {
             if (onExit) {
                 onExit();
