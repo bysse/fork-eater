@@ -43,6 +43,11 @@ public:
     void jumpToEnd();
     void adjustSpeed(float delta);
     
+    // Direct playback control
+    void play();
+    void pause();
+    void stop();
+    
     // Callbacks for timeline events
     std::function<void(float)> onTimeChanged;
     std::function<void(bool)> onPlayStateChanged;

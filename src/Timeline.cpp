@@ -344,6 +344,36 @@ void Timeline::adjustSpeed(float delta) {
     m_playbackSpeed = std::clamp(m_playbackSpeed, MIN_SPEED, MAX_SPEED);
 }
 
+// Direct playback control methods
+void Timeline::play() {
+    if (!m_isPlaying) {
+        m_isPlaying = true;
+        
+        // If we're at the end and not looping, reset to start when playing
+        if (m_currentTime >= m_duration && !m_isLooping) {
+            setCurrentTime(0.0f);
+        }
+        
+        if (onPlayStateChanged) {
+            onPlayStateChanged(m_isPlaying);
+        }
+    }
+}
+
+void Timeline::pause() {
+    if (m_isPlaying) {
+        m_isPlaying = false;
+        
+        if (onPlayStateChanged) {
+            onPlayStateChanged(m_isPlaying);
+        }
+    }
+}
+
+void Timeline::stop() {
+    handleStop();
+}
+
 // BPM support methods
 void Timeline::setBPM(float bpm, int beatsPerBar) {
     m_bpm = bpm;

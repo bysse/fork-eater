@@ -317,6 +317,21 @@ bool ShaderEditor::loadProjectFromPath(const std::string& projectPath) {
         if (m_currentProject->loadShadersIntoManager(m_shaderManager)) {
             std::cout << "Loaded shader project: " << m_currentProject->getManifest().name << std::endl;
             m_leftPanel->setCurrentProject(m_currentProject);
+            
+            // Auto-select the first enabled pass for immediate rendering
+            const auto& passes = m_currentProject->getPasses();
+            for (const auto& pass : passes) {
+                if (pass.enabled) {
+                    m_selectedShader = pass.name;
+                    std::cout << "Auto-selected shader pass: " << pass.name << std::endl;
+                    break;
+                }
+            }
+            
+            // Auto-start timeline playback
+            m_timeline->play();
+            std::cout << "Started timeline playback automatically" << std::endl;
+            
             success = true;
         } else {
             std::cerr << "Failed to load shaders from project: " << projectPath << std::endl;
@@ -326,6 +341,12 @@ bool ShaderEditor::loadProjectFromPath(const std::string& projectPath) {
         // Try direct shader loading as fallback for legacy projects
         if (projectPath == "shaders/basic") {
             m_shaderManager->loadShader("basic", "shaders/basic.vert", "shaders/basic.frag");
+            m_selectedShader = "basic";  // Auto-select the basic shader
+            
+            // Auto-start timeline playback
+            m_timeline->play();
+            std::cout << "Started timeline playback automatically (basic shader)" << std::endl;
+            
             success = true;
         }
     }
