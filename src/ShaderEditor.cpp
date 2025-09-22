@@ -61,9 +61,6 @@ bool ShaderEditor::initialize() {
     // Setup keyboard shortcuts
     setupShortcuts();
     
-    // Load default project - basic if no project specified
-    loadProjectFromPath("shaders/basic");
-    
     return true;
 }
 
@@ -92,6 +89,9 @@ void ShaderEditor::setupCallbacks() {
 }
 
 void ShaderEditor::render() {
+    // Process any pending shader reloads on the main thread
+    processPendingReloads();
+    
     // Render menu bar in main viewport
     if (ImGui::BeginMainMenuBar()) {
         m_menuSystem->renderMenuBar();
@@ -313,7 +313,7 @@ void ShaderEditor::setupFileWatching() {
 
 bool ShaderEditor::loadProjectFromPath(const std::string& projectPath) {
     // Clear current shaders
-    // TODO: Add method to clear shaders from ShaderManager
+    m_shaderManager->clearShaders();
     
     bool success = false;
     
@@ -340,20 +340,7 @@ bool ShaderEditor::loadProjectFromPath(const std::string& projectPath) {
         } else {
             std::cerr << "Failed to load shaders from project: " << projectPath << std::endl;
         }
-    } else {
-        std::cerr << "Failed to load project from: " << projectPath << std::endl;
-        // Try direct shader loading as fallback for legacy projects
-        if (projectPath == "shaders/basic") {
-            m_shaderManager->loadShader("basic", "shaders/basic.vert", "shaders/basic.frag");
-            m_selectedShader = "basic";  // Auto-select the basic shader
-            
-            // Auto-start timeline playback
-            m_timeline->play();
-            std::cout << "Started timeline playback automatically (basic shader)" << std::endl;
-            
-            success = true;
-        }
-    }
+    } 
     
     return success;
 }
@@ -387,7 +374,9 @@ void ShaderEditor::setupProjectFileWatching() {
 }
 
 void ShaderEditor::onShaderFileChanged(const std::string& filePath) {
-    // Find which shader pass this file belongs to and reload it
+    // Find which shader pass this file belongs to and queue it for reload
+    if (!m_currentProject) return;
+    
     const auto& passes = m_currentProject->getPasses();
     for (const auto& pass : passes) {
         if (!pass.enabled) continue;
@@ -396,10 +385,27 @@ void ShaderEditor::onShaderFileChanged(const std::string& filePath) {
         std::string fragPath = m_currentProject->getShaderPath(pass.fragmentShader);
         
         if (vertPath == filePath || fragPath == filePath) {
-            std::cout << "File changed, reloading shader: " << pass.name << " (" << filePath << ")" << std::endl;
-            m_shaderManager->reloadShader(pass.name);
+            std::cout << "File changed, queuing shader reload: " << pass.name << " (" << filePath << ")" << std::endl;
+            
+            // Thread-safely queue the reload
+            {
+                std::lock_guard<std::mutex> lock(m_reloadQueueMutex);
+                m_pendingReloads.push(pass.name);
+            }
             break;
         }
+    }
+}
+
+void ShaderEditor::processPendingReloads() {
+    std::lock_guard<std::mutex> lock(m_reloadQueueMutex);
+    
+    while (!m_pendingReloads.empty()) {
+        std::string shaderName = m_pendingReloads.front();
+        m_pendingReloads.pop();
+        
+        std::cout << "Processing shader reload: " << shaderName << std::endl;
+        m_shaderManager->reloadShader(shaderName);
     }
 }
 

@@ -6,6 +6,7 @@ uniform vec2 u_resolution;
 out vec4 FragColor;
 
 void main() {
+    /*
     vec2 uv = gl_FragCoord.xy / u_resolution.xy;
     
     // Music-synchronized colors that work well with 128 BPM
@@ -35,5 +36,6 @@ void main() {
     if (sparkle > 0.98) {
         finalColor += vec3(1.0) * beatPulse;
     }
-    
-    FragColor = vec4(finalColor*0., 1.0);
+    */
+    FragColor = vec4(0.0, 1.0, 0.0, 1.0);  // GREEN - Sample project shader
+}

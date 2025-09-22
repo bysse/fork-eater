@@ -48,6 +48,9 @@ public:
     // Get all shader names
     std::vector<std::string> getShaderNames() const;
     
+    // Clear all loaded shaders
+    void clearShaders();
+    
     // Set compilation callback
     void setCompilationCallback(std::function<void(const std::string&, bool, const std::string&)> callback);
 

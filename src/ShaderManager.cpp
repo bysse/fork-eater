@@ -22,6 +22,8 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     const std::string& vertexPath, 
     const std::string& fragmentPath) {
     
+    std::cout << "[ShaderManager] Loading shader '" << name << "': " << vertexPath << " + " << fragmentPath << std::endl;
+    
     auto shader = std::make_shared<ShaderProgram>();
     shader->vertexPath = vertexPath;
     shader->fragmentPath = fragmentPath;
@@ -102,8 +104,15 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::getShader(const std
 void ShaderManager::useShader(const std::string& name) {
     auto shader = getShader(name);
     if (shader && shader->isValid) {
+        // Shader is active, reduce log spam
+        if (m_currentShader != name) {
+            std::cout << "[ShaderManager] Switching to shader: " << name << std::endl;
+        }
+
         glUseProgram(shader->programId);
         m_currentShader = name;
+    } else {
+        std::cout << "[ShaderManager] Failed to use shader: " << name << " (not found or invalid)" << std::endl;
     }
 }
 
@@ -239,6 +248,21 @@ std::string ShaderManager::getProgramInfoLog(GLuint program) {
     glGetProgramInfoLog(program, logLength, nullptr, log.data());
     
     return std::string(log.data());
+}
+
+void ShaderManager::clearShaders() {
+    // Clean up all shader programs
+    for (auto& [name, shader] : m_shaders) {
+        if (shader) {
+            cleanupShader(*shader);
+        }
+    }
+    
+    // Clear the map
+    m_shaders.clear();
+    m_currentShader.clear();
+    
+    std::cout << "Cleared all loaded shaders" << std::endl;
 }
 
 void ShaderManager::cleanupShader(ShaderProgram& shader) {

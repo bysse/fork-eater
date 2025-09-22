@@ -3,6 +3,8 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <queue>
+#include <mutex>
 
 // Forward declare ImGui types
 struct ImVec2;
@@ -69,6 +71,10 @@ private:
     bool m_exitRequested;
     bool m_showShortcutsHelp;
     
+    // Thread-safe shader reload queue
+    std::queue<std::string> m_pendingReloads;
+    std::mutex m_reloadQueueMutex;
+    
     // Private methods
     void renderMainLayout();
     void onShaderCompiled(const std::string& name, bool success, const std::string& error);
@@ -87,4 +93,5 @@ private:
     void openProjectDialog();
     void setupProjectFileWatching();
     void onShaderFileChanged(const std::string& filePath);
+    void processPendingReloads();
 };
