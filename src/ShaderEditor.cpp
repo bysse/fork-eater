@@ -307,6 +307,10 @@ void ShaderEditor::openProject(const std::string& projectPath) {
     }
 }
 
+void ShaderEditor::setupFileWatching() {
+    setupProjectFileWatching();
+}
+
 bool ShaderEditor::loadProjectFromPath(const std::string& projectPath) {
     // Clear current shaders
     // TODO: Add method to clear shaders from ShaderManager
@@ -352,6 +356,51 @@ bool ShaderEditor::loadProjectFromPath(const std::string& projectPath) {
     }
     
     return success;
+}
+
+void ShaderEditor::setupProjectFileWatching() {
+    if (!m_currentProject || !m_fileWatcher) {
+        return;
+    }
+    
+    const auto& passes = m_currentProject->getPasses();
+    for (const auto& pass : passes) {
+        if (!pass.enabled) continue;
+        
+        std::string vertPath = m_currentProject->getShaderPath(pass.vertexShader);
+        std::string fragPath = m_currentProject->getShaderPath(pass.fragmentShader);
+        
+        // Set up file watching for vertex shader
+        if (!pass.vertexShader.empty()) {
+            m_fileWatcher->addWatch(vertPath, 
+                [this](const std::string& path) { onShaderFileChanged(path); });
+            std::cout << "Watching vertex shader: " << vertPath << std::endl;
+        }
+        
+        // Set up file watching for fragment shader
+        if (!pass.fragmentShader.empty()) {
+            m_fileWatcher->addWatch(fragPath, 
+                [this](const std::string& path) { onShaderFileChanged(path); });
+            std::cout << "Watching fragment shader: " << fragPath << std::endl;
+        }
+    }
+}
+
+void ShaderEditor::onShaderFileChanged(const std::string& filePath) {
+    // Find which shader pass this file belongs to and reload it
+    const auto& passes = m_currentProject->getPasses();
+    for (const auto& pass : passes) {
+        if (!pass.enabled) continue;
+        
+        std::string vertPath = m_currentProject->getShaderPath(pass.vertexShader);
+        std::string fragPath = m_currentProject->getShaderPath(pass.fragmentShader);
+        
+        if (vertPath == filePath || fragPath == filePath) {
+            std::cout << "File changed, reloading shader: " << pass.name << " (" << filePath << ")" << std::endl;
+            m_shaderManager->reloadShader(pass.name);
+            break;
+        }
+    }
 }
 
 void ShaderEditor::openProjectDialog() {

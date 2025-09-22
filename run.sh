@@ -14,5 +14,18 @@ fi
 
 echo "🎨 Launching Fork Eater..."
 echo "Tip: Press ESC or use File->Exit to exit gracefully"
+
+# Convert relative paths to absolute paths before changing directory
+ARGS=()
+for arg in "$@"; do
+    if [[ -d "$arg" ]]; then
+        # If argument is a directory, convert to absolute path
+        ARGS+=("$(realpath "$arg")")
+    else
+        # Keep other arguments as-is
+        ARGS+=("$arg")
+    fi
+done
+
 cd build
-./fork-eater $@
+./fork-eater "${ARGS[@]}"

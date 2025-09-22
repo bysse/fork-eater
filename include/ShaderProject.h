@@ -4,6 +4,9 @@
 #include <vector>
 #include <memory>
 
+// Constants
+static const char* const SHADER_PROJECT_MANIFEST_FILENAME = "4k-eater.project";
+
 // Forward declarations
 class ShaderManager;
 

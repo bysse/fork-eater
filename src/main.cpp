@@ -106,6 +106,11 @@ public:
             return false;
         }
         
+        // Set up file watching for the loaded project (now that FileWatcher is started)
+        if (!m_shaderProjectPath.empty()) {
+            m_shaderEditor->setupFileWatching();
+        }
+        
         std::cout << "Fork Eater initialized successfully!" << std::endl;
         std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
         std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
@@ -276,12 +281,12 @@ void printUsage(const char* programName) {
     std::cout << "  --templates                 List available shader templates" << std::endl;
     std::cout << "  --test [exit_code]          Run in test mode (exit after one render loop)" << std::endl;
     std::cout << "  --help, -h                  Show this help message" << std::endl;
-    std::cout << "  shader_directory            Path to shader project directory containing 4k-eater manifest" << std::endl;
+    std::cout << "  shader_directory            Path to shader project directory containing " << SHADER_PROJECT_MANIFEST_FILENAME << " manifest" << std::endl;
     std::cout << std::endl;
     std::cout << "Fork Eater - Real-time GLSL shader editor with hot reloading" << std::endl;
     std::cout << std::endl;
     std::cout << "If no directory is specified, uses current directory." << std::endl;
-    std::cout << "Program will exit if no 4k-eater manifest is found (except in test mode)." << std::endl;
+    std::cout << "Program will exit if no " << SHADER_PROJECT_MANIFEST_FILENAME << " manifest is found (except in test mode)." << std::endl;
 }
 
 void printTemplates() {
@@ -383,10 +388,10 @@ int main(int argc, char* argv[]) {
     
     // If not in test mode, validate that manifest exists
     if (!testMode && !shaderProjectPath.empty()) {
-        std::string manifestPath = shaderProjectPath + "/4k-eater";
+        std::string manifestPath = shaderProjectPath + "/" + SHADER_PROJECT_MANIFEST_FILENAME;
         if (!std::filesystem::exists(manifestPath)) {
-            std::cerr << "No 4k-eater manifest found in: " << shaderProjectPath << std::endl;
-            std::cerr << "Use --new to create a new project, or specify a directory with a 4k-eater manifest." << std::endl;
+            std::cerr << "No " << SHADER_PROJECT_MANIFEST_FILENAME << " manifest found in: " << shaderProjectPath << std::endl;
+            std::cerr << "Use --new to create a new project, or specify a directory with a " << SHADER_PROJECT_MANIFEST_FILENAME << " manifest." << std::endl;
             return 1;
         }
     }

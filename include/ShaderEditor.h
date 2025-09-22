@@ -80,8 +80,11 @@ private:
 public:
     // Project management
     void openProject(const std::string& projectPath);
+    void setupFileWatching();
     
 private:
     bool loadProjectFromPath(const std::string& projectPath);
     void openProjectDialog();
+    void setupProjectFileWatching();
+    void onShaderFileChanged(const std::string& filePath);
 };

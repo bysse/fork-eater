@@ -99,7 +99,7 @@ bool ShaderProject::createNew(const std::string& projectPath, const std::string&
 }
 
 std::string ShaderProject::getManifestPath() const {
-    return m_projectPath + "/4k-eater";
+    return m_projectPath + "/" + SHADER_PROJECT_MANIFEST_FILENAME;
 }
 
 std::string ShaderProject::getShaderPath(const std::string& filename) const {
