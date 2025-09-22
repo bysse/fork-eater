@@ -9,6 +9,7 @@
 #include "Timeline.h"
 #include "ShortcutManager.h"
 #include "ShaderProject.h"
+#include "Logger.h"
 
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -67,7 +68,7 @@ bool ShaderEditor::initialize() {
 void ShaderEditor::setupCallbacks() {
     // Menu system callbacks
     m_menuSystem->onExit = [this]() {
-        std::cout << "File->Exit selected" << std::endl;
+        LOG_INFO("File->Exit selected");
         std::exit(0);  // Immediate exit to avoid cleanup hanging
     };
     
@@ -226,11 +227,11 @@ void ShaderEditor::onShaderCompiled(const std::string& name, bool success, const
     // Add to GUI log
     m_errorPanel->addToLog(logMessage);
     
-    // Output to terminal as well
+    // Output to terminal as well using Logger
     if (success) {
-        std::cout << "\033[32m" << logMessage << "\033[0m"; // Green for success
+        LOG_SUCCESS("{}", logMessage);
     } else {
-        std::cerr << "\033[31m" << logMessage << "\033[0m"; // Red for errors
+        LOG_ERROR("{}", logMessage);
     }
 }
 
@@ -303,7 +304,7 @@ void ShaderEditor::setupShortcuts() {
 void ShaderEditor::openProject(const std::string& projectPath) {
     if (loadProjectFromPath(projectPath)) {
         m_currentProjectPath = projectPath;
-        std::cout << "Opened project: " << m_currentProject->getManifest().name << std::endl;
+        LOG_SUCCESS("Opened project: {}", m_currentProject->getManifest().name);
     }
 }
 
@@ -319,7 +320,7 @@ bool ShaderEditor::loadProjectFromPath(const std::string& projectPath) {
     
     if (m_currentProject->loadFromDirectory(projectPath)) {
         if (m_currentProject->loadShadersIntoManager(m_shaderManager)) {
-            std::cout << "Loaded shader project: " << m_currentProject->getManifest().name << std::endl;
+        LOG_INFO("Loaded shader project: {}", m_currentProject->getManifest().name);
             m_leftPanel->setCurrentProject(m_currentProject);
             
             // Auto-select the first enabled pass for immediate rendering
@@ -327,18 +328,18 @@ bool ShaderEditor::loadProjectFromPath(const std::string& projectPath) {
             for (const auto& pass : passes) {
                 if (pass.enabled) {
                     m_selectedShader = pass.name;
-                    std::cout << "Auto-selected shader pass: " << pass.name << std::endl;
+                    LOG_INFO("Auto-selected shader pass: {}", pass.name);
                     break;
                 }
             }
             
             // Auto-start timeline playback
             m_timeline->play();
-            std::cout << "Started timeline playback automatically" << std::endl;
+            LOG_INFO("Started timeline playback automatically");
             
             success = true;
         } else {
-            std::cerr << "Failed to load shaders from project: " << projectPath << std::endl;
+            LOG_ERROR("Failed to load shaders from project: {}", projectPath);
         }
     } 
     
@@ -361,14 +362,14 @@ void ShaderEditor::setupProjectFileWatching() {
         if (!pass.vertexShader.empty()) {
             m_fileWatcher->addWatch(vertPath, 
                 [this](const std::string& path) { onShaderFileChanged(path); });
-            std::cout << "Watching vertex shader: " << vertPath << std::endl;
+            LOG_DEBUG("Watching vertex shader: {}", vertPath);
         }
         
         // Set up file watching for fragment shader
         if (!pass.fragmentShader.empty()) {
             m_fileWatcher->addWatch(fragPath, 
                 [this](const std::string& path) { onShaderFileChanged(path); });
-            std::cout << "Watching fragment shader: " << fragPath << std::endl;
+            LOG_DEBUG("Watching fragment shader: {}", fragPath);
         }
     }
 }
@@ -385,7 +386,7 @@ void ShaderEditor::onShaderFileChanged(const std::string& filePath) {
         std::string fragPath = m_currentProject->getShaderPath(pass.fragmentShader);
         
         if (vertPath == filePath || fragPath == filePath) {
-            std::cout << "File changed, queuing shader reload: " << pass.name << " (" << filePath << ")" << std::endl;
+            LOG_DEBUG("File changed, queuing shader reload: {} ({})", pass.name, filePath);
             
             // Thread-safely queue the reload
             {
@@ -404,7 +405,7 @@ void ShaderEditor::processPendingReloads() {
         std::string shaderName = m_pendingReloads.front();
         m_pendingReloads.pop();
         
-        std::cout << "Processing shader reload: " << shaderName << std::endl;
+        LOG_DEBUG("Processing shader reload: {}", shaderName);
         m_shaderManager->reloadShader(shaderName);
     }
 }
@@ -412,7 +413,7 @@ void ShaderEditor::processPendingReloads() {
 void ShaderEditor::openProjectDialog() {
     // For now, just show an info message. 
     // In the future, this could open a native file dialog
-    std::cout << "Open project dialog requested. Use command line argument to specify project path." << std::endl;
+    LOG_INFO("Open project dialog requested. Use command line argument to specify project path.");
 }
 
 void ShaderEditor::showShortcutsHelp() {

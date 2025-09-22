@@ -1,4 +1,5 @@
 #include "ShaderManager.h"
+#include "Logger.h"
 #define GL_GLEXT_PROTOTYPES
 #include <GL/gl.h>
 #include <GL/glext.h>
@@ -22,7 +23,7 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     const std::string& vertexPath, 
     const std::string& fragmentPath) {
     
-    std::cout << "[ShaderManager] Loading shader '" << name << "': " << vertexPath << " + " << fragmentPath << std::endl;
+    LOG_DEBUG("[ShaderManager] Loading shader '{}': {} + {}", name, vertexPath, fragmentPath);
     
     auto shader = std::make_shared<ShaderProgram>();
     shader->vertexPath = vertexPath;
@@ -106,13 +107,13 @@ void ShaderManager::useShader(const std::string& name) {
     if (shader && shader->isValid) {
         // Shader is active, reduce log spam
         if (m_currentShader != name) {
-            std::cout << "[ShaderManager] Switching to shader: " << name << std::endl;
+            LOG_DEBUG("[ShaderManager] Switching to shader: {}", name);
         }
 
         glUseProgram(shader->programId);
         m_currentShader = name;
     } else {
-        std::cout << "[ShaderManager] Failed to use shader: " << name << " (not found or invalid)" << std::endl;
+        LOG_ERROR("[ShaderManager] Failed to use shader: {} (not found or invalid)", name);
     }
 }
 
@@ -182,7 +183,7 @@ GLuint ShaderManager::compileShader(const std::string& source, GLenum shaderType
     
     if (!success) {
         std::string errorLog = getShaderInfoLog(shader);
-        std::cerr << "Shader compilation failed: " << errorLog << std::endl;
+        LOG_ERROR("Shader compilation failed: {}", errorLog);
         glDeleteShader(shader);
         return 0;
     }
@@ -202,7 +203,7 @@ GLuint ShaderManager::linkProgram(GLuint vertexShader, GLuint fragmentShader) {
     
     if (!success) {
         std::string errorLog = getProgramInfoLog(program);
-        std::cerr << "Shader linking failed: " << errorLog << std::endl;
+        LOG_ERROR("Shader linking failed: {}", errorLog);
         glDeleteProgram(program);
         return 0;
     }
@@ -213,7 +214,7 @@ GLuint ShaderManager::linkProgram(GLuint vertexShader, GLuint fragmentShader) {
 std::string ShaderManager::readFile(const std::string& filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
-        std::cerr << "Failed to open file: " << filePath << std::endl;
+        LOG_ERROR("Failed to open file: {}", filePath);
         return "";
     }
     
@@ -262,7 +263,7 @@ void ShaderManager::clearShaders() {
     m_shaders.clear();
     m_currentShader.clear();
     
-    std::cout << "Cleared all loaded shaders" << std::endl;
+    LOG_INFO("Cleared all loaded shaders");
 }
 
 void ShaderManager::cleanupShader(ShaderProgram& shader) {

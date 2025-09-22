@@ -16,6 +16,7 @@
 #include "ShaderEditor.h"
 #include "ShaderProject.h"
 #include "ShaderTemplates.h"
+#include "Logger.h"
 #include <filesystem>
 
 // Constants
@@ -34,7 +35,7 @@ public:
     bool initialize() {
         // Initialize GLFW
         if (!glfwInit()) {
-            std::cerr << "Failed to initialize GLFW" << std::endl;
+            LOG_ERROR("Failed to initialize GLFW");
             return false;
         }
         
@@ -54,7 +55,7 @@ public:
         );
         
         if (!m_window) {
-            std::cerr << "Failed to create GLFW window" << std::endl;
+            LOG_ERROR("Failed to create GLFW window");
             glfwTerminate();
             return false;
         }
@@ -92,7 +93,7 @@ public:
         m_shaderEditor = std::make_unique<ShaderEditor>(m_shaderManager, m_fileWatcher);
         
         if (!m_shaderEditor->initialize()) {
-            std::cerr << "Failed to initialize shader editor" << std::endl;
+            LOG_ERROR("Failed to initialize shader editor");
             return false;
         }
         
@@ -102,7 +103,7 @@ public:
         }
         
         if (!m_fileWatcher->start()) {
-            std::cerr << "Failed to start file watcher" << std::endl;
+            LOG_ERROR("Failed to start file watcher");
             return false;
         }
         
@@ -111,9 +112,9 @@ public:
             m_shaderEditor->setupFileWatching();
         }
         
-        std::cout << "Fork Eater initialized successfully!" << std::endl;
-        std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
-        std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+        LOG_SUCCESS("Fork Eater initialized successfully!");
+        LOG_INFO("OpenGL Version: {}", (const char*)glGetString(GL_VERSION));
+        LOG_INFO("GLSL Version: {}", (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION));
         
         return true;
     }
@@ -131,7 +132,7 @@ public:
                 auto now = std::chrono::steady_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - m_testStartTime).count();
                 if (duration > 5) {
-                    std::cout << "Test mode: timeout reached, forcing exit" << std::endl;
+                    LOG_WARN("Test mode: timeout reached, forcing exit");
                     m_running = false;
                     break;
                 }
@@ -164,7 +165,7 @@ public:
             
             // Test mode: exit after first render loop
             if (m_testMode) {
-                std::cout << "Test mode: completed one render loop successfully" << std::endl;
+                LOG_SUCCESS("Test mode: completed one render loop successfully");
                 glfwSetWindowShouldClose(m_window, GLFW_TRUE);
                 m_running = false;
             }
@@ -190,7 +191,7 @@ public:
     static void windowCloseCallback(GLFWwindow* window) {
         Application* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
         if (app) {
-            std::cout << "Window close requested" << std::endl;
+            LOG_INFO("Window close requested");
             std::exit(0);  // Immediate exit to avoid cleanup hanging
         }
     }
@@ -204,7 +205,7 @@ public:
         // Handle application-level keys
         if (action == GLFW_PRESS) {
             if (key == GLFW_KEY_ESCAPE) {
-                std::cout << "ESC pressed - exiting" << std::endl;
+                LOG_INFO("ESC pressed - exiting");
                 std::exit(0);  // Immediate exit to avoid cleanup hanging
             }
         }
@@ -244,7 +245,7 @@ private:
         
         // For regular mode, also use immediate exit to avoid ImGui cleanup hanging
         // This is a workaround for ImGui cleanup issues in certain environments
-        std::cout << "Exiting Fork Eater..." << std::endl;
+        LOG_INFO("Exiting Fork Eater...");
         std::exit(0);
         
         if (m_shaderEditor) {
@@ -280,6 +281,7 @@ void printUsage(const char* programName) {
     std::cout << "  --new [path] [-t template]  Create new shader project" << std::endl;
     std::cout << "  --templates                 List available shader templates" << std::endl;
     std::cout << "  --test [exit_code]          Run in test mode (exit after one render loop)" << std::endl;
+    std::cout << "  --debug, -d                 Enable debug output with colors" << std::endl;
     std::cout << "  --help, -h                  Show this help message" << std::endl;
     std::cout << "  shader_directory            Path to shader project directory containing " << SHADER_PROJECT_MANIFEST_FILENAME << " manifest" << std::endl;
     std::cout << std::endl;
@@ -307,6 +309,7 @@ int main(int argc, char* argv[]) {
     bool testMode = false;
     int testExitCode = 0;
     bool newProject = false;
+    bool debugMode = false;
     std::string shaderProjectPath;
     std::string templateName = "basic";
     
@@ -317,6 +320,11 @@ int main(int argc, char* argv[]) {
         if (arg == "--help" || arg == "-h") {
             printUsage(argv[0]);
             return 0;
+        }
+        else if (arg == "--debug" || arg == "-d") {
+            debugMode = true;
+            // Note: Logger not initialized yet, so using std::cout here
+            std::cout << "Debug mode enabled" << std::endl;
         }
         else if (arg == "--test") {
             testMode = true;
@@ -344,18 +352,21 @@ int main(int argc, char* argv[]) {
             } else {
                 shaderProjectPath = "."; // Use current directory
             }
+            // Note: Logger not initialized yet, so using std::cout here
             std::cout << "Creating new project in: " << shaderProjectPath << std::endl;
         }
         else if (arg == "-t" && i + 1 < argc) {
             // Template selection (only valid with --new)
             templateName = argv[i + 1];
             i++; // Skip the template name
+            // Note: Logger not initialized yet, so using std::cout here
             std::cout << "Using template: " << templateName << std::endl;
         }
         else if (!arg.empty() && arg[0] != '-') {
             // This is a shader project path
             if (shaderProjectPath.empty()) {
                 shaderProjectPath = arg;
+                // Note: Logger not initialized yet, so using std::cout here
                 std::cout << "Shader project path: " << shaderProjectPath << std::endl;
             } else {
                 std::cerr << "Multiple shader paths specified. Only one is allowed." << std::endl;
@@ -370,14 +381,17 @@ int main(int argc, char* argv[]) {
         }
     }
     
+    // Initialize logger early so it can be used throughout
+    Logger::getInstance().initialize(debugMode);
+    
     // Handle --new flag
     if (newProject) {
         ShaderProject newProj;
         if (!newProj.createNew(shaderProjectPath, "New Shader Project", templateName)) {
-            std::cerr << "Failed to create new project in: " << shaderProjectPath << std::endl;
+            LOG_ERROR("Failed to create new project in: {}", shaderProjectPath);
             return 1;
         }
-        std::cout << "Successfully created new shader project in: " << shaderProjectPath << std::endl;
+        LOG_SUCCESS("Successfully created new shader project in: {}", shaderProjectPath);
         return 0; // Exit after creating project
     }
     
@@ -390,8 +404,8 @@ int main(int argc, char* argv[]) {
     if (!testMode && !shaderProjectPath.empty()) {
         std::string manifestPath = shaderProjectPath + "/" + SHADER_PROJECT_MANIFEST_FILENAME;
         if (!std::filesystem::exists(manifestPath)) {
-            std::cerr << "No " << SHADER_PROJECT_MANIFEST_FILENAME << " manifest found in: " << shaderProjectPath << std::endl;
-            std::cerr << "Use --new to create a new project, or specify a directory with a " << SHADER_PROJECT_MANIFEST_FILENAME << " manifest." << std::endl;
+            LOG_ERROR("No {} manifest found in: {}", SHADER_PROJECT_MANIFEST_FILENAME, shaderProjectPath);
+            LOG_ERROR("Use --new to create a new project, or specify a directory with a {} manifest.", SHADER_PROJECT_MANIFEST_FILENAME);
             return 1;
         }
     }
@@ -409,7 +423,7 @@ int main(int argc, char* argv[]) {
     }
     
     if (!app.initialize()) {
-        std::cerr << "Failed to initialize application" << std::endl;
+        LOG_ERROR("Failed to initialize application");
         return 1;
     }
     

@@ -31,6 +31,7 @@ set(IMGUI_SOURCES
 # Project source files
 set(SOURCES
     src/main.cpp
+    src/Logger.cpp
     src/ShaderManager.cpp
     src/FileWatcher.cpp
     src/ShaderEditor.cpp
