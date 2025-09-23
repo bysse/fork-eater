@@ -17,6 +17,7 @@
 #include "ShaderProject.h"
 #include "ShaderTemplates.h"
 #include "Logger.h"
+#include "Settings.h"
 #include <filesystem>
 
 // Constants
@@ -33,6 +34,10 @@ public:
     }
     
     bool initialize() {
+        // Initialize Settings early (before GLFW)
+        Settings& settings = Settings::getInstance();
+        settings.initialize();
+        
         // Initialize GLFW
         if (!glfwInit()) {
             LOG_ERROR("Failed to initialize GLFW");
@@ -45,10 +50,15 @@ public:
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
         
+        // Apply DPI scaling to window size
+        float uiScale = settings.getUIScaleFactor();
+        int scaledWidth = static_cast<int>(WINDOW_WIDTH * uiScale);
+        int scaledHeight = static_cast<int>(WINDOW_HEIGHT * uiScale);
+        
         // Create window
         m_window = glfwCreateWindow(
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
+            scaledWidth,
+            scaledHeight,
             WINDOW_TITLE,
             nullptr,
             nullptr
@@ -86,6 +96,17 @@ public:
         ImGui_ImplGlfw_InitForOpenGL(m_window, true);
         ImGui_ImplOpenGL3_Init("#version 330");
         m_imguiInitialized = true;
+        
+        // Apply DPI scaling to ImGui
+        settings.applyToImGui();
+        
+        // Setup settings change callback
+        settings.onSettingsChanged = [this]() {
+            Settings& s = Settings::getInstance();
+            s.applyToImGui();
+            LOG_INFO("Settings updated - UI Scale: {:.2f}, Font Scale: {:.2f}", 
+                     s.getUIScaleFactor(), s.getFontScaleFactor());
+        };
         
         // Initialize components
         m_shaderManager = std::make_shared<ShaderManager>();
@@ -282,6 +303,8 @@ void printUsage(const char* programName) {
     std::cout << "  --templates                 List available shader templates" << std::endl;
     std::cout << "  --test [exit_code]          Run in test mode (exit after one render loop)" << std::endl;
     std::cout << "  --debug, -d                 Enable debug output with colors" << std::endl;
+    std::cout << "  --scale FACTOR              Set UI scale factor (e.g., 1.0, 1.5, 2.0)" << std::endl;
+    std::cout << "  --no-dpi-scale              Disable DPI scaling (use 1.0x scaling)" << std::endl;
     std::cout << "  --help, -h                  Show this help message" << std::endl;
     std::cout << "  shader_directory            Path to shader project directory containing " << SHADER_PROJECT_MANIFEST_FILENAME << " manifest" << std::endl;
     std::cout << std::endl;
@@ -312,6 +335,11 @@ int main(int argc, char* argv[]) {
     bool debugMode = false;
     std::string shaderProjectPath;
     std::string templateName = "basic";
+    
+    // DPI scaling options
+    bool overrideScaling = false;
+    float customScale = 1.0f;
+    bool disableDpiScaling = false;
     
     // Parse command line arguments
     for (int i = 1; i < argc; i++) {
@@ -361,6 +389,27 @@ int main(int argc, char* argv[]) {
             i++; // Skip the template name
             // Note: Logger not initialized yet, so using std::cout here
             std::cout << "Using template: " << templateName << std::endl;
+        }
+        else if (arg == "--scale" && i + 1 < argc) {
+            // Custom UI scaling factor
+            try {
+                customScale = std::stof(argv[i + 1]);
+                if (customScale < 0.5f || customScale > 4.0f) {
+                    std::cerr << "Scale factor must be between 0.5 and 4.0" << std::endl;
+                    return 1;
+                }
+                overrideScaling = true;
+                i++; // Skip the scale value
+                std::cout << "Using custom UI scale: " << customScale << "x" << std::endl;
+            } catch (const std::exception&) {
+                std::cerr << "Invalid scale factor: " << argv[i + 1] << std::endl;
+                return 1;
+            }
+        }
+        else if (arg == "--no-dpi-scale") {
+            // Disable DPI scaling
+            disableDpiScaling = true;
+            std::cout << "DPI scaling disabled" << std::endl;
         }
         else if (!arg.empty() && arg[0] != '-') {
             // This is a shader project path
@@ -420,6 +469,21 @@ int main(int argc, char* argv[]) {
     
     if (!shaderProjectPath.empty()) {
         app.setShaderProjectPath(shaderProjectPath);
+    }
+    
+    // Apply command line DPI scaling settings before initialization
+    if (overrideScaling || disableDpiScaling) {
+        Settings& settings = Settings::getInstance();
+        
+        if (disableDpiScaling) {
+            settings.setDPIScaleMode(DPIScaleMode::Disabled);
+            LOG_INFO("DPI scaling disabled via command line");
+        } else if (overrideScaling) {
+            settings.setDPIScaleMode(DPIScaleMode::Manual);
+            settings.setUIScaleFactor(customScale);
+            settings.setFontScaleFactor(customScale);
+            LOG_INFO("UI scaling set to {:.2f}x via command line", customScale);
+        }
     }
     
     if (!app.initialize()) {

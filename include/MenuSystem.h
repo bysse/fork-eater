@@ -11,6 +11,7 @@ public:
     // Render methods
     void renderMenuBar();
     void renderRenderMenu();
+    void renderSettingsWindow();
     
     // State getters/setters
     bool shouldShowLeftPanel() const { return m_showLeftPanel; }
@@ -32,6 +33,7 @@ private:
     bool m_showLeftPanel;
     bool m_showErrorPanel;
     bool m_autoReload;
+    bool m_showSettingsWindow;
     
     // Render settings
     AspectMode m_aspectMode;

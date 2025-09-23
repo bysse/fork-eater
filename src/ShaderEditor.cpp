@@ -10,6 +10,7 @@
 #include "ShortcutManager.h"
 #include "ShaderProject.h"
 #include "Logger.h"
+#include "Settings.h"
 
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -24,7 +25,7 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     , m_fileWatcher(fileWatcher)
     , m_leftPanelWidth(300.0f)
     , m_errorPanelHeight(200.0f)
-    , m_timelineHeight(65.0f)  // Match Timeline::TIMELINE_HEIGHT
+    , m_timelineHeight(65.0f) 
     , m_exitRequested(false)
     , m_showShortcutsHelp(false) {
     
@@ -44,6 +45,15 @@ ShaderEditor::~ShaderEditor() {
 }
 
 bool ShaderEditor::initialize() {
+    // Apply scaled initial timeline height so it starts fully visible on HiDPI
+    {
+        float scale = Settings::getInstance().getUIScaleFactor();
+        ImGuiStyle& style = ImGui::GetStyle();
+        float outerChrome = style.WindowPadding.y * 2.0f + style.ChildBorderSize * 2.0f; // TimelinePanel child has border+padding
+        float scaledInit = Timeline::defaultHeightDIP() * scale + outerChrome;
+        if (m_timelineHeight < scaledInit) m_timelineHeight = scaledInit;
+    }
+
     // Set up shader compilation callback
     m_shaderManager->setCompilationCallback(
         [this](const std::string& name, bool success, const std::string& error) {
@@ -127,6 +137,9 @@ void ShaderEditor::render() {
     // Update timeline
     m_timeline->update(ImGui::GetIO().DeltaTime);
     
+    // Render settings window if requested
+    m_menuSystem->renderSettingsWindow();
+    
     // Show shortcuts help if requested
     showShortcutsHelp();
     
@@ -141,9 +154,17 @@ void ShaderEditor::handleResize(int width, int height) {
 
 void ShaderEditor::renderMainLayout() {
     ImVec2 windowSize = ImGui::GetContentRegionAvail();
+
+    // Scale-aware minimums
+    float uiScale = Settings::getInstance().getUIScaleFactor();
+    ImGuiStyle& style = ImGui::GetStyle();
+    float outerChrome = style.WindowPadding.y * 2.0f + style.ChildBorderSize * 2.0f; // padding+border of TimelinePanel
+    float timelineMin = Timeline::defaultHeightDIP() * uiScale + outerChrome; // content min + chrome
+    if (m_timelineHeight < timelineMin) m_timelineHeight = timelineMin;
     
-    // Reserve space for timeline at the bottom
+    // Reserve space for timeline at the bottom (others give up space first)
     float availableHeight = windowSize.y - m_timelineHeight - 4; // 4px for splitter
+    if (availableHeight < 0.0f) availableHeight = 0.0f;
     
     // Define flags for child windows without navigation
     ImGuiWindowFlags noNavFlags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | 
@@ -178,10 +199,25 @@ void ShaderEditor::renderMainLayout() {
     
     // Right side - preview and error panels
     ImGui::BeginChild("RightSide", contentSize, false, noNavFlags);
-    
+
+    // Enforce a minimum for the error panel so it can give up space when scaled
+    float errorMin = 100.0f * uiScale; // scale-aware min
+
     // Always show preview panel
     float previewHeight = m_menuSystem->shouldShowErrorPanel() ? 
                          contentSize.y - m_errorPanelHeight - 4 : contentSize.y;
+
+    // If the preview area is negative due to scaling, take space back from error panel first
+    if (m_menuSystem->shouldShowErrorPanel() && previewHeight < 0.0f) {
+        float deficit = -previewHeight;
+        float canGive = std::max(0.0f, m_errorPanelHeight - errorMin);
+        float give = std::min(deficit, canGive);
+        m_errorPanelHeight -= give;
+        previewHeight += give;
+    }
+
+    // Clamp previewHeight to >= 0
+    if (previewHeight < 0.0f) previewHeight = 0.0f;
     ImGui::BeginChild("PreviewPanel", ImVec2(contentSize.x, previewHeight), true, noNavFlags);
     m_previewPanel->render(m_selectedShader, m_timeline->getCurrentTime());
     ImGui::EndChild();
@@ -191,8 +227,9 @@ void ShaderEditor::renderMainLayout() {
         ImGui::Button("##hsplitter", ImVec2(contentSize.x, 4));
         if (ImGui::IsItemActive()) {
             m_errorPanelHeight -= ImGui::GetIO().MouseDelta.y;
-            if (m_errorPanelHeight < 100.0f) m_errorPanelHeight = 100.0f;
-            if (m_errorPanelHeight > contentSize.y - 100.0f) m_errorPanelHeight = contentSize.y - 100.0f;
+            float errorMinScaled = 100.0f * uiScale;
+            if (m_errorPanelHeight < errorMinScaled) m_errorPanelHeight = errorMinScaled;
+            if (m_errorPanelHeight > contentSize.y - errorMinScaled) m_errorPanelHeight = contentSize.y - errorMinScaled;
         }
     }
     
@@ -211,8 +248,15 @@ void ShaderEditor::renderMainLayout() {
     ImGui::Button("##timeline_splitter", ImVec2(windowSize.x, 4));
     if (ImGui::IsItemActive()) {
         m_timelineHeight -= ImGui::GetIO().MouseDelta.y;
-        if (m_timelineHeight < 50.0f) m_timelineHeight = 50.0f;  // Reduced minimum
-        if (m_timelineHeight > windowSize.y - 200.0f) m_timelineHeight = windowSize.y - 200.0f;
+        // Clamp to scaled minimum so timeline cannot be collapsed
+        float uiScale = Settings::getInstance().getUIScaleFactor();
+        ImGuiStyle& style = ImGui::GetStyle();
+        float outerChrome = style.WindowPadding.y * 2.0f + style.ChildBorderSize * 2.0f;
+        float timelineMin = Timeline::defaultHeightDIP() * uiScale + outerChrome;
+        if (m_timelineHeight < timelineMin) m_timelineHeight = timelineMin;
+        // Prevent taking more than the window can afford; leave at least a small area for top (can be 0)
+        float maxTimeline = windowSize.y - 4.0f; // allow shrinking main to 0 if needed
+        if (m_timelineHeight > maxTimeline) m_timelineHeight = maxTimeline;
     }
     
     // Timeline panel at the bottom

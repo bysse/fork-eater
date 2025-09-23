@@ -10,6 +10,9 @@ public:
     // Render the timeline UI
     void render();
     
+    // Default height of the timeline in device-independent pixels (DIP)
+    static float defaultHeightDIP();
+    
     // Get current timeline time
     float getCurrentTime() const { return m_currentTime; }
     
@@ -67,7 +70,7 @@ private:
     int m_beatsPerBar;
     
     // UI constants
-    static constexpr float TIMELINE_HEIGHT = 65.0f;  // Increased by 5px
+    static constexpr float TIMELINE_HEIGHT = 70.0f;  // Increased by 5px
     static constexpr float BUTTON_SIZE = 22.0f;      // Slightly smaller buttons
     static constexpr float MIN_SPEED = 0.1f;
     static constexpr float MAX_SPEED = 4.0f;

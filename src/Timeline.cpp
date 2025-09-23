@@ -3,6 +3,9 @@
 #include <cmath>
 #include <cstdio>
 #include <algorithm>
+#include "Settings.h"
+
+float Timeline::defaultHeightDIP() { return TIMELINE_HEIGHT; }
 
 Timeline::Timeline()
     : m_currentTime(0.0f)
@@ -65,13 +68,14 @@ void Timeline::render() {
     ImVec2 contentSize = ImGui::GetContentRegionAvail();
     
     // Split into four sections: controls, current time, timeline bar, speed control
-    float controlsWidth = 180.0f;
-    float currentTimeWidth = 80.0f;
-    float speedControlWidth = 100.0f;
-    float spacing = ImGui::GetStyle().ItemSpacing.x * 3; // 3 SameLine() calls
-    float timelineBarWidth = std::max(200.0f, contentSize.x - controlsWidth - currentTimeWidth - speedControlWidth - spacing);
+    float uiScale = Settings::getInstance().getUIScaleFactor();
+    float controlsWidth = 180.0f * uiScale;
+    float currentTimeWidth = 80.0f * uiScale;
+    float speedControlWidth = 100.0f * uiScale;
+    float spacing = ImGui::GetStyle().ItemSpacing.x * 3; // 3 SameLine() calls (already scaled via style)
+    float timelineBarWidth = std::max(200.0f * uiScale, contentSize.x - controlsWidth - currentTimeWidth - speedControlWidth - spacing);
     
-    // Use consistent height that fits within content area
+    // Use the allocated content height to avoid requesting more than the pane provides
     float childHeight = contentSize.y;
     
     // Push style to prevent any potential scrollbars in child windows and disable focus
@@ -114,11 +118,13 @@ void Timeline::render() {
 void Timeline::renderPlaybackControls() {
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
+
+    float uiScale = Settings::getInstance().getUIScaleFactor();
     
     // Play/Pause button
     const char* playPauseText = m_isPlaying ? "Pause" : "Play";
     ImGui::PushStyleColor(ImGuiCol_Button, m_isPlaying ? ImVec4(0.8f, 0.5f, 0.2f, 1.0f) : ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
-    if (ImGui::Button(playPauseText, ImVec2(50, BUTTON_SIZE))) {
+    if (ImGui::Button(playPauseText, ImVec2(50.0f * uiScale, 0.0f))) {
         handlePlayPause();
     }
     ImGui::PopStyleColor();
@@ -127,7 +133,7 @@ void Timeline::renderPlaybackControls() {
     
     // Stop button
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.2f, 0.2f, 1.0f));
-    if (ImGui::Button("Stop", ImVec2(40, BUTTON_SIZE))) {
+    if (ImGui::Button("Stop", ImVec2(40.0f * uiScale, 0.0f))) {
         handleStop();
     }
     ImGui::PopStyleColor();
@@ -136,7 +142,7 @@ void Timeline::renderPlaybackControls() {
     
     // Loop toggle
     ImGui::PushStyleColor(ImGuiCol_Button, m_isLooping ? ImVec4(0.2f, 0.6f, 0.8f, 1.0f) : ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
-    if (ImGui::Button("Loop", ImVec2(40, BUTTON_SIZE))) {
+    if (ImGui::Button("Loop", ImVec2(40.0f * uiScale, 0.0f))) {
         m_isLooping = !m_isLooping;
     }
     ImGui::PopStyleColor();
@@ -149,13 +155,14 @@ void Timeline::renderTimelineBar() {
     ImVec2 canvas_size = ImGui::GetContentRegionAvail();
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
     
+    float uiScale = Settings::getInstance().getUIScaleFactor();
     // Ensure minimum height for the timeline bar
-    float barHeight = std::max(20.0f, canvas_size.y - 10.0f);
+    float barHeight = std::max(20.0f * uiScale, canvas_size.y - 10.0f * uiScale);
     float barY = canvas_pos.y + (canvas_size.y - barHeight) * 0.5f;
     
     // Timeline background
-    ImVec2 bar_start = ImVec2(canvas_pos.x + 10.0f, barY);
-    ImVec2 bar_end = ImVec2(canvas_pos.x + canvas_size.x - 10.0f, barY + barHeight);
+    ImVec2 bar_start = ImVec2(canvas_pos.x + 10.0f * uiScale, barY);
+    ImVec2 bar_end = ImVec2(canvas_pos.x + canvas_size.x - 10.0f * uiScale, barY + barHeight);
     float bar_width = bar_end.x - bar_start.x;
     
     draw_list->AddRectFilled(bar_start, bar_end, IM_COL32(40, 40, 40, 255));
@@ -184,9 +191,9 @@ void Timeline::renderTimelineBar() {
             // Draw tick mark
             draw_list->AddLine(
                 ImVec2(marker_x, bar_start.y),
-                ImVec2(marker_x, bar_start.y + (isMajorBeat ? 8.0f : 5.0f)),
+                ImVec2(marker_x, bar_start.y + (isMajorBeat ? 8.0f * uiScale : 5.0f * uiScale)),
                 isMajorBeat ? IM_COL32(200, 200, 200, 255) : IM_COL32(150, 150, 150, 255),
-                isMajorBeat ? 2.0f : 1.0f
+                isMajorBeat ? 2.0f * uiScale : 1.0f * uiScale
             );
             
             // Draw bar numbers for major beats
@@ -195,7 +202,7 @@ void Timeline::renderTimelineBar() {
                 char barText[16];
                 snprintf(barText, sizeof(barText), "%d", bar);
                 draw_list->AddText(
-                    ImVec2(marker_x - 8.0f, bar_start.y - 20.0f),
+                    ImVec2(marker_x - 8.0f * uiScale, bar_start.y - 20.0f * uiScale),
                     IM_COL32(200, 200, 200, 255),
                     barText
                 );
@@ -210,9 +217,9 @@ void Timeline::renderTimelineBar() {
             // Draw tick mark
             draw_list->AddLine(
                 ImVec2(marker_x, bar_start.y),
-                ImVec2(marker_x, bar_start.y + 5.0f),
+                ImVec2(marker_x, bar_start.y + 5.0f * uiScale),
                 IM_COL32(150, 150, 150, 255),
-                1.0f
+                1.0f * uiScale
             );
             
             // Draw time label for major markers
@@ -220,7 +227,7 @@ void Timeline::renderTimelineBar() {
                 char timeText[16];
                 formatTime(time, timeText, sizeof(timeText));
                 draw_list->AddText(
-                    ImVec2(marker_x - 15.0f, bar_start.y - 20.0f),
+                    ImVec2(marker_x - 15.0f * uiScale, bar_start.y - 20.0f * uiScale),
                     IM_COL32(200, 200, 200, 255),
                     timeText
                 );
@@ -231,10 +238,10 @@ void Timeline::renderTimelineBar() {
     // Current time indicator
     float indicator_x = bar_start.x + bar_width * progress;
     draw_list->AddLine(
-        ImVec2(indicator_x, bar_start.y - 5.0f),
-        ImVec2(indicator_x, bar_end.y + 5.0f),
+        ImVec2(indicator_x, bar_start.y - 5.0f * uiScale),
+        ImVec2(indicator_x, bar_end.y + 5.0f * uiScale),
         IM_COL32(255, 255, 255, 255),
-        2.0f
+        2.0f * uiScale
     );
     
     // Handle scrubbing
@@ -275,8 +282,9 @@ void Timeline::renderCurrentTime() {
 }
 
 void Timeline::renderSpeedControl() {
+    float uiScale = Settings::getInstance().getUIScaleFactor();
     ImGui::Text("Speed:");
-    ImGui::SetNextItemWidth(80.0f);
+    ImGui::SetNextItemWidth(80.0f * uiScale);
     if (ImGui::SliderFloat("##Speed", &m_playbackSpeed, MIN_SPEED, MAX_SPEED, "%.1fx")) {
         m_playbackSpeed = std::clamp(m_playbackSpeed, MIN_SPEED, MAX_SPEED);
     }

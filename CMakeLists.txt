@@ -32,6 +32,7 @@ set(IMGUI_SOURCES
 set(SOURCES
     src/main.cpp
     src/Logger.cpp
+    src/Settings.cpp
     src/ShaderManager.cpp
     src/FileWatcher.cpp
     src/ShaderEditor.cpp
@@ -46,8 +47,13 @@ set(SOURCES
     src/ShaderTemplates.cpp
 )
 
+# GLAD source file
+set(GLAD_SOURCES
+    external/glad.c
+)
+
 # Create executable
-add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES})
+add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES} ${GLAD_SOURCES})
 
 # Link libraries
 target_link_libraries(${PROJECT_NAME} 
