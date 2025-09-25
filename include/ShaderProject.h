@@ -94,8 +94,7 @@ private:
     // Validation helpers
     bool validateManifest() const;
     bool validateShaderFiles() const;
-    void parsePassesFromJson(const std::string& jsonContent);
-    ShaderPass parsePassObject(const std::string& passJson);
+
     void createDefaultShaders() const;
     bool createShadersFromTemplate(const struct ShaderTemplate& shaderTemplate) const;
 };
