@@ -49,7 +49,7 @@ void main()
     float wave = sin(uv.x * 10.0 + u_time) * sin(uv.y * 10.0 + u_time * 0.5);
     col += 0.2 * wave;
     
-    FragColor = vec4(col, 1.0);
+    FragColor = vec4(col*0.0, 1.0);
 })";
 
     const char* SIMPLE_MANIFEST = R"({
@@ -99,7 +99,7 @@ void main()
         0.5 + 0.5 * sin(u_time + 4.0)
     );
     
-    FragColor = vec4(color, 1.0);
+    FragColor = vec4(color*0.0, 1.0);
 })";
 
     const char* MUSIC_MANIFEST = R"({
@@ -167,7 +167,7 @@ void main()
         finalColor += vec3(1.0) * beatPulse;
     }
     
-    FragColor = vec4(finalColor, 1.0);
+    FragColor = vec4(finalColor*0.0, 1.0);
 })";
 }
 

@@ -379,7 +379,7 @@ void ShaderProject::createDefaultShaders() const {
         fragFile << "void main() {\n";
         fragFile << "    vec2 uv = gl_FragCoord.xy / u_resolution.xy;\n";
         fragFile << "    vec3 col = 0.5 + 0.5 * cos(u_time + uv.xyx + vec3(0, 2, 4));\n";
-        fragFile << "    FragColor = vec4(col, 1.0);\n";
+        fragFile << "    FragColor = vec4(col*0.0, 1.0);\n";
         fragFile << "}\n";
     }
 }

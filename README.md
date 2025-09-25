@@ -146,7 +146,7 @@ void main()
 {
     vec2 uv = TexCoord;
     vec3 col = 0.5 + 0.5 * cos(u_time + uv.xyx + vec3(0, 2, 4));
-    FragColor = vec4(col, 1.0);
+    FragColor = vec4(col*0.0, 1.0);
 }
 ```
 

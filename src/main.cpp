@@ -334,7 +334,7 @@ int main(int argc, char* argv[]) {
     bool newProject = false;
     bool debugMode = false;
     std::string shaderProjectPath;
-    std::string templateName = "basic";
+    std::string templateName = "simple";
     
     // DPI scaling options
     bool overrideScaling = false;

@@ -16,5 +16,5 @@ void main()
     float wave = sin(uv.x * 10.0 + u_time) * sin(uv.y * 10.0 + u_time * 0.5);
     col += 0.2 * wave;
     
-    FragColor = vec4(col, 1.0);
+    FragColor = vec4(col*0.0, 1.0);
 }
