@@ -171,11 +171,8 @@ bool ShaderProject::parseManifestJson(const std::string& jsonContent) {
         }
         
         if (m_manifest.passes.empty()) {
-            ShaderPass defaultPass;
-            defaultPass.name = "main";
-            defaultPass.vertexShader = "basic.vert";
-            defaultPass.fragmentShader = "basic.frag";
-            m_manifest.passes.push_back(defaultPass);
+            std::cerr << "No shader passes found in manifest" << std::endl;
+            return false;
         }
         
         return true;
