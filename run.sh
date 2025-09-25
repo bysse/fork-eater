@@ -19,7 +19,11 @@ echo "Tip: Press ESC or use File->Exit to exit gracefully"
 ARGS=()
 for arg in "$@"; do
     if [[ -d "$arg" ]]; then
-        # If argument is a directory, convert to absolute path
+        # If argument is a directory, check if it's in the build directory
+        if [[ "$arg" != build* ]]; then
+            arg="build/$arg"
+        fi
+        # Convert to absolute path
         ARGS+=("$(realpath "$arg")")
     else
         # Keep other arguments as-is

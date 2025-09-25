@@ -328,6 +328,7 @@ void printTemplates() {
 }
 
 int main(int argc, char* argv[]) {
+    std::cout << "Fork Eater - Compiled on " << __DATE__ << " at " << __TIME__ << std::endl;
     Application app;
     bool testMode = false;
     int testExitCode = 0;
