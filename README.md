@@ -39,21 +39,10 @@ sudo pacman -S glfw-x11 mesa glu
 
 ## Building
 
-1. **Clone Dear ImGui** (required for the GUI):
-```bash
-cd external
-git clone https://github.com/ocornut/imgui.git
-```
+The build script automatically handles cloning Dear ImGui.
 
-2. **Create build directory and configure**:
 ```bash
-mkdir build && cd build
-cmake ..
-```
-
-3. **Build the project**:
-```bash
-make -j$(nproc)
+./build.sh
 ```
 
 4. **Run the shader editor**:
@@ -163,7 +152,7 @@ The editor automatically provides these uniforms to fragment shaders:
 1. **ShaderManager**: Handles OpenGL shader compilation, linking, and management
 2. **FileWatcher**: Uses Linux inotify to monitor file changes for hot reloading  
 3. **ShaderEditor**: Dear ImGui-based interface for editing and preview
-4. **Application**: SDL2 window management and main loop
+4. **Application**: GLFW window management and main loop
 
 ### Dependencies
 

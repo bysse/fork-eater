@@ -26,6 +26,7 @@ PreviewPanel::~PreviewPanel() {
 
 bool PreviewPanel::initialize() {
     setupPreviewQuad();
+    setupFramebuffer(m_resolution[0], m_resolution[1]);
     return true;
 }
 
@@ -56,6 +57,10 @@ void PreviewPanel::renderPreviewPanel(const std::string& selectedShader, float t
             
             ImVec2 previewSize = calculatePreviewSize(availableSize);
             
+            if (previewSize.x != m_resolution[0] || previewSize.y != m_resolution[1]) {
+                setupFramebuffer(previewSize.x, previewSize.y);
+            }
+
             // Update uniforms with current preview resolution
             m_shaderManager->useShader(selectedShader);
             m_shaderManager->setUniform("u_time", time);
@@ -63,6 +68,17 @@ void PreviewPanel::renderPreviewPanel(const std::string& selectedShader, float t
             m_resolution[1] = previewSize.y;
             m_shaderManager->setUniform("u_resolution", m_resolution, 2);
             
+            // Render to framebuffer
+            glBindFramebuffer(GL_FRAMEBUFFER, m_previewFramebuffer);
+            glViewport(0, 0, previewSize.x, previewSize.y);
+            glClear(GL_COLOR_BUFFER_BIT);
+            
+            glBindVertexArray(m_previewVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+            glBindVertexArray(0);
+            
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
             // Calculate centering offset
             ImVec2 offset = ImVec2(
                 std::max(0.0f, (availableSize.x - previewSize.x) * 0.5f),
@@ -73,42 +89,9 @@ void PreviewPanel::renderPreviewPanel(const std::string& selectedShader, float t
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset.x);
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + offset.y);
             
-            // Record the position where we'll draw
-            ImVec2 draw_start_pos = ImGui::GetCursorScreenPos();
+            // Display the rendered texture
+            ImGui::Image((void*)(intptr_t)m_previewTexture, previewSize, ImVec2(0, 1), ImVec2(1, 0));
             
-            // Draw preview (this moves the cursor)
-            ImGui::Dummy(previewSize);
-            
-            // Draw a placeholder with proper aspect ratio
-            ImDrawList* draw_list = ImGui::GetWindowDrawList();
-            ImVec2 canvas_pos = draw_start_pos;
-            ImVec2 canvas_size = previewSize;
-            
-            // Background (dark gray)
-            draw_list->AddRectFilled(canvas_pos, 
-                                   ImVec2(canvas_pos.x + canvas_size.x, canvas_pos.y + canvas_size.y), 
-                                   IM_COL32(30, 30, 30, 255));
-            
-            // Preview border
-            draw_list->AddRect(canvas_pos, 
-                             ImVec2(canvas_pos.x + canvas_size.x, canvas_pos.y + canvas_size.y), 
-                             IM_COL32(100, 100, 100, 255));
-            
-            // Animated content
-            float r = 0.5f + 0.5f * sinf(time);
-            float g = 0.5f + 0.5f * sinf(time + 2.0f);
-            float b = 0.5f + 0.5f * sinf(time + 4.0f);
-            
-            float margin = 10.0f;
-            draw_list->AddRectFilled(ImVec2(canvas_pos.x + margin, canvas_pos.y + margin),
-                                   ImVec2(canvas_pos.x + canvas_size.x - margin, canvas_pos.y + canvas_size.y - margin),
-                                   IM_COL32((int)(r * 255), (int)(g * 255), (int)(b * 255), 255));
-            
-            // Resolution text
-            char resText[64];
-            snprintf(resText, sizeof(resText), "%.0fx%.0f", previewSize.x, previewSize.y);
-            draw_list->AddText(ImVec2(canvas_pos.x + 10, canvas_pos.y + 10), 
-                             IM_COL32(255, 255, 255, 200), resText);                             
         } else if (shader) {
             ImGui::TextColored(ImVec4(1, 0, 0, 1), "✗ Compilation failed");
         }
@@ -209,4 +192,29 @@ void PreviewPanel::cleanupPreview() {
         glDeleteTextures(1, &m_previewTexture);
         m_previewTexture = 0;
     }
+}
+
+void PreviewPanel::setupFramebuffer(int width, int height) {
+    if (m_previewFramebuffer) {
+        glDeleteFramebuffers(1, &m_previewFramebuffer);
+    }
+    if (m_previewTexture) {
+        glDeleteTextures(1, &m_previewTexture);
+    }
+
+    glGenFramebuffers(1, &m_previewFramebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_previewFramebuffer);
+
+    glGenTextures(1, &m_previewTexture);
+    glBindTexture(GL_TEXTURE_2D, m_previewTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_previewTexture, 0);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        // Handle error
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

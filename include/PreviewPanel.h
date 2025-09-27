@@ -54,4 +54,5 @@ private:
     ImVec2 calculatePreviewSize(ImVec2 availableSize);
     void setupPreviewQuad();
     void cleanupPreview();
+    void setupFramebuffer(int width, int height);
 };
