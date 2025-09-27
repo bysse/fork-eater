@@ -61,9 +61,10 @@ fork-eater/
 │   ├── ShaderManager.h
 │   ├── FileWatcher.h
 │   └── ShaderEditor.h
-├── shaders/           # GLSL shader files
-│   ├── basic.vert
-│   └── basic.frag
+├── templates/         # GLSL shader templates
+│   ├── basic/
+│   ├── simple/
+│   └── music/
 ├── src/               # Source files
 │   ├── main.cpp
 │   ├── ShaderManager.cpp

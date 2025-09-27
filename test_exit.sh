@@ -44,7 +44,7 @@ fi
 
 # Test 4: Application starts and can be terminated
 echo "4️⃣  Testing application startup and termination..."
-timeout 3s ./fork-eater > /dev/null 2>&1 &
+timeout 5s ./fork-eater shaders/basic > /dev/null 2> error.log &
 APP_PID=$!
 sleep 1
 

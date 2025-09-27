@@ -52,6 +52,36 @@ set(GLAD_SOURCES
     external/glad.c
 )
 
+# --- Embed Shader Templates ---
+file(GLOB_RECURSE TEMPLATE_FILES "templates/*")
+set(GENERATED_TEMPLATES_HEADER ${CMAKE_CURRENT_BINARY_DIR}/GeneratedShaderTemplates.h)
+
+set(GENERATED_CONTENT "#pragma once\n#include <map>\n#include <string>\n#include <utility>\n\n")
+set(GENERATED_CONTENT "${GENERATED_CONTENT}namespace EmbeddedTemplates {\n")
+set(GENERATED_CONTENT "${GENERATED_CONTENT}std::map<std::string, std::pair<const char*, size_t>> g_templates;\n")
+set(GENERATED_CONTENT "${GENERATED_CONTENT}void initialize() {\n")
+
+foreach(TEMPLATE_FILE ${TEMPLATE_FILES})
+    file(RELATIVE_PATH REL_PATH ${CMAKE_CURRENT_SOURCE_DIR} ${TEMPLATE_FILE})
+    file(READ ${TEMPLATE_FILE} FILE_CONTENT HEX)
+    string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," FILE_CONTENT ${FILE_CONTENT})
+
+    string(REPLACE "/" "_" VAR_NAME ${REL_PATH})
+    string(REPLACE "." "_" VAR_NAME ${VAR_NAME})
+    string(TOUPPER ${VAR_NAME} VAR_NAME)
+
+    set(GENERATED_CONTENT "${GENERATED_CONTENT}    static const unsigned char ${VAR_NAME}[] = { ${FILE_CONTENT} };\n")
+    set(GENERATED_CONTENT "${GENERATED_CONTENT}    g_templates[\"${REL_PATH}\"] = { reinterpret_cast<const char*>(${VAR_NAME}), sizeof(${VAR_NAME}) };\n")
+endforeach()
+
+set(GENERATED_CONTENT "${GENERATED_CONTENT}}\n")
+set(GENERATED_CONTENT "${GENERATED_CONTENT}}\n")
+
+file(WRITE ${GENERATED_TEMPLATES_HEADER} "${GENERATED_CONTENT}")
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+# --- End Embed Shader Templates ---
+
 # Create executable
 add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES} ${GLAD_SOURCES})
 
@@ -68,7 +98,7 @@ target_link_libraries(${PROJECT_NAME}
 target_compile_options(${PROJECT_NAME} PRIVATE ${GLFW_CFLAGS_OTHER})
 
 # Copy shaders to build directory
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/shaders DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/templates DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/shaders)
 
 # Set output directory
 set_target_properties(${PROJECT_NAME} PROPERTIES

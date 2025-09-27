@@ -1,0 +1,16 @@
+{
+  "name": "Basic Shader Project",
+  "description": "A basic animated shader demonstrating colorful wave patterns",
+  "version": "1.0",
+  "timelineLength": 60.0,
+  "bpm": 120.0,
+  "beatsPerBar": 4,
+  "passes": [
+    {
+      "name": "main",
+      "vertexShader": "basic.vert",
+      "fragmentShader": "basic.frag",
+      "enabled": true
+    }
+  ]
+}
