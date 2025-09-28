@@ -40,7 +40,7 @@ bool ShaderProject::loadFromDirectory(const std::string& projectPath) {
     }
     
     m_isLoaded = true;
-    LOG_INFO("Successfully loaded shader project: {}", m_manifest.name);
+    LOG_IMPORTANT("Successfully loaded shader project: {}", m_manifest.name);
     return true;
 }
 

@@ -62,6 +62,12 @@ void Logger::success(const std::string& message) {
     }
 }
 
+void Logger::important(const std::string& message) {
+    if (shouldLog(LogLevel::IMPORTANT)) {
+        logMessage(LogLevel::IMPORTANT, message);
+    }
+}
+
 void Logger::logMessage(LogLevel level, const std::string& message) {
     std::ostream& output = (level == LogLevel::ERROR) ? std::cerr : std::cout;
     
@@ -92,6 +98,8 @@ std::string Logger::getColorCode(LogLevel level) const {
             return "\033[37m";    // White
         case LogLevel::INFO:
             return "\033[90m";    // Gray/Dark Gray  
+        case LogLevel::IMPORTANT:
+            return "\033[37m";    // White
         case LogLevel::WARN:
             return "\033[33m";    // Yellow
         case LogLevel::ERROR:
@@ -108,6 +116,8 @@ std::string Logger::getLevelPrefix(LogLevel level) const {
         case LogLevel::DEBUG:
             return "[DEBUG]";
         case LogLevel::INFO:
+            return "[INFO ]";
+        case LogLevel::IMPORTANT:
             return "[INFO ]";
         case LogLevel::WARN:
             return "[WARN ]";

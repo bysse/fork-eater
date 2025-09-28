@@ -32,6 +32,7 @@ void Settings::initialize() {
              m_uiScaleFactor, m_fontScaleFactor, 
              (m_dpiScaleMode == DPIScaleMode::Auto ? "Auto" : 
               m_dpiScaleMode == DPIScaleMode::Manual ? "Manual" : "Disabled"));
+}
 
 void Settings::save() {
     saveToFile();

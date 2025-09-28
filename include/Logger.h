@@ -8,9 +8,10 @@
 enum class LogLevel {
     DEBUG = 0,
     INFO = 1,
-    WARN = 2,
-    ERROR = 3,
-    OK = 4
+    IMPORTANT = 2,
+    WARN = 3,
+    ERROR = 4,
+    OK = 5
 };
 
 class Logger {
@@ -36,6 +37,7 @@ public:
     void warn(const std::string& message);
     void error(const std::string& message);
     void success(const std::string& message); // For OK/success messages
+    void important(const std::string& message);
     
     // Template functions for easy formatting
     template<typename... Args>
@@ -51,6 +53,14 @@ public:
         if (shouldLog(LogLevel::INFO)) {
             std::string message = formatMessage(format, std::forward<Args>(args)...);
             logMessage(LogLevel::INFO, message);
+        }
+    }
+
+    template<typename... Args>
+    void important(const std::string& format, Args&&... args) {
+        if (shouldLog(LogLevel::IMPORTANT)) {
+            std::string message = formatMessage(format, std::forward<Args>(args)...);
+            logMessage(LogLevel::IMPORTANT, message);
         }
     }
     
@@ -149,6 +159,7 @@ private:
 // Convenience macros for easier usage
 #define LOG_DEBUG(...) Logger::getInstance().debug(__VA_ARGS__)
 #define LOG_INFO(...) Logger::getInstance().info(__VA_ARGS__)
+#define LOG_IMPORTANT(...) Logger::getInstance().important(__VA_ARGS__)
 #define LOG_WARN(...) Logger::getInstance().warn(__VA_ARGS__)
 #define LOG_ERROR(...) Logger::getInstance().error(__VA_ARGS__)
 #define LOG_SUCCESS(...) Logger::getInstance().success(__VA_ARGS__)

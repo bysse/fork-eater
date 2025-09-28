@@ -131,7 +131,7 @@ public:
             m_shaderEditor->setupFileWatching();
         }
         
-        LOG_SUCCESS("Fork Eater initialized successfully!");
+        LOG_IMPORTANT("Fork Eater initialized successfully!");
         LOG_INFO("OpenGL Version: {}", (const char*)glGetString(GL_VERSION));
         LOG_INFO("GLSL Version: {}", (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION));
         
@@ -184,7 +184,7 @@ public:
             
             // Test mode: exit after first render loop
             if (m_testMode) {
-                LOG_SUCCESS("Test mode: completed one render loop successfully");
+                LOG_IMPORTANT("Test mode: completed one render loop successfully");
                 glfwSetWindowShouldClose(m_window, GLFW_TRUE);
                 m_running = false;
             }
@@ -293,6 +293,10 @@ private:
         glfwTerminate();
     }
 };
+
+// Function declarations
+void printUsage(const char* programName);
+void printTemplates();
 
 int main(int argc, char* argv[]) {
     Application app;
@@ -419,7 +423,7 @@ int main(int argc, char* argv[]) {
             LOG_ERROR("Failed to create new project in: {}", shaderProjectPath);
             return 1;
         }
-        LOG_SUCCESS("Successfully created new shader project in: {}", shaderProjectPath);
+        LOG_IMPORTANT("Successfully created new shader project in: {}", shaderProjectPath);
         return 0; // Exit after creating project
     }
     
@@ -463,6 +467,7 @@ int main(int argc, char* argv[]) {
             settings.setFontScaleFactor(customScale);
             LOG_INFO("UI scaling set to {}x via command line", customScale);
         }
+    }
     
     if (!app.initialize()) {
         LOG_ERROR("Failed to initialize application");
