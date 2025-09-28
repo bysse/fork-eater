@@ -29,6 +29,7 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     , m_timelineHeight(65.0f) 
     , m_exitRequested(false)
     , m_showShortcutsHelp(false)
+    , m_reloadProject(false)
     , m_screenWidth(1280)
     , m_screenHeight(720) {
     
@@ -51,6 +52,7 @@ void ShaderEditor::setScreenSize(int width, int height) {
 void ShaderEditor::render() {
     // Process any pending shader reloads on the main thread
     processPendingReloads();
+    processProjectReload();
     
     // Render all passes to their framebuffers
     if (m_currentProject) {
@@ -423,7 +425,7 @@ bool ShaderEditor::loadProjectFromPath(const std::string& projectPath) {
         } else {
             LOG_ERROR("Failed to load shaders from project: {}", projectPath);
         }
-    } 
+    }
     
     return success;
 }
@@ -432,6 +434,14 @@ void ShaderEditor::setupProjectFileWatching() {
     if (!m_currentProject || !m_fileWatcher) {
         return;
     }
+
+    m_fileWatcher->clearWatches();
+
+    // Watch the manifest file
+    std::string manifestPath = m_currentProject->getManifestPath();
+    m_fileWatcher->addWatch(manifestPath, 
+        [this](const std::string& path) { onManifestFileChanged(path); });
+    LOG_DEBUG("Watching manifest file: {}", manifestPath);
     
     const auto& passes = m_currentProject->getPasses();
     for (const auto& pass : passes) {
@@ -476,6 +486,38 @@ void ShaderEditor::onShaderFileChanged(const std::string& filePath) {
                 m_pendingReloads.push(pass.name);
             }
             break;
+        }
+    }
+}
+
+void ShaderEditor::onManifestFileChanged(const std::string& filePath) {
+    LOG_INFO("Manifest file changed, queuing project reload: {}", filePath);
+    m_reloadProject = true;
+}
+
+void ShaderEditor::processProjectReload() {
+    if (!m_reloadProject) return;
+
+    m_reloadProject = false;
+
+    LOG_INFO("Reloading project...");
+
+    // Create a new temporary project to load the new manifest
+    auto newProject = std::make_shared<ShaderProject>();
+    if (newProject->loadFromDirectory(m_currentProjectPath)) {
+        // If the new manifest is valid, replace the current project
+        m_currentProject = newProject;
+        m_shaderManager->clearShaders();
+        m_currentProject->loadShadersIntoManager(m_shaderManager);
+        m_leftPanel->setCurrentProject(m_currentProject);
+        setupProjectFileWatching();
+        LOG_SUCCESS("Project reloaded successfully.");
+    } else {
+        // If the new manifest is invalid, log the errors and keep the old project
+        LOG_ERROR("Failed to reload project. Keeping the current version.");
+        const auto& errors = newProject->getValidationErrors();
+        for (const auto& error : errors) {
+            LOG_ERROR("- {}", error);
         }
     }
 }

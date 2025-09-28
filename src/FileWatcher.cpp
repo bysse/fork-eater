@@ -87,6 +87,16 @@ void FileWatcher::removeWatch(const std::string& filePath) {
     m_watches.erase(it);
 }
 
+void FileWatcher::clearWatches() {
+    if (m_inotifyFd != -1) {
+        for (const auto& pair : m_watches) {
+            inotify_rm_watch(m_inotifyFd, pair.second.watchDescriptor);
+        }
+    }
+    m_watches.clear();
+    m_watchDescriptorToPath.clear();
+}
+
 bool FileWatcher::isWatching() const {
     return m_running;
 }

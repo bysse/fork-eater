@@ -1,16 +1,16 @@
 {
-  "beatsPerBar": 4,
-  "bpm": 120.0,
-  "description": "A minimal shader template for basic effects",
   "name": "Test Project",
+  "description": "A simple test project",
+  "version": "1.0",
+  "timelineLength": 10.0,
+  "bpm": 120.0,
+  "beatsPerBar": 4,
   "passes": [
     {
-      "enabled": true,
+      "name": "main2",
+      "vertexShader": "simple.vert",
       "fragmentShader": "simple.frag",
-      "name": "main",
-      "vertexShader": "simple.vert"
+      "enabled": true
     }
-  ],
-  "timelineLength": 30.0,
-  "version": "1.0"
+  ]
 }

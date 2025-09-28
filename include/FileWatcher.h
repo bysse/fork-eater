@@ -25,6 +25,9 @@ public:
     
     // Remove file from watch list
     void removeWatch(const std::string& filePath);
+
+    // Clear all watches
+    void clearWatches();
     
     // Check if currently watching
     bool isWatching() const;

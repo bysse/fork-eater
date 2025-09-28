@@ -74,6 +74,7 @@ private:
     std::string m_selectedShader;
     bool m_exitRequested;
     bool m_showShortcutsHelp;
+    bool m_reloadProject;
     int m_screenWidth;
     int m_screenHeight;
     std::unordered_map<std::string, std::pair<int, int>> m_passOutputSizes;
@@ -101,5 +102,7 @@ private:
     void openProjectDialog();
     void setupProjectFileWatching();
     void onShaderFileChanged(const std::string& filePath);
+    void onManifestFileChanged(const std::string& filePath);
     void processPendingReloads();
+    void processProjectReload();
 };
