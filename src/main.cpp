@@ -1,7 +1,8 @@
+#include <thread>
+
+#include "glad.h"
+#include "glad.h"
 #include <GLFW/glfw3.h>
-#define GL_GLEXT_PROTOTYPES
-#include <GL/gl.h>
-#include <GL/glext.h>
 
 #include <memory>
 #include <chrono>
@@ -72,6 +73,12 @@ public:
         
         // Make OpenGL context current
         glfwMakeContextCurrent(m_window);
+
+        // Initialize GLAD
+        if (!gladLoadGL()) {
+            LOG_ERROR("Failed to initialize GLAD");
+            return false;
+        }
         
         // Set up callbacks
         glfwSetWindowUserPointer(m_window, this);
@@ -131,7 +138,7 @@ public:
             m_shaderEditor->setupFileWatching();
         }
         
-        LOG_IMPORTANT("Fork Eater initialized successfully!");
+        LOG_SUCCESS("Fork Eater initialized successfully!");
         LOG_INFO("OpenGL Version: {}", (const char*)glGetString(GL_VERSION));
         LOG_INFO("GLSL Version: {}", (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION));
         
@@ -175,8 +182,6 @@ public:
             int display_w, display_h;
             glfwGetFramebufferSize(m_window, &display_w, &display_h);
             glViewport(0, 0, display_w, display_h);
-            glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
-            glClear(GL_COLOR_BUFFER_BIT);
             
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
             
@@ -184,10 +189,11 @@ public:
             
             // Test mode: exit after first render loop
             if (m_testMode) {
-                LOG_IMPORTANT("Test mode: completed one render loop successfully");
+                LOG_SUCCESS("Test mode: completed one render loop successfully");
                 glfwSetWindowShouldClose(m_window, GLFW_TRUE);
                 m_running = false;
             }
+            std::this_thread::sleep_for(std::chrono::milliseconds(16));
         }
     }
     
@@ -198,6 +204,10 @@ public:
     
     int getTestExitCode() const {
         return m_testExitCode;
+    }
+
+    void dumpFramebuffer(const std::string& passName, const std::string& outputPath) {
+        m_shaderEditor->dumpFramebuffer(passName, outputPath);
     }
     
     static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
@@ -304,6 +314,9 @@ int main(int argc, char* argv[]) {
     int testExitCode = 0;
     bool newProject = false;
     bool debugMode = false;
+    bool dumpFramebuffer = false;
+    std::string dumpPassName;
+    std::string dumpOutputPath;
     std::string shaderProjectPath;
     std::string templateName = "simple";
     
@@ -372,6 +385,12 @@ int main(int argc, char* argv[]) {
         else if (arg == "--no-dpi-scale") {
             // Disable DPI scaling
             disableDpiScaling = true;
+        }
+        else if (arg == "--dump-framebuffer" && i + 2 < argc) {
+            dumpFramebuffer = true;
+            dumpPassName = argv[i + 1];
+            dumpOutputPath = argv[i + 2];
+            i += 2;
         }
         else if (!arg.empty() && arg[0] != '-') {
             // This is a shader project path
@@ -472,6 +491,11 @@ int main(int argc, char* argv[]) {
     if (!app.initialize()) {
         LOG_ERROR("Failed to initialize application");
         return 1;
+    }
+
+    if (dumpFramebuffer) {
+        app.dumpFramebuffer(dumpPassName, dumpOutputPath);
+        return 0;
     }
     
     app.run();

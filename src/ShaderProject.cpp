@@ -165,6 +165,8 @@ bool ShaderProject::parseManifestJson(const std::string& jsonContent) {
                 pass.name = passJson.value("name", "main");
                 pass.vertexShader = passJson.value("vertexShader", "");
                 pass.fragmentShader = passJson.value("fragmentShader", "");
+                pass.width = passJson.value("width", 0);
+                pass.height = passJson.value("height", 0);
                 pass.enabled = passJson.value("enabled", true);
                 m_manifest.passes.push_back(pass);
             }
@@ -198,6 +200,12 @@ std::string ShaderProject::generateManifestJson() const {
         passJson["name"] = pass.name;
         passJson["vertexShader"] = pass.vertexShader;
         passJson["fragmentShader"] = pass.fragmentShader;
+        if (pass.width > 0) {
+            passJson["width"] = pass.width;
+        }
+        if (pass.height > 0) {
+            passJson["height"] = pass.height;
+        }
         passJson["enabled"] = pass.enabled;
         j["passes"].push_back(passJson);
     }

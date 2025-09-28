@@ -15,27 +15,5 @@ fi
 echo "🎨 Launching Fork Eater..."
 echo "Tip: Press ESC or use File->Exit to exit gracefully"
 
-# Convert relative paths to absolute paths before changing directory
-ARGS=()
-SHADER_PROVIDED=false
-for arg in "$@"; do
-    if [[ -d "$arg" ]]; then
-        SHADER_PROVIDED=true
-        # If argument is a directory, check if it's in the build directory
-        if [[ "$arg" != build* ]]; then
-            arg="build/$arg"
-        fi
-        # Convert to absolute path
-        ARGS+=("$(realpath "$arg")")
-    else
-        # Keep other arguments as-is
-        ARGS+=("$arg")
-    fi
-done
-
-if [ "$SHADER_PROVIDED" = false ]; then
-    ARGS+=("$(realpath "build/shaders/basic")")
-fi
-
 cd build
-./fork-eater "${ARGS[@]}"
+./fork-eater "$@"

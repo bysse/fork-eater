@@ -11,6 +11,7 @@
 #include "ShaderProject.h"
 #include "Logger.h"
 #include "Settings.h"
+#include "glad.h"
 
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -27,7 +28,9 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     , m_errorPanelHeight(200.0f)
     , m_timelineHeight(65.0f) 
     , m_exitRequested(false)
-    , m_showShortcutsHelp(false) {
+    , m_showShortcutsHelp(false)
+    , m_screenWidth(1280)
+    , m_screenHeight(720) {
     
     // Create component classes
     m_previewPanel = std::make_unique<PreviewPanel>(m_shaderManager);
@@ -38,6 +41,79 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     m_timeline = std::make_unique<Timeline>();
     m_shortcutManager = std::make_unique<ShortcutManager>();
     m_currentProject = std::make_shared<ShaderProject>();
+}
+
+void ShaderEditor::setScreenSize(int width, int height) {
+    m_screenWidth = width;
+    m_screenHeight = height;
+}
+
+void ShaderEditor::render() {
+    // Process any pending shader reloads on the main thread
+    processPendingReloads();
+    
+    // Render all passes to their framebuffers
+    if (m_currentProject) {
+        const auto& passes = m_currentProject->getPasses();
+        for (const auto& pass : passes) {
+            if (pass.enabled) {
+                int width, height;
+                auto it = m_passOutputSizes.find(pass.name);
+                if (it != m_passOutputSizes.end()) {
+                    width = it->second.first;
+                    height = it->second.second;
+                } else {
+                    width = m_screenWidth;
+                    height = m_screenHeight;
+                }
+                m_shaderManager->renderToFramebuffer(pass.name, width, height, m_timeline->getCurrentTime());
+            }
+        }
+    }
+
+    // Render menu bar in main viewport
+    if (ImGui::BeginMainMenuBar()) {
+        m_menuSystem->renderMenuBar();
+        ImGui::EndMainMenuBar();
+    }
+    
+    // Sync settings between components
+    m_previewPanel->setAspectMode(m_menuSystem->getAspectMode());
+    m_fileManager->setAutoReload(m_menuSystem->isAutoReloadEnabled());
+    m_errorPanel->setAutoScroll(m_menuSystem->isAutoReloadEnabled()); // Reuse this flag
+    
+    // Get the main viewport and create a fullscreen window
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->WorkPos);
+    ImGui::SetNextWindowSize(viewport->WorkSize);
+    
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | 
+                                   ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | 
+                                   ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoSavedSettings | 
+                                   ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoNavInputs;
+    
+    // Push style to ensure no scrollbars appear anywhere
+    ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 0.0f);
+    
+    if (ImGui::Begin("MainLayout", nullptr, window_flags)) {
+        renderMainLayout();
+    }
+    ImGui::End();
+    
+    ImGui::PopStyleVar(); // ScrollbarSize
+    
+    // Update timeline
+    m_timeline->update(ImGui::GetIO().DeltaTime);
+    
+    // Render settings window if requested
+    m_menuSystem->renderSettingsWindow();
+    
+    // Show shortcuts help if requested
+    showShortcutsHelp();
+    
+    // Ensure ImGui doesn't capture navigation keys for internal use
+    ImGuiIO& io = ImGui::GetIO();
+    io.WantCaptureKeyboard = false; // Let our shortcuts always work
 }
 
 ShaderEditor::~ShaderEditor() {
@@ -85,6 +161,10 @@ void ShaderEditor::setupCallbacks() {
     m_menuSystem->onShowHelp = [this]() {
         m_showShortcutsHelp = true;
     };
+
+    m_menuSystem->onScreenSizeChanged = [this](int width, int height) {
+        setScreenSize(width, height);
+    };
     
     // Left panel callbacks
     m_leftPanel->onShaderSelected = [this](const std::string& name) {
@@ -99,54 +179,7 @@ void ShaderEditor::setupCallbacks() {
     
 }
 
-void ShaderEditor::render() {
-    // Process any pending shader reloads on the main thread
-    processPendingReloads();
-    
-    // Render menu bar in main viewport
-    if (ImGui::BeginMainMenuBar()) {
-        m_menuSystem->renderMenuBar();
-        ImGui::EndMainMenuBar();
-    }
-    
-    // Sync settings between components
-    m_previewPanel->setAspectMode(m_menuSystem->getAspectMode());
-    m_fileManager->setAutoReload(m_menuSystem->isAutoReloadEnabled());
-    m_errorPanel->setAutoScroll(m_menuSystem->isAutoReloadEnabled()); // Reuse this flag
-    
-    // Get the main viewport and create a fullscreen window
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->WorkPos);
-    ImGui::SetNextWindowSize(viewport->WorkSize);
-    
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | 
-                                   ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | 
-                                   ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoSavedSettings | 
-                                   ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoNavInputs;
-    
-    // Push style to ensure no scrollbars appear anywhere
-    ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 0.0f);
-    
-    if (ImGui::Begin("MainLayout", nullptr, window_flags)) {
-        renderMainLayout();
-    }
-    ImGui::End();
-    
-    ImGui::PopStyleVar(); // ScrollbarSize
-    
-    // Update timeline
-    m_timeline->update(ImGui::GetIO().DeltaTime);
-    
-    // Render settings window if requested
-    m_menuSystem->renderSettingsWindow();
-    
-    // Show shortcuts help if requested
-    showShortcutsHelp();
-    
-    // Ensure ImGui doesn't capture navigation keys for internal use
-    ImGuiIO& io = ImGui::GetIO();
-    io.WantCaptureKeyboard = false; // Let our shortcuts always work
-}
+
 
 void ShaderEditor::handleResize(int width, int height) {
     // Handle window resize if needed
@@ -219,7 +252,8 @@ void ShaderEditor::renderMainLayout() {
     // Clamp previewHeight to >= 0
     if (previewHeight < 0.0f) previewHeight = 0.0f;
     ImGui::BeginChild("PreviewPanel", ImVec2(contentSize.x, previewHeight), true, noNavFlags);
-    m_previewPanel->render(m_selectedShader, m_timeline->getCurrentTime());
+    GLuint finalTexture = m_shaderManager->getFramebufferTexture(m_selectedShader);
+    m_previewPanel->render(finalTexture, m_timeline->getCurrentTime());
     ImGui::EndChild();
     
     if (m_menuSystem->shouldShowErrorPanel()) {
@@ -359,17 +393,21 @@ void ShaderEditor::setupFileWatching() {
 bool ShaderEditor::loadProjectFromPath(const std::string& projectPath) {
     // Clear current shaders
     m_shaderManager->clearShaders();
+    m_passOutputSizes.clear();
     
     bool success = false;
     
     if (m_currentProject->loadFromDirectory(projectPath)) {
         if (m_currentProject->loadShadersIntoManager(m_shaderManager)) {
-        LOG_INFO("Loaded shader project: {}", m_currentProject->getManifest().name);
+            LOG_INFO("Loaded shader project: {}", m_currentProject->getManifest().name);
             m_leftPanel->setCurrentProject(m_currentProject);
             
             // Auto-select the first enabled pass for immediate rendering
             const auto& passes = m_currentProject->getPasses();
             for (const auto& pass : passes) {
+                if (pass.width > 0 && pass.height > 0) {
+                    m_passOutputSizes[pass.name] = {pass.width, pass.height};
+                }
                 if (pass.enabled) {
                     m_selectedShader = pass.name;
                     LOG_INFO("Auto-selected shader pass: {}", pass.name);
@@ -452,6 +490,31 @@ void ShaderEditor::processPendingReloads() {
         LOG_DEBUG("Processing shader reload: {}", shaderName);
         m_shaderManager->reloadShader(shaderName);
     }
+}
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
+void ShaderEditor::dumpFramebuffer(const std::string& passName, const std::string& outputPath) {
+    GLuint textureId = m_shaderManager->getFramebufferTexture(passName);
+    if (textureId == 0) {
+        LOG_ERROR("Framebuffer for pass '{}' not found.", passName);
+        return;
+    }
+
+    int width, height;
+    glBindTexture(GL_TEXTURE_2D, textureId);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &width);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &height);
+
+    unsigned char* data = new unsigned char[width * height * 3];
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+
+    stbi_write_png(outputPath.c_str(), width, height, 3, data, width * 3);
+
+    delete[] data;
+
+    LOG_IMPORTANT("Framebuffer for pass '{}' dumped to {}", passName, outputPath);
 }
 
 void ShaderEditor::openProjectDialog() {

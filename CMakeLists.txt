@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(fork-eater VERSION 1.0.0 LANGUAGES CXX)
+project(fork-eater VERSION 1.0.0 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -45,12 +45,12 @@ set(SOURCES
     src/ShortcutManager.cpp
     src/ShaderProject.cpp
     src/ShaderTemplates.cpp
+    src/Framebuffer.cpp
 )
 
-# GLAD source file
-set(GLAD_SOURCES
-    external/glad.c
-)
+# GLAD library
+add_library(glad external/glad.c)
+target_include_directories(glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external)
 
 # --- Embed Shader Templates ---
 file(GLOB_RECURSE TEMPLATE_FILES "templates/*")
@@ -83,10 +83,11 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 # --- End Embed Shader Templates ---
 
 # Create executable
-add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES} ${GLAD_SOURCES})
+add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES})
 
 # Link libraries
 target_link_libraries(${PROJECT_NAME} 
+    glad
     ${GLFW_LIBRARIES}
     ${OPENGL_LIBRARIES}
     GL
@@ -99,6 +100,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE ${GLFW_CFLAGS_OTHER})
 
 # Copy shaders to build directory
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/templates DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/shaders)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/project DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/)
 
 # Set output directory
 set_target_properties(${PROJECT_NAME} PROPERTIES

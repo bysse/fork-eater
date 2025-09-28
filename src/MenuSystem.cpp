@@ -62,6 +62,16 @@ void MenuSystem::renderRenderMenu() {
     if (ImGui::Combo("##aspect", &currentAspect, aspectModes, IM_ARRAYSIZE(aspectModes))) {
         m_aspectMode = static_cast<AspectMode>(currentAspect);
     }
+
+    ImGui::Separator();
+
+    ImGui::Text("Screen Size:");
+    if (ImGui::MenuItem("1280x720")) {
+        if (onScreenSizeChanged) onScreenSizeChanged(1280, 720);
+    }
+    if (ImGui::MenuItem("1920x1080")) {
+        if (onScreenSizeChanged) onScreenSizeChanged(1920, 1080);
+    }
 }
 
 void MenuSystem::renderSettingsWindow() {

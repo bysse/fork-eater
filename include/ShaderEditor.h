@@ -5,6 +5,7 @@
 #include <vector>
 #include <queue>
 #include <mutex>
+#include <unordered_map>
 
 // Forward declare ImGui types
 struct ImVec2;
@@ -44,6 +45,9 @@ public:
     // Show shortcuts help window
     void showShortcutsHelp();
 
+    // Set screen size
+    void setScreenSize(int width, int height);
+
 private:
     std::shared_ptr<ShaderManager> m_shaderManager;
     std::shared_ptr<FileWatcher> m_fileWatcher;
@@ -70,6 +74,9 @@ private:
     std::string m_selectedShader;
     bool m_exitRequested;
     bool m_showShortcutsHelp;
+    int m_screenWidth;
+    int m_screenHeight;
+    std::unordered_map<std::string, std::pair<int, int>> m_passOutputSizes;
     
     // Thread-safe shader reload queue
     std::queue<std::string> m_pendingReloads;
@@ -87,6 +94,7 @@ public:
     // Project management
     void openProject(const std::string& projectPath);
     void setupFileWatching();
+    void dumpFramebuffer(const std::string& passName, const std::string& outputPath);
     
 private:
     bool loadProjectFromPath(const std::string& projectPath);

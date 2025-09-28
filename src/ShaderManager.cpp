@@ -1,21 +1,48 @@
 #include "ShaderManager.h"
 #include "Logger.h"
-#define GL_GLEXT_PROTOTYPES
-#include <GL/gl.h>
-#include <GL/glext.h>
+#include "glad.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <vector>
 
-ShaderManager::ShaderManager() {
-    // OpenGL functions are loaded by ImGui's loader
+ShaderManager::ShaderManager() : m_quadVAO(0), m_quadVBO(0) {
+    // Full-screen quad vertices
+    float vertices[] = {
+        -1.0f, -1.0f, 0.0f, 0.0f,
+         1.0f, -1.0f, 1.0f, 0.0f,
+        -1.0f,  1.0f, 0.0f, 1.0f,
+        
+        -1.0f,  1.0f, 0.0f, 1.0f,
+         1.0f, -1.0f, 1.0f, 0.0f,
+         1.0f,  1.0f, 1.0f, 1.0f
+    };
+    
+    glGenVertexArrays(1, &m_quadVAO);
+    glGenBuffers(1, &m_quadVBO);
+    
+    glBindVertexArray(m_quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    
+    // Position attribute
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    
+    // Texture coordinate attribute
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
 }
 
 ShaderManager::~ShaderManager() {
     for (auto& pair : m_shaders) {
         cleanupShader(*pair.second);
     }
+    glDeleteVertexArrays(1, &m_quadVAO);
+    glDeleteBuffers(1, &m_quadVBO);
 }
 
 std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
@@ -251,6 +278,33 @@ std::string ShaderManager::getProgramInfoLog(GLuint program) {
     return std::string(log.data());
 }
 
+void ShaderManager::renderToFramebuffer(const std::string& name, int width, int height, float time) {
+    auto it = m_framebuffers.find(name);
+    if (it == m_framebuffers.end()) {
+        m_framebuffers[name] = std::make_unique<Framebuffer>(width, height);
+    }
+
+    m_framebuffers[name]->bind();
+    useShader(name);
+    setUniform("u_time", time);
+    float resolution[2] = {(float)width, (float)height};
+    setUniform("u_resolution", resolution, 2);
+
+    glBindVertexArray(m_quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+
+    m_framebuffers[name]->unbind();
+}
+
+GLuint ShaderManager::getFramebufferTexture(const std::string& name) {
+    auto it = m_framebuffers.find(name);
+    if (it != m_framebuffers.end()) {
+        return it->second->getTextureId();
+    }
+    return 0;
+}
+
 void ShaderManager::clearShaders() {
     // Clean up all shader programs
     for (auto& [name, shader] : m_shaders) {
@@ -262,6 +316,7 @@ void ShaderManager::clearShaders() {
     // Clear the map
     m_shaders.clear();
     m_currentShader.clear();
+    m_framebuffers.clear();
     
     LOG_INFO("Cleared all loaded shaders");
 }

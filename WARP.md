@@ -34,6 +34,9 @@ cd build && ./fork-eater
 # Test mode (for CI/automated testing)
 ./fork-eater --test [exit_code]
 
+# Dump framebuffer to image
+./fork-eater --dump-framebuffer <pass_name> <output_path.png>
+
 # Help command
 ./fork-eater --help
 ```

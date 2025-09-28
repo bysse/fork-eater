@@ -28,7 +28,7 @@ public:
     bool initialize();
     
     // Render the preview panel
-    void render(const std::string& selectedShader, float time);
+    void render(GLuint textureId, float time);
     
     // Aspect ratio settings
     AspectMode getAspectMode() const { return m_aspectMode; }
@@ -46,13 +46,10 @@ private:
     // OpenGL resources
     GLuint m_previewVAO;
     GLuint m_previewVBO;
-    GLuint m_previewFramebuffer;
-    GLuint m_previewTexture;
     
     // Private methods
-    void renderPreviewPanel(const std::string& selectedShader, float time);
+    void renderPreviewPanel(GLuint textureId, float time);
     ImVec2 calculatePreviewSize(ImVec2 availableSize);
     void setupPreviewQuad();
     void cleanupPreview();
-    void setupFramebuffer(int width, int height);
 };

@@ -27,6 +27,7 @@ public:
     // Menu action callbacks - these will be set by ShaderEditor
     std::function<void()> onExit;
     std::function<void()> onShowHelp;
+    std::function<void(int, int)> onScreenSizeChanged;
     
 private:
     // GUI state

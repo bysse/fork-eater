@@ -16,6 +16,8 @@ struct ShaderPass {
     std::string fragmentShader;
     std::vector<std::string> inputs;  // For multi-pass rendering
     std::string output;               // Output buffer name (optional)
+    int width = 0;
+    int height = 0;
     bool enabled = true;
 };
 

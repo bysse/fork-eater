@@ -10,6 +10,8 @@
 typedef unsigned int GLuint;
 typedef unsigned int GLenum;
 
+#include "Framebuffer.h"
+
 class ShaderManager {
 public:
     struct ShaderProgram {
@@ -39,6 +41,12 @@ public:
     // Use shader program
     void useShader(const std::string& name);
     
+    // Render to framebuffer
+    void renderToFramebuffer(const std::string& name, int width, int height, float time);
+
+    // Get texture ID of a framebuffer
+    GLuint getFramebufferTexture(const std::string& name);
+
     // Set uniform helpers
     void setUniform(const std::string& name, float value);
     void setUniform(const std::string& name, const float* value, int count);
@@ -56,8 +64,11 @@ public:
 
 private:
     std::unordered_map<std::string, std::shared_ptr<ShaderProgram>> m_shaders;
+    std::unordered_map<std::string, std::unique_ptr<Framebuffer>> m_framebuffers;
     std::string m_currentShader;
     std::function<void(const std::string&, bool, const std::string&)> m_compilationCallback;
+    GLuint m_quadVAO;
+    GLuint m_quadVBO;
     
     // Helper functions
     GLuint compileShader(const std::string& source, GLenum shaderType);
