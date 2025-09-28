@@ -2,7 +2,7 @@
 #define GL_GLEXT_PROTOTYPES
 #include <GL/gl.h>
 #include <GL/glext.h>
-#include <iostream>
+
 #include <memory>
 #include <chrono>
 #include <cstdlib>
@@ -104,8 +104,6 @@ public:
         settings.onSettingsChanged = [this]() {
             Settings& s = Settings::getInstance();
             s.applyToImGui();
-            LOG_INFO("Settings updated - UI Scale: {:.2f}, Font Scale: {:.2f}", 
-                     s.getUIScaleFactor(), s.getFontScaleFactor());
         };
         
         // Initialize components
@@ -296,39 +294,7 @@ private:
     }
 };
 
-void printUsage(const char* programName) {
-    std::cout << "Usage: " << programName << " [options] [shader_directory]" << std::endl;
-    std::cout << "Options:" << std::endl;
-    std::cout << "  --new [path] [-t template]  Create new shader project" << std::endl;
-    std::cout << "  --templates                 List available shader templates" << std::endl;
-    std::cout << "  --test [exit_code]          Run in test mode (exit after one render loop)" << std::endl;
-    std::cout << "  --debug, -d                 Enable debug output with colors" << std::endl;
-    std::cout << "  --scale FACTOR              Set UI scale factor (e.g., 1.0, 1.5, 2.0)" << std::endl;
-    std::cout << "  --no-dpi-scale              Disable DPI scaling (use 1.0x scaling)" << std::endl;
-    std::cout << "  --help, -h                  Show this help message" << std::endl;
-    std::cout << "  shader_directory            Path to shader project directory containing " << SHADER_PROJECT_MANIFEST_FILENAME << " manifest" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Fork Eater - Real-time GLSL shader editor with hot reloading" << std::endl;
-    std::cout << std::endl;
-    std::cout << "If no directory is specified, uses current directory." << std::endl;
-    std::cout << "Program will exit if no " << SHADER_PROJECT_MANIFEST_FILENAME << " manifest is found (except in test mode)." << std::endl;
-}
-
-void printTemplates() {
-    std::cout << "Available shader templates:" << std::endl;
-    const auto& templateManager = ShaderTemplateManager::getInstance();
-    const auto& templateNames = templateManager.getTemplateNames();
-    
-    for (const auto& name : templateNames) {
-        const auto* templ = templateManager.getTemplate(name);
-        if (templ) {
-            std::cout << "  " << name << " - " << templ->description << std::endl;
-        }
-    }
-}
-
 int main(int argc, char* argv[]) {
-    std::cout << "Fork Eater - Compiled on " << __DATE__ << " at " << __TIME__ << std::endl;
     Application app;
     bool testMode = false;
     int testExitCode = 0;
@@ -352,8 +318,6 @@ int main(int argc, char* argv[]) {
         }
         else if (arg == "--debug" || arg == "-d") {
             debugMode = true;
-            // Note: Logger not initialized yet, so using std::cout here
-            std::cout << "Debug mode enabled" << std::endl;
         }
         else if (arg == "--test") {
             testMode = true;
@@ -366,7 +330,6 @@ int main(int argc, char* argv[]) {
                     // If next argument is not a number, use default exit code 0
                 }
             }
-            std::cout << "Test mode enabled (exit code: " << testExitCode << ")" << std::endl;
         }
         else if (arg == "--templates") {
             printTemplates();
@@ -381,51 +344,43 @@ int main(int argc, char* argv[]) {
             } else {
                 shaderProjectPath = "."; // Use current directory
             }
-            // Note: Logger not initialized yet, so using std::cout here
-            std::cout << "Creating new project in: " << shaderProjectPath << std::endl;
         }
         else if (arg == "-t" && i + 1 < argc) {
             // Template selection (only valid with --new)
             templateName = argv[i + 1];
             i++; // Skip the template name
-            // Note: Logger not initialized yet, so using std::cout here
-            std::cout << "Using template: " << templateName << std::endl;
         }
         else if (arg == "--scale" && i + 1 < argc) {
             // Custom UI scaling factor
             try {
                 customScale = std::stof(argv[i + 1]);
                 if (customScale < 0.5f || customScale > 4.0f) {
-                    std::cerr << "Scale factor must be between 0.5 and 4.0" << std::endl;
+                    LOG_ERROR("Scale factor must be between 0.5 and 4.0");
                     return 1;
                 }
                 overrideScaling = true;
                 i++; // Skip the scale value
-                std::cout << "Using custom UI scale: " << customScale << "x" << std::endl;
             } catch (const std::exception&) {
-                std::cerr << "Invalid scale factor: " << argv[i + 1] << std::endl;
+                LOG_ERROR("Invalid scale factor: {}", argv[i + 1]);
                 return 1;
             }
         }
         else if (arg == "--no-dpi-scale") {
             // Disable DPI scaling
             disableDpiScaling = true;
-            std::cout << "DPI scaling disabled" << std::endl;
         }
         else if (!arg.empty() && arg[0] != '-') {
             // This is a shader project path
             if (shaderProjectPath.empty()) {
                 shaderProjectPath = arg;
-                // Note: Logger not initialized yet, so using std::cout here
-                std::cout << "Shader project path: " << shaderProjectPath << std::endl;
             } else {
-                std::cerr << "Multiple shader paths specified. Only one is allowed." << std::endl;
+                LOG_ERROR("Multiple shader paths specified. Only one is allowed.");
                 printUsage(argv[0]);
                 return 1;
             }
         }
         else {
-            std::cerr << "Unknown argument: " << arg << std::endl;
+            LOG_ERROR("Unknown argument: {}", arg);
             printUsage(argv[0]);
             return 1;
         }
@@ -433,6 +388,29 @@ int main(int argc, char* argv[]) {
     
     // Initialize logger early so it can be used throughout
     Logger::getInstance().initialize(debugMode);
+    LOG_INFO("Fork Eater - Compiled on {} at {}", __DATE__, __TIME__);
+
+    if (debugMode) {
+        LOG_INFO("Debug mode enabled");
+    }
+    if (testMode) {
+        LOG_INFO("Test mode enabled (exit code: {})", testExitCode);
+    }
+    if (newProject) {
+        LOG_INFO("Creating new project in: {}", shaderProjectPath);
+    }
+    if (templateName != "simple") {
+        LOG_INFO("Using template: {}", templateName);
+    }
+    if (overrideScaling) {
+        LOG_INFO("Using custom UI scale: {}x", customScale);
+    }
+    if (disableDpiScaling) {
+        LOG_INFO("DPI scaling disabled");
+    }
+    if (!shaderProjectPath.empty()) {
+        LOG_INFO("Shader project path: {}", shaderProjectPath);
+    }
     
     // Handle --new flag
     if (newProject) {
@@ -483,9 +461,8 @@ int main(int argc, char* argv[]) {
             settings.setDPIScaleMode(DPIScaleMode::Manual);
             settings.setUIScaleFactor(customScale);
             settings.setFontScaleFactor(customScale);
-            LOG_INFO("UI scaling set to {:.2f}x via command line", customScale);
+            LOG_INFO("UI scaling set to {}x via command line", customScale);
         }
-    }
     
     if (!app.initialize()) {
         LOG_ERROR("Failed to initialize application");
@@ -500,4 +477,35 @@ int main(int argc, char* argv[]) {
     }
     
     return 0;
+}
+
+void printUsage(const char* programName) {
+    LOG_INFO("Usage: {} [options] [shader_directory]", programName);
+    LOG_INFO("Options:");
+    LOG_INFO("  --new [path] [-t template]  Create new shader project");
+    LOG_INFO("  --templates                 List available shader templates");
+    LOG_INFO("  --test [exit_code]          Run in test mode (exit after one render loop)");
+    LOG_INFO("  --debug, -d                 Enable debug output with colors");
+    LOG_INFO("  --scale FACTOR              Set UI scale factor (e.g., 1.0, 1.5, 2.0)");
+    LOG_INFO("  --no-dpi-scale              Disable DPI scaling (use 1.0x scaling)");
+    LOG_INFO("  --help, -h                  Show this help message");
+    LOG_INFO("  shader_directory            Path to shader project directory containing {} manifest", SHADER_PROJECT_MANIFEST_FILENAME);
+    LOG_INFO("");
+    LOG_INFO("Fork Eater - Real-time GLSL shader editor with hot reloading");
+    LOG_INFO("");
+    LOG_INFO("If no directory is specified, uses current directory.");
+    LOG_INFO("Program will exit if no {} manifest is found (except in test mode).", SHADER_PROJECT_MANIFEST_FILENAME);
+}
+
+void printTemplates() {
+    LOG_INFO("Available shader templates:");
+    const auto& templateManager = ShaderTemplateManager::getInstance();
+    const auto& templateNames = templateManager.getTemplateNames();
+    
+    for (const auto& name : templateNames) {
+        const auto* templ = templateManager.getTemplate(name);
+        if (templ) {
+            LOG_INFO("  {} - {}", name, templ->description);
+        }
+    }
 }

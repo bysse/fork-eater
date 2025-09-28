@@ -28,11 +28,10 @@ void Settings::initialize() {
         }
     }
     
-    LOG_INFO("Settings initialized - UI Scale: {:.2f}, Font Scale: {:.2f}, Mode: {}", 
+    LOG_INFO("Settings initialized - UI Scale: {}, Font Scale: {}, Mode: {}", 
              m_uiScaleFactor, m_fontScaleFactor, 
              (m_dpiScaleMode == DPIScaleMode::Auto ? "Auto" : 
               m_dpiScaleMode == DPIScaleMode::Manual ? "Manual" : "Disabled"));
-}
 
 void Settings::save() {
     saveToFile();
@@ -108,7 +107,7 @@ float Settings::detectSystemDPIScale() {
         
         if (xscale > 0.0f && yscale > 0.0f) {
             dpiScale = std::max(xscale, yscale);
-            LOG_INFO("Detected DPI scale using content scale: {:.2f}", dpiScale);
+            LOG_INFO("Detected DPI scale using content scale: {}", dpiScale);
         } else {
             // Method 2: Calculate from monitor physical size and resolution
             const GLFWvidmode* mode = glfwGetVideoMode(monitor);
@@ -132,7 +131,7 @@ float Settings::detectSystemDPIScale() {
                 else if (dpiScale >= 1.15f) dpiScale = 1.25f;
                 else dpiScale = 1.0f;
                 
-                LOG_INFO("Detected DPI scale using physical size: {:.2f} (DPI: {:.1f})", dpiScale, dpi);
+                LOG_INFO("Detected DPI scale using physical size: {} (DPI: {})", dpiScale, dpi);
             }
         }
     }
@@ -154,7 +153,7 @@ void Settings::applyToImGui() {
     // Apply font scaling
     if (std::abs(io.FontGlobalScale - m_fontScaleFactor) > 0.01f) {
         io.FontGlobalScale = m_fontScaleFactor;
-        LOG_INFO("Applied font scale: {:.2f}", m_fontScaleFactor);
+        LOG_INFO("Applied font scale: {}", m_fontScaleFactor);
     }
     
     // Apply UI scaling by modifying the style
@@ -186,7 +185,7 @@ void Settings::applyToImGui() {
     style.ScrollbarSize = originalScrollbarSize * m_uiScaleFactor;
     style.FrameBorderSize = originalFrameBorderSize * m_uiScaleFactor;
     
-    LOG_INFO("Applied UI scale: {:.2f}", m_uiScaleFactor);
+    LOG_INFO("Applied UI scale: {}", m_uiScaleFactor);
 }
 
 void Settings::loadFromFile() {

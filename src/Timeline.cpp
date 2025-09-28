@@ -1,8 +1,8 @@
 #include "Timeline.h"
 #include "imgui/imgui.h"
 #include <cmath>
-#include <cstdio>
 #include <algorithm>
+#include <sstream>
 #include "Settings.h"
 
 float Timeline::defaultHeightDIP() { return TIMELINE_HEIGHT; }
@@ -199,12 +199,12 @@ void Timeline::renderTimelineBar() {
             // Draw bar numbers for major beats
             if (isMajorBeat && fmod(beat, m_beatsPerBar * 4) < 0.1f) { // Every 4 bars
                 int bar = (int)(beat / m_beatsPerBar) + 1;
-                char barText[16];
-                snprintf(barText, sizeof(barText), "%d", bar);
+                std::stringstream ss;
+                ss << bar;
                 draw_list->AddText(
                     ImVec2(marker_x - 8.0f * uiScale, bar_start.y - 20.0f * uiScale),
                     IM_COL32(200, 200, 200, 255),
-                    barText
+                    ss.str().c_str()
                 );
             }
         }
@@ -326,7 +326,10 @@ void Timeline::formatTime(float timeSeconds, char* buffer, size_t bufferSize) {
     int seconds = static_cast<int>(timeSeconds) % 60;
     int centiseconds = static_cast<int>((timeSeconds - static_cast<int>(timeSeconds)) * 100);
     
-    snprintf(buffer, bufferSize, "%d:%02d.%02d", minutes, seconds, centiseconds);
+    std::stringstream ss;
+    ss << minutes << ":" << (seconds < 10 ? "0" : "") << seconds << "." << (centiseconds < 10 ? "0" : "") << centiseconds;
+    strncpy(buffer, ss.str().c_str(), bufferSize - 1);
+    buffer[bufferSize - 1] = '\0';
 }
 
 // Keyboard shortcut implementations
@@ -411,5 +414,8 @@ void Timeline::formatTimeBPM(float timeSeconds, char* buffer, size_t bufferSize)
     int beat = static_cast<int>(fmod(beats, m_beatsPerBar)) + 1;
     float subBeat = fmod(beats, 1.0f);
     
-    snprintf(buffer, bufferSize, "%d:%d.%02d", bar, beat, static_cast<int>(subBeat * 100));
+    std::stringstream ss;
+    ss << bar << ":" << beat << "." << static_cast<int>(subBeat * 100);
+    strncpy(buffer, ss.str().c_str(), bufferSize - 1);
+    buffer[bufferSize - 1] = '\0';
 }

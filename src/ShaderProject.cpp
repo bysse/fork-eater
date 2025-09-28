@@ -4,7 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <filesystem>
-#include <iostream>
+#include "Logger.h"
 #include <algorithm>
 #include "json.hpp"
 
@@ -25,22 +25,22 @@ bool ShaderProject::loadFromDirectory(const std::string& projectPath) {
     m_isLoaded = false;
     
     if (!fs::exists(projectPath) || !fs::is_directory(projectPath)) {
-        std::cerr << "Project directory does not exist: " << projectPath << std::endl;
+        LOG_ERROR("Project directory does not exist: {}", projectPath);
         return false;
     }
     
     if (!loadManifest()) {
-        std::cerr << "Failed to load manifest from: " << projectPath << std::endl;
+        LOG_ERROR("Failed to load manifest from: {}", projectPath);
         return false;
     }
     
     if (!validateProject()) {
-        std::cerr << "Project validation failed for: " << projectPath << std::endl;
+        LOG_ERROR("Project validation failed for: {}", projectPath);
         return false;
     }
     
     m_isLoaded = true;
-    std::cout << "Successfully loaded shader project: " << m_manifest.name << std::endl;
+    LOG_INFO("Successfully loaded shader project: {}", m_manifest.name);
     return true;
 }
 
@@ -65,17 +65,17 @@ bool ShaderProject::createNew(const std::string& projectPath, const std::string&
     const ShaderTemplate* shaderTemplate = templateManager.getTemplate(templateName);
     
     if (!shaderTemplate) {
-        std::cerr << "Template not found: " << templateName << ". Using default template." << std::endl;
+        LOG_WARN("Template not found: {}. Using default template.", templateName);
         shaderTemplate = templateManager.getDefaultTemplate();
         if (!shaderTemplate) {
-            std::cerr << "No default template available!" << std::endl;
+            LOG_ERROR("No default template available!");
             return false;
         }
     }
     
     // Parse manifest from template
     if (!parseManifestJson(shaderTemplate->manifestJson)) {
-        std::cerr << "Failed to parse template manifest" << std::endl;
+        LOG_ERROR("Failed to parse template manifest");
         return false;
     }
     
@@ -117,13 +117,13 @@ bool ShaderProject::loadManifest() {
     std::string manifestPath = getManifestPath();
     
     if (!fs::exists(manifestPath)) {
-        std::cerr << "Manifest file not found: " << manifestPath << std::endl;
+        LOG_ERROR("Manifest file not found: {}", manifestPath);
         return false;
     }
     
     std::ifstream file(manifestPath);
     if (!file.is_open()) {
-        std::cerr << "Cannot open manifest file: " << manifestPath << std::endl;
+        LOG_ERROR("Cannot open manifest file: {}", manifestPath);
         return false;
     }
     
@@ -139,7 +139,7 @@ bool ShaderProject::saveManifest() const {
     
     std::ofstream file(manifestPath);
     if (!file.is_open()) {
-        std::cerr << "Cannot create manifest file: " << manifestPath << std::endl;
+        LOG_ERROR("Cannot create manifest file: {}", manifestPath);
         return false;
     }
     
@@ -171,13 +171,13 @@ bool ShaderProject::parseManifestJson(const std::string& jsonContent) {
         }
         
         if (m_manifest.passes.empty()) {
-            std::cerr << "No shader passes found in manifest" << std::endl;
+            LOG_ERROR("No shader passes found in manifest");
             return false;
         }
         
         return true;
     } catch (const json::parse_error& e) {
-        std::cerr << "Error parsing manifest JSON: " << e.what() << std::endl;
+        LOG_ERROR("Error parsing manifest JSON: {}", e.what());
         return false;
     }
 }
@@ -212,7 +212,7 @@ bool ShaderProject::createDirectoryStructure() const {
         fs::create_directories(getAssetsPath());
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to create directory structure: " << e.what() << std::endl;
+        LOG_ERROR("Failed to create directory structure: {}", e.what());
         return false;
     }
 }
@@ -314,7 +314,7 @@ bool ShaderProject::loadShadersIntoManager(std::shared_ptr<ShaderManager> shader
         std::string fragPath = getShaderPath(pass.fragmentShader);
         
         if (!shaderManager->loadShader(pass.name, vertPath, fragPath)) {
-            std::cerr << "Failed to load shader pass: " << pass.name << std::endl;
+            LOG_ERROR("Failed to load shader pass: {}", pass.name);
             return false;
         }
     }
@@ -343,7 +343,7 @@ void ShaderProject::movePass(size_t from, size_t to) {
 bool ShaderProject::createShadersFromTemplate(const ShaderTemplate& shaderTemplate) const {
     // Get the first pass to determine shader filenames
     if (m_manifest.passes.empty()) {
-        std::cerr << "No passes defined in manifest" << std::endl;
+        LOG_ERROR("No passes defined in manifest");
         return false;
     }
     
@@ -354,7 +354,7 @@ bool ShaderProject::createShadersFromTemplate(const ShaderTemplate& shaderTempla
         std::string vertexPath = getShaderPath(firstPass.vertexShader);
         std::ofstream vertFile(vertexPath);
         if (!vertFile.is_open()) {
-            std::cerr << "Failed to create vertex shader file: " << vertexPath << std::endl;
+            LOG_ERROR("Failed to create vertex shader file: {}", vertexPath);
             return false;
         }
         vertFile << shaderTemplate.vertexShader;
@@ -366,7 +366,7 @@ bool ShaderProject::createShadersFromTemplate(const ShaderTemplate& shaderTempla
         std::string fragmentPath = getShaderPath(firstPass.fragmentShader);
         std::ofstream fragFile(fragmentPath);
         if (!fragFile.is_open()) {
-            std::cerr << "Failed to create fragment shader file: " << fragmentPath << std::endl;
+            LOG_ERROR("Failed to create fragment shader file: {}", fragmentPath);
             return false;
         }
         fragFile << shaderTemplate.fragmentShader;

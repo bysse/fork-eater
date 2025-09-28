@@ -1,6 +1,6 @@
 #include "MenuSystem.h"
 #include "Settings.h"
-#include <iostream>
+#include "Logger.h"
 #include <cstdlib>
 
 #include "imgui/imgui.h"
@@ -19,7 +19,7 @@ void MenuSystem::renderMenuBar() {
             if (onExit) {
                 onExit();
             } else {
-                std::cout << "File->Exit selected" << std::endl;
+                LOG_INFO("File->Exit selected");
                 std::exit(0);  // Fallback immediate exit
             }
         }
