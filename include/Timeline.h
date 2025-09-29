@@ -1,6 +1,5 @@
-#pragma once
-
 #include <functional>
+#include <vector>
 
 class Timeline {
 public:
@@ -36,6 +35,9 @@ public:
     // Update timeline (call every frame)
     void update(float deltaTime);
     
+    // Add FPS value to buffer
+    void addFPS(float fps);
+
     // Reset timeline to start
     void reset();
     
@@ -51,6 +53,12 @@ public:
     void pause();
     void stop();
     
+    // Add FPS value to buffer
+    void addFPS(float time, float fps);
+
+    // Clear FPS data
+    void clearFPSData();
+
     // Callbacks for timeline events
     std::function<void(float)> onTimeChanged;
     std::function<void(bool)> onPlayStateChanged;
@@ -68,6 +76,12 @@ private:
     bool m_useBPM;
     float m_bpm;
     int m_beatsPerBar;
+
+private:
+    
+    // FPS tracking
+    std::vector<float> m_fpsData;
+    float m_timeSliceDuration;
     
     // UI constants
     static constexpr float TIMELINE_HEIGHT = 70.0f;  // Increased by 5px

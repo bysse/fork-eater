@@ -38,6 +38,13 @@ public:
     // Apply current scaling settings to ImGui
     void applyToImGui();
     
+    // FPS Thresholds
+    float getLowFPSTreshold() const { return m_lowFPSTreshold; }
+    void setLowFPSTreshold(float treshold);
+
+    float getHighFPSTreshold() const { return m_highFPSTreshold; }
+    void setHighFPSTreshold(float treshold);
+    
     // Callback for when settings change
     std::function<void()> onSettingsChanged;
     
@@ -55,6 +62,8 @@ private:
     DPIScaleMode m_dpiScaleMode = DPIScaleMode::Auto;
     float m_uiScaleFactor = 1.0f;
     float m_fontScaleFactor = 1.0f;
+    float m_lowFPSTreshold = 20.0f;
+    float m_highFPSTreshold = 30.0f;
     
     // Cache detected DPI scale
     float m_detectedDPIScale = 1.0f;

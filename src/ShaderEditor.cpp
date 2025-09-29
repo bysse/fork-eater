@@ -68,7 +68,13 @@ void ShaderEditor::render() {
                     width = m_screenWidth;
                     height = m_screenHeight;
                 }
+                auto startTime = glfwGetTime();
                 m_shaderManager->renderToFramebuffer(pass.name, width, height, m_timeline->getCurrentTime());
+                auto endTime = glfwGetTime();
+                auto duration = endTime - startTime;
+                if (duration > 0) {
+                    m_timeline->addFPS(m_timeline->getCurrentTime(), 1.0 / duration);
+                }
             }
         }
     }

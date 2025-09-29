@@ -19,6 +19,7 @@
 #include "ShaderTemplates.h"
 #include "Logger.h"
 #include "Settings.h"
+#include "Timeline.h"
 #include <filesystem>
 
 // Constants
@@ -151,8 +152,18 @@ public:
         if (m_testMode) {
             m_testStartTime = std::chrono::steady_clock::now();
         }
+
+        float lastTime = 0.0f;
         
         while (m_running && !glfwWindowShouldClose(m_window)) {
+            float currentTime = glfwGetTime();
+            float deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+
+            if (m_shaderEditor->getTimeline()) {
+                m_shaderEditor->getTimeline()->addFPS(m_shaderEditor->getTimeline()->getCurrentTime(), 1.0f / deltaTime);
+            }
+
             // Test mode timeout (5 seconds max)
             if (m_testMode) {
                 auto now = std::chrono::steady_clock::now();
@@ -251,6 +262,7 @@ private:
     std::shared_ptr<ShaderManager> m_shaderManager;
     std::shared_ptr<FileWatcher> m_fileWatcher;
     std::unique_ptr<ShaderEditor> m_shaderEditor;
+    std::unique_ptr<Timeline> m_timeline;
     
     // Shader project path
     std::string m_shaderProjectPath;

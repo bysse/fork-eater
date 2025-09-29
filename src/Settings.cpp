@@ -189,6 +189,24 @@ void Settings::applyToImGui() {
     LOG_INFO("Applied UI scale: {}", m_uiScaleFactor);
 }
 
+void Settings::setHighFPSTreshold(float treshold) {
+    treshold = std::max(0.0f, std::min(1000.0f, treshold));
+    if (std::abs(m_highFPSTreshold - treshold) > 0.01f) {
+        m_highFPSTreshold = treshold;
+        save();
+        if (onSettingsChanged) onSettingsChanged();
+    }
+}
+
+void Settings::setLowFPSTreshold(float treshold) {
+    treshold = std::max(0.0f, std::min(1000.0f, treshold));
+    if (std::abs(m_lowFPSTreshold - treshold) > 0.01f) {
+        m_lowFPSTreshold = treshold;
+        save();
+        if (onSettingsChanged) onSettingsChanged();
+    }
+}
+
 void Settings::loadFromFile() {
     std::string settingsPath = getSettingsPath();
     
@@ -240,6 +258,14 @@ void Settings::loadFromFile() {
         if (settings.count("font_scale_factor")) {
             m_fontScaleFactor = std::stof(settings["font_scale_factor"]);
         }
+
+        if (settings.count("low_fps_treshold")) {
+            m_lowFPSTreshold = std::stof(settings["low_fps_treshold"]);
+        }
+
+        if (settings.count("high_fps_treshold")) {
+            m_highFPSTreshold = std::stof(settings["high_fps_treshold"]);
+        }
         
         LOG_INFO("Loaded settings from: {}", settingsPath);
         
@@ -278,6 +304,8 @@ void Settings::saveToFile() {
         file << "dpi_scale_mode=" << modeStr << "\n";
         file << "ui_scale_factor=" << m_uiScaleFactor << "\n";
         file << "font_scale_factor=" << m_fontScaleFactor << "\n";
+        file << "low_fps_treshold=" << m_lowFPSTreshold << "\n";
+        file << "high_fps_treshold=" << m_highFPSTreshold << "\n";
         
         LOG_INFO("Saved settings to: {}", settingsPath);
         

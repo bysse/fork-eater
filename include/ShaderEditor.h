@@ -45,6 +45,9 @@ public:
     // Show shortcuts help window
     void showShortcutsHelp();
 
+    // Get timeline
+    Timeline* getTimeline() { return m_timeline.get(); }
+
     // Set screen size
     void setScreenSize(int width, int height);
 

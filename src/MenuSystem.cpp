@@ -140,6 +140,20 @@ void MenuSystem::renderSettingsWindow() {
                     settings.getUIScaleFactor(), settings.getFontScaleFactor());
         
         ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Text("Timeline Settings");
+
+        float lowTreshold = settings.getLowFPSTreshold();
+        if (ImGui::SliderFloat("Low FPS Treshold", &lowTreshold, 0.0f, 1000.0f, "%.2f")) {
+            settings.setLowFPSTreshold(lowTreshold);
+        }
+
+        float highTreshold = settings.getHighFPSTreshold();
+        if (ImGui::SliderFloat("High FPS Treshold", &highTreshold, 0.0f, 1000.0f, "%.2f")) {
+            settings.setHighFPSTreshold(highTreshold);
+        }
+
+        ImGui::Spacing();
         if (ImGui::Button("Close")) {
             m_showSettingsWindow = false;
         }

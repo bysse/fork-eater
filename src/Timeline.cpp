@@ -14,9 +14,177 @@ Timeline::Timeline()
     , m_isPlaying(false)
     , m_isLooping(true) // Default to looping
     , m_wasDragging(false)
-    , m_useBPM(false)
+    , m_useBPM(true)
     , m_bpm(120.0f)
-    , m_beatsPerBar(4) {
+    , m_beatsPerBar(4)
+    , m_timeSliceDuration(0.25f) // Each slice represents 250ms
+{
+    // Initialize fpsData with a size based on duration and timeSliceDuration
+    // and fill with -1.0f to indicate no data recorded yet
+    m_fpsData.resize(static_cast<size_t>(m_duration / m_timeSliceDuration), -1.0f);
+}
+
+void Timeline::addFPS(float time, float fps) {
+    if (time < 0.0f || time >= m_duration) {
+        return; // Time is out of bounds
+    }
+    size_t index = static_cast<size_t>(time / m_timeSliceDuration);
+    if (index < m_fpsData.size()) {
+        m_fpsData[index] = fps;
+    }
+}
+
+void Timeline::clearFPSData() {
+    std::fill(m_fpsData.begin(), m_fpsData.end(), -1.0f);
+}
+
+void Timeline::renderTimelineBar() {
+    ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
+    ImVec2 canvas_size = ImGui::GetContentRegionAvail();
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    
+    float uiScale = Settings::getInstance().getUIScaleFactor();
+    // Ensure minimum height for the timeline bar
+    float barHeight = std::max(20.0f * uiScale, canvas_size.y - 10.0f * uiScale);
+    float barY = canvas_pos.y + (canvas_size.y - barHeight) * 0.5f;
+    
+    // Timeline background
+    ImVec2 bar_start = ImVec2(canvas_pos.x + 10.0f * uiScale, barY);
+    ImVec2 bar_end = ImVec2(canvas_pos.x + canvas_size.x - 10.0f * uiScale, barY + barHeight);
+    float bar_width = bar_end.x - bar_start.x;
+    
+    draw_list->AddRectFilled(bar_start, bar_end, IM_COL32(40, 40, 40, 255));
+
+    // FPS graph
+    float fpsGraphHeight = barHeight * 0.25f;
+    ImVec2 fpsGraphStart = ImVec2(bar_start.x, bar_end.y - fpsGraphHeight);
+    
+    float segmentWidth = bar_width / m_fpsData.size();
+
+    for (size_t i = 0; i < m_fpsData.size(); ++i) {
+        float fps = m_fpsData[i];
+        ImColor color;
+
+        if (fps < 0.0f) { // Not recorded yet
+            color = ImColor(128, 128, 128); // Grey
+        } else {
+            float normalized_fps = std::min(1.0f, fps / Settings::getInstance().getHighFPSTreshold());
+            if (fps < Settings::getInstance().getLowFPSTreshold()) {
+                color = ImColor(255, 0, 0); // Red
+            } else if (fps > Settings::getInstance().getHighFPSTreshold()) {
+                color = ImColor(0, 255, 0); // Green
+            } else {
+                // Interpolate between red and green for intermediate values
+                float t = (fps - Settings::getInstance().getLowFPSTreshold()) / 
+                          (Settings::getInstance().getHighFPSTreshold() - Settings::getInstance().getLowFPSTreshold());
+                t = std::clamp(t, 0.0f, 1.0f);
+                color = ImColor(static_cast<int>(255 * (1 - t)), static_cast<int>(255 * t), 0); // Red to Green
+            }
+        }
+        
+        float x = fpsGraphStart.x + (float)i * segmentWidth;
+        draw_list->AddRectFilled(ImVec2(x, fpsGraphStart.y), ImVec2(x + segmentWidth, bar_end.y), color);
+    }
+
+    draw_list->AddRect(bar_start, bar_end, IM_COL32(100, 100, 100, 255));
+    
+    // Progress bar
+    float progress = m_duration > 0.0f ? m_currentTime / m_duration : 0.0f;
+    if (progress > 0.0f) {
+        ImVec2 progress_end = ImVec2(bar_start.x + bar_width * progress, bar_end.y-fpsGraphHeight);
+        draw_list->AddRectFilled(bar_start, progress_end, IM_COL32(60, 150, 60, 255));
+    }
+    
+    // Time markers
+    if (m_useBPM) {
+        // Draw beat markers
+        float beatsPerSecond = getBeatsPerSecond();
+        float totalBeats = m_duration * beatsPerSecond;
+        
+        for (float beat = 0.0f; beat <= totalBeats; beat += 1.0f) {
+            float time = beat / beatsPerSecond;
+            float marker_progress = time / m_duration;
+            float marker_x = bar_start.x + bar_width * marker_progress;
+            
+            bool isMajorBeat = (fmod(beat, m_beatsPerBar) < 0.1f);
+            
+            // Draw tick mark
+            draw_list->AddLine(
+                ImVec2(marker_x, bar_start.y),
+                ImVec2(marker_x, bar_start.y + (isMajorBeat ? 8.0f * uiScale : 5.0f * uiScale)),
+                isMajorBeat ? IM_COL32(200, 200, 200, 255) : IM_COL32(150, 150, 150, 255),
+                isMajorBeat ? 2.0f * uiScale : 1.0f * uiScale
+            );
+            
+            // Draw bar numbers for major beats
+            if (isMajorBeat && fmod(beat, m_beatsPerBar * 4) < 0.1f) { // Every 4 bars
+                int bar = (int)(beat / m_beatsPerBar) + 1;
+                std::stringstream ss;
+                ss << bar;
+                draw_list->AddText(
+                    ImVec2(marker_x - 8.0f * uiScale, bar_start.y - 20.0f * uiScale),
+                    IM_COL32(200, 200, 200, 255),
+                    ss.str().c_str()
+                );
+            }
+        }
+    } else {
+        // Draw time markers (every 10 seconds)
+        for (float time = 0.0f; time <= m_duration; time += 10.0f) {
+            float marker_progress = time / m_duration;
+            float marker_x = bar_start.x + bar_width * marker_progress;
+            
+            // Draw tick mark
+            draw_list->AddLine(
+                ImVec2(marker_x, bar_start.y),
+                ImVec2(marker_x, bar_start.y + 5.0f * uiScale),
+                IM_COL32(150, 150, 150, 255),
+                1.0f * uiScale
+            );
+            
+            // Draw time label for major markers
+            if (fmod(time, 30.0f) < 0.1f) { // Every 30 seconds
+                char timeText[16];
+                formatTime(time, timeText, sizeof(timeText));
+                draw_list->AddText(
+                    ImVec2(marker_x - 15.0f * uiScale, bar_start.y - 20.0f * uiScale),
+                    IM_COL32(200, 200, 200, 255),
+                    timeText
+                );
+            }
+        }
+    }
+    
+    // Current time indicator
+    float indicator_x = bar_start.x + bar_width * progress;
+    draw_list->AddLine(
+        ImVec2(indicator_x, bar_start.y - 5.0f * uiScale),
+        ImVec2(indicator_x, bar_end.y + 5.0f * uiScale),
+        IM_COL32(255, 255, 255, 255),
+        2.0f * uiScale
+    );
+    
+    // Handle scrubbing
+    ImGui::SetCursorScreenPos(bar_start);
+    ImGui::InvisibleButton("TimelineBar", ImVec2(bar_width, barHeight));
+    
+    if (ImGui::IsItemActive()) {
+        if (!m_wasDragging) {
+            m_wasDragging = true;
+            // Pause playback when starting to drag
+            m_isPlaying = false;
+            if (onPlayStateChanged) {
+                onPlayStateChanged(m_isPlaying);
+            }
+        }
+        
+        ImVec2 mouse_pos = ImGui::GetMousePos();
+        float normalized_pos = (mouse_pos.x - bar_start.x) / bar_width;
+        normalized_pos = std::clamp(normalized_pos, 0.0f, 1.0f);
+        setCurrentTime(normalized_pos * m_duration);
+    } else if (m_wasDragging) {
+        m_wasDragging = false;
+    }
 }
 
 Timeline::~Timeline() {
@@ -49,6 +217,7 @@ void Timeline::update(float deltaTime) {
 void Timeline::reset() {
     setCurrentTime(0.0f);
     m_isPlaying = false;
+    clearFPSData(); // Clear FPS data on reset
     if (onReset) {
         onReset();
     }
@@ -150,122 +319,7 @@ void Timeline::renderPlaybackControls() {
     ImGui::PopStyleVar(2);
 }
 
-void Timeline::renderTimelineBar() {
-    ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
-    ImVec2 canvas_size = ImGui::GetContentRegionAvail();
-    ImDrawList* draw_list = ImGui::GetWindowDrawList();
-    
-    float uiScale = Settings::getInstance().getUIScaleFactor();
-    // Ensure minimum height for the timeline bar
-    float barHeight = std::max(20.0f * uiScale, canvas_size.y - 10.0f * uiScale);
-    float barY = canvas_pos.y + (canvas_size.y - barHeight) * 0.5f;
-    
-    // Timeline background
-    ImVec2 bar_start = ImVec2(canvas_pos.x + 10.0f * uiScale, barY);
-    ImVec2 bar_end = ImVec2(canvas_pos.x + canvas_size.x - 10.0f * uiScale, barY + barHeight);
-    float bar_width = bar_end.x - bar_start.x;
-    
-    draw_list->AddRectFilled(bar_start, bar_end, IM_COL32(40, 40, 40, 255));
-    draw_list->AddRect(bar_start, bar_end, IM_COL32(100, 100, 100, 255));
-    
-    // Progress bar
-    float progress = m_duration > 0.0f ? m_currentTime / m_duration : 0.0f;
-    if (progress > 0.0f) {
-        ImVec2 progress_end = ImVec2(bar_start.x + bar_width * progress, bar_end.y);
-        draw_list->AddRectFilled(bar_start, progress_end, IM_COL32(60, 150, 60, 255));
-    }
-    
-    // Time markers
-    if (m_useBPM) {
-        // Draw beat markers
-        float beatsPerSecond = getBeatsPerSecond();
-        float totalBeats = m_duration * beatsPerSecond;
-        
-        for (float beat = 0.0f; beat <= totalBeats; beat += 1.0f) {
-            float time = beat / beatsPerSecond;
-            float marker_progress = time / m_duration;
-            float marker_x = bar_start.x + bar_width * marker_progress;
-            
-            bool isMajorBeat = (fmod(beat, m_beatsPerBar) < 0.1f);
-            
-            // Draw tick mark
-            draw_list->AddLine(
-                ImVec2(marker_x, bar_start.y),
-                ImVec2(marker_x, bar_start.y + (isMajorBeat ? 8.0f * uiScale : 5.0f * uiScale)),
-                isMajorBeat ? IM_COL32(200, 200, 200, 255) : IM_COL32(150, 150, 150, 255),
-                isMajorBeat ? 2.0f * uiScale : 1.0f * uiScale
-            );
-            
-            // Draw bar numbers for major beats
-            if (isMajorBeat && fmod(beat, m_beatsPerBar * 4) < 0.1f) { // Every 4 bars
-                int bar = (int)(beat / m_beatsPerBar) + 1;
-                std::stringstream ss;
-                ss << bar;
-                draw_list->AddText(
-                    ImVec2(marker_x - 8.0f * uiScale, bar_start.y - 20.0f * uiScale),
-                    IM_COL32(200, 200, 200, 255),
-                    ss.str().c_str()
-                );
-            }
-        }
-    } else {
-        // Draw time markers (every 10 seconds)
-        for (float time = 0.0f; time <= m_duration; time += 10.0f) {
-            float marker_progress = time / m_duration;
-            float marker_x = bar_start.x + bar_width * marker_progress;
-            
-            // Draw tick mark
-            draw_list->AddLine(
-                ImVec2(marker_x, bar_start.y),
-                ImVec2(marker_x, bar_start.y + 5.0f * uiScale),
-                IM_COL32(150, 150, 150, 255),
-                1.0f * uiScale
-            );
-            
-            // Draw time label for major markers
-            if (fmod(time, 30.0f) < 0.1f) { // Every 30 seconds
-                char timeText[16];
-                formatTime(time, timeText, sizeof(timeText));
-                draw_list->AddText(
-                    ImVec2(marker_x - 15.0f * uiScale, bar_start.y - 20.0f * uiScale),
-                    IM_COL32(200, 200, 200, 255),
-                    timeText
-                );
-            }
-        }
-    }
-    
-    // Current time indicator
-    float indicator_x = bar_start.x + bar_width * progress;
-    draw_list->AddLine(
-        ImVec2(indicator_x, bar_start.y - 5.0f * uiScale),
-        ImVec2(indicator_x, bar_end.y + 5.0f * uiScale),
-        IM_COL32(255, 255, 255, 255),
-        2.0f * uiScale
-    );
-    
-    // Handle scrubbing
-    ImGui::SetCursorScreenPos(bar_start);
-    ImGui::InvisibleButton("TimelineBar", ImVec2(bar_width, barHeight));
-    
-    if (ImGui::IsItemActive()) {
-        if (!m_wasDragging) {
-            m_wasDragging = true;
-            // Pause playback when starting to drag
-            m_isPlaying = false;
-            if (onPlayStateChanged) {
-                onPlayStateChanged(m_isPlaying);
-            }
-        }
-        
-        ImVec2 mouse_pos = ImGui::GetMousePos();
-        float normalized_pos = (mouse_pos.x - bar_start.x) / bar_width;
-        normalized_pos = std::clamp(normalized_pos, 0.0f, 1.0f);
-        setCurrentTime(normalized_pos * m_duration);
-    } else if (m_wasDragging) {
-        m_wasDragging = false;
-    }
-}
+
 
 void Timeline::renderCurrentTime() {
     char currentTimeText[16];
