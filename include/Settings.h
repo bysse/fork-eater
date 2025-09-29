@@ -39,11 +39,11 @@ public:
     void applyToImGui();
     
     // FPS Thresholds
-    float getLowFPSTreshold() const { return m_lowFPSTreshold; }
-    void setLowFPSTreshold(float treshold);
+    float getLowFPSThreshold() const { return m_lowFPSThreshold; }
+    void setLowFPSThreshold(float threshold);
 
-    float getHighFPSTreshold() const { return m_highFPSTreshold; }
-    void setHighFPSTreshold(float treshold);
+    float getHighFPSThreshold() const { return m_highFPSThreshold; }
+    void setHighFPSThreshold(float threshold);
     
     // Callback for when settings change
     std::function<void()> onSettingsChanged;
@@ -62,8 +62,8 @@ private:
     DPIScaleMode m_dpiScaleMode = DPIScaleMode::Auto;
     float m_uiScaleFactor = 1.0f;
     float m_fontScaleFactor = 1.0f;
-    float m_lowFPSTreshold = 20.0f;
-    float m_highFPSTreshold = 30.0f;
+    float m_lowFPSThreshold = 20.0f;
+    float m_highFPSThreshold = 50.0f;
     
     // Cache detected DPI scale
     float m_detectedDPIScale = 1.0f;

@@ -143,14 +143,14 @@ void MenuSystem::renderSettingsWindow() {
         ImGui::Separator();
         ImGui::Text("Timeline Settings");
 
-        float lowTreshold = settings.getLowFPSTreshold();
+        float lowTreshold = settings.getLowFPSThreshold();
         if (ImGui::SliderFloat("Low FPS Treshold", &lowTreshold, 0.0f, 1000.0f, "%.2f")) {
-            settings.setLowFPSTreshold(lowTreshold);
+            settings.setLowFPSThreshold(lowTreshold);
         }
 
-        float highTreshold = settings.getHighFPSTreshold();
+        float highTreshold = settings.getHighFPSThreshold();
         if (ImGui::SliderFloat("High FPS Treshold", &highTreshold, 0.0f, 1000.0f, "%.2f")) {
-            settings.setHighFPSTreshold(highTreshold);
+            settings.setHighFPSThreshold(highTreshold);
         }
 
         ImGui::Spacing();

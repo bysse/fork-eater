@@ -68,15 +68,14 @@ void Timeline::renderTimelineBar() {
         if (fps < 0.0f) { // Not recorded yet
             color = ImColor(128, 128, 128); // Grey
         } else {
-            float normalized_fps = std::min(1.0f, fps / Settings::getInstance().getHighFPSTreshold());
-            if (fps < Settings::getInstance().getLowFPSTreshold()) {
+            if (fps < Settings::getInstance().getLowFPSThreshold()) {
                 color = ImColor(255, 0, 0); // Red
-            } else if (fps > Settings::getInstance().getHighFPSTreshold()) {
+            } else if (fps > Settings::getInstance().getHighFPSThreshold()) {
                 color = ImColor(0, 255, 0); // Green
             } else {
                 // Interpolate between red and green for intermediate values
-                float t = (fps - Settings::getInstance().getLowFPSTreshold()) / 
-                          (Settings::getInstance().getHighFPSTreshold() - Settings::getInstance().getLowFPSTreshold());
+                float t = (fps - Settings::getInstance().getLowFPSThreshold()) /
+                          (Settings::getInstance().getHighFPSThreshold() - Settings::getInstance().getLowFPSThreshold());
                 t = std::clamp(t, 0.0f, 1.0f);
                 color = ImColor(static_cast<int>(255 * (1 - t)), static_cast<int>(255 * t), 0); // Red to Green
             }
