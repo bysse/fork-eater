@@ -26,11 +26,11 @@ bool PreviewPanel::initialize() {
     return true;
 }
 
-void PreviewPanel::render(GLuint textureId, float time) {
-    renderPreviewPanel(textureId, time);
+void PreviewPanel::render(GLuint textureId, float time, float renderScaleFactor) {
+    renderPreviewPanel(textureId, time, renderScaleFactor);
 }
 
-void PreviewPanel::renderPreviewPanel(GLuint textureId, float time) {
+void PreviewPanel::renderPreviewPanel(GLuint textureId, float time, float renderScaleFactor) {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -40,6 +40,12 @@ void PreviewPanel::renderPreviewPanel(GLuint textureId, float time) {
     const char* aspectNames[] = { "Free", "16:9", "4:3", "1:1", "21:9" };
     ImGui::SameLine();
     ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "(%s)", aspectNames[static_cast<int>(m_aspectMode)]);
+
+    // Display render scale factor if not 1.0f
+    if (renderScaleFactor < 1.0f) {
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "(Rendering at %.0f%%)", renderScaleFactor * 100.0f);
+    }
     
     ImGui::Separator();
     

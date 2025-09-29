@@ -44,6 +44,13 @@ public:
 
     float getHighFPSThreshold() const { return m_highFPSThreshold; }
     void setHighFPSThreshold(float threshold);
+
+    // Low FPS rendering thresholds
+    float getLowFPSRenderThreshold50() const { return m_lowFPSRenderThreshold50; }
+    void setLowFPSRenderThreshold50(float threshold);
+
+    float getLowFPSRenderThreshold25() const { return m_lowFPSRenderThreshold25; }
+    void setLowFPSRenderThreshold25(float threshold);
     
     // Callback for when settings change
     std::function<void()> onSettingsChanged;
@@ -64,6 +71,8 @@ private:
     float m_fontScaleFactor = 1.0f;
     float m_lowFPSThreshold = 20.0f;
     float m_highFPSThreshold = 50.0f;
+    float m_lowFPSRenderThreshold50 = 10.0f; // FPS below this will trigger 50% render scale
+    float m_lowFPSRenderThreshold25 = 5.0f;  // FPS below this will trigger 25% render scale
     
     // Cache detected DPI scale
     float m_detectedDPIScale = 1.0f;

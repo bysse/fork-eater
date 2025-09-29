@@ -207,6 +207,24 @@ void Settings::setLowFPSThreshold(float threshold) {
     }
 }
 
+void Settings::setLowFPSRenderThreshold25(float threshold) {
+    threshold = std::max(0.0f, std::min(1000.0f, threshold));
+    if (std::abs(m_lowFPSRenderThreshold25 - threshold) > 0.01f) {
+        m_lowFPSRenderThreshold25 = threshold;
+        save();
+        if (onSettingsChanged) onSettingsChanged();
+    }
+}
+
+void Settings::setLowFPSRenderThreshold50(float threshold) {
+    threshold = std::max(0.0f, std::min(1000.0f, threshold));
+    if (std::abs(m_lowFPSRenderThreshold50 - threshold) > 0.01f) {
+        m_lowFPSRenderThreshold50 = threshold;
+        save();
+        if (onSettingsChanged) onSettingsChanged();
+    }
+}
+
 void Settings::loadFromFile() {
     std::string settingsPath = getSettingsPath();
     
@@ -266,6 +284,14 @@ void Settings::loadFromFile() {
         if (settings.count("high_fps_treshold")) {
             m_highFPSThreshold = std::stof(settings["high_fps_treshold"]);
         }
+
+        if (settings.count("low_fps_render_treshold_50")) {
+            m_lowFPSRenderThreshold50 = std::stof(settings["low_fps_render_treshold_50"]);
+        }
+
+        if (settings.count("low_fps_render_treshold_25")) {
+            m_lowFPSRenderThreshold25 = std::stof(settings["low_fps_render_treshold_25"]);
+        }
         
         LOG_INFO("Loaded settings from: {}", settingsPath);
         
@@ -306,6 +332,8 @@ void Settings::saveToFile() {
         file << "font_scale_factor=" << m_fontScaleFactor << "\n";
         file << "low_fps_treshold=" << m_lowFPSThreshold << "\n";
         file << "high_fps_treshold=" << m_highFPSThreshold << "\n";
+        file << "low_fps_render_treshold_50=" << m_lowFPSRenderThreshold50 << "\n";
+        file << "low_fps_render_treshold_25=" << m_lowFPSRenderThreshold25 << "\n";
         
         LOG_INFO("Saved settings to: {}", settingsPath);
         

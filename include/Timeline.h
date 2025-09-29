@@ -7,7 +7,7 @@ public:
     ~Timeline();
     
     // Render the timeline UI
-    void render();
+    void render(float renderScaleFactor);
     
     // Default height of the timeline in device-independent pixels (DIP)
     static float defaultHeightDIP();
@@ -91,7 +91,7 @@ private:
     
     // Private methods
     void renderPlaybackControls();
-    void renderTimelineBar();
+    void renderTimelineBar(float renderScaleFactor);
     void renderCurrentTime();
     void renderSpeedControl();
     void handlePlayPause();

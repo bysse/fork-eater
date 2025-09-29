@@ -278,16 +278,23 @@ std::string ShaderManager::getProgramInfoLog(GLuint program) {
     return std::string(log.data());
 }
 
-void ShaderManager::renderToFramebuffer(const std::string& name, int width, int height, float time) {
+void ShaderManager::renderToFramebuffer(const std::string& name, int width, int height, float time, float renderScaleFactor) {
+    int scaledWidth = static_cast<int>(width * renderScaleFactor);
+    int scaledHeight = static_cast<int>(height * renderScaleFactor);
+
     auto it = m_framebuffers.find(name);
     if (it == m_framebuffers.end()) {
-        m_framebuffers[name] = std::make_unique<Framebuffer>(width, height);
+        m_framebuffers[name] = std::make_unique<Framebuffer>(scaledWidth, scaledHeight);
+    } else if (it->second->getWidth() != scaledWidth || it->second->getHeight() != scaledHeight) {
+        // Resize framebuffer if dimensions changed
+        it->second->resize(scaledWidth, scaledHeight);
     }
 
     m_framebuffers[name]->bind();
+    glViewport(0, 0, scaledWidth, scaledHeight); // Set viewport to scaled dimensions
     useShader(name);
     setUniform("u_time", time);
-    float resolution[2] = {(float)width, (float)height};
+    float resolution[2] = {(float)scaledWidth, (float)scaledHeight};
     setUniform("u_resolution", resolution, 2);
 
     glBindVertexArray(m_quadVAO);
@@ -295,6 +302,7 @@ void ShaderManager::renderToFramebuffer(const std::string& name, int width, int 
     glBindVertexArray(0);
 
     m_framebuffers[name]->unbind();
+    glViewport(0, 0, width, height); // Restore viewport to original dimensions
 }
 
 GLuint ShaderManager::getFramebufferTexture(const std::string& name) {

@@ -31,7 +31,8 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     , m_showShortcutsHelp(false)
     , m_reloadProject(false)
     , m_screenWidth(1280)
-    , m_screenHeight(720) {
+    , m_screenHeight(720)
+    , m_renderScaleFactor(1.0f) {
     
     // Create component classes
     m_previewPanel = std::make_unique<PreviewPanel>(m_shaderManager);
@@ -69,11 +70,20 @@ void ShaderEditor::render() {
                     height = m_screenHeight;
                 }
                 auto startTime = glfwGetTime();
-                m_shaderManager->renderToFramebuffer(pass.name, width, height, m_timeline->getCurrentTime());
+                m_shaderManager->renderToFramebuffer(pass.name, width, height, m_timeline->getCurrentTime(), m_renderScaleFactor);
                 auto endTime = glfwGetTime();
                 auto duration = endTime - startTime;
-                if (duration > 0) {
-                    m_timeline->addFPS(m_timeline->getCurrentTime(), 1.0 / duration);
+                float currentFPS = (duration > 0) ? (1.0 / duration) : 0.0f;
+                m_timeline->addFPS(m_timeline->getCurrentTime(), currentFPS);
+
+                // Adjust render scale factor based on FPS
+                Settings& settings = Settings::getInstance();
+                if (currentFPS < settings.getLowFPSRenderThreshold25()) {
+                    m_renderScaleFactor = 0.25f;
+                } else if (currentFPS < settings.getLowFPSRenderThreshold50()) {
+                    m_renderScaleFactor = 0.5f;
+                } else {
+                    m_renderScaleFactor = 1.0f;
                 }
             }
         }
@@ -261,7 +271,7 @@ void ShaderEditor::renderMainLayout() {
     if (previewHeight < 0.0f) previewHeight = 0.0f;
     ImGui::BeginChild("PreviewPanel", ImVec2(contentSize.x, previewHeight), true, noNavFlags);
     GLuint finalTexture = m_shaderManager->getFramebufferTexture(m_selectedShader);
-    m_previewPanel->render(finalTexture, m_timeline->getCurrentTime());
+    m_previewPanel->render(finalTexture, m_timeline->getCurrentTime(), m_renderScaleFactor);
     ImGui::EndChild();
     
     if (m_menuSystem->shouldShowErrorPanel()) {
@@ -303,7 +313,7 @@ void ShaderEditor::renderMainLayout() {
     
     // Timeline panel at the bottom
     ImGui::BeginChild("TimelinePanel", ImVec2(windowSize.x, m_timelineHeight), true, noNavFlags);
-    m_timeline->render();
+    m_timeline->render(m_renderScaleFactor);
     ImGui::EndChild();
 }
 

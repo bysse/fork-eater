@@ -48,6 +48,9 @@ public:
     // Get timeline
     Timeline* getTimeline() { return m_timeline.get(); }
 
+    // Get render scale factor
+    float getRenderScaleFactor() const { return m_renderScaleFactor; }
+
     // Set screen size
     void setScreenSize(int width, int height);
 
@@ -80,6 +83,7 @@ private:
     bool m_reloadProject;
     int m_screenWidth;
     int m_screenHeight;
+    float m_renderScaleFactor; // Current render scale factor (1.0, 0.5, 0.25)
     std::unordered_map<std::string, std::pair<int, int>> m_passOutputSizes;
     
     // Thread-safe shader reload queue

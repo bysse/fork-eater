@@ -38,7 +38,7 @@ void Timeline::clearFPSData() {
     std::fill(m_fpsData.begin(), m_fpsData.end(), -1.0f);
 }
 
-void Timeline::renderTimelineBar() {
+void Timeline::renderTimelineBar(float renderScaleFactor) {
     ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
     ImVec2 canvas_size = ImGui::GetContentRegionAvail();
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
@@ -83,6 +83,17 @@ void Timeline::renderTimelineBar() {
         
         float x = fpsGraphStart.x + (float)i * segmentWidth;
         draw_list->AddRectFilled(ImVec2(x, fpsGraphStart.y), ImVec2(x + segmentWidth, bar_end.y), color);
+    }
+
+    // Render scale factor overlay
+    if (renderScaleFactor < 1.0f) {
+        ImColor overlayColor;
+        if (renderScaleFactor == 0.5f) {
+            overlayColor = ImColor(255, 165, 0, 100); // Orange with transparency
+        } else if (renderScaleFactor == 0.25f) {
+            overlayColor = ImColor(255, 0, 0, 100); // Red with transparency
+        }
+        draw_list->AddRectFilled(bar_start, bar_end, overlayColor);
     }
 
     draw_list->AddRect(bar_start, bar_end, IM_COL32(100, 100, 100, 255));
@@ -225,7 +236,7 @@ void Timeline::reset() {
     }
 }
 
-void Timeline::render() {
+void Timeline::render(float renderScaleFactor) {
     ImVec2 windowSize = ImGui::GetContentRegionAvail();
     
     // Use available height directly without extra padding, ensure no scrollbars
@@ -269,7 +280,7 @@ void Timeline::render() {
     
     // Timeline bar
     ImGui::BeginChild("TimelineBar", ImVec2(timelineBarWidth, childHeight), false, childFlags);
-    renderTimelineBar();
+    renderTimelineBar(renderScaleFactor);
     ImGui::EndChild();
     
     ImGui::SameLine();

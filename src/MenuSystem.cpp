@@ -154,6 +154,20 @@ void MenuSystem::renderSettingsWindow() {
         }
 
         ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Text("Low FPS Rendering");
+
+        float lowRenderTreshold50 = settings.getLowFPSRenderThreshold50();
+        if (ImGui::SliderFloat("50% Render Threshold", &lowRenderTreshold50, 0.0f, 60.0f, "%.2f")) {
+            settings.setLowFPSRenderThreshold50(lowRenderTreshold50);
+        }
+
+        float lowRenderTreshold25 = settings.getLowFPSRenderThreshold25();
+        if (ImGui::SliderFloat("25% Render Threshold", &lowRenderTreshold25, 0.0f, 60.0f, "%.2f")) {
+            settings.setLowFPSRenderThreshold25(lowRenderTreshold25);
+        }
+
+        ImGui::Spacing();
         if (ImGui::Button("Close")) {
             m_showSettingsWindow = false;
         }
