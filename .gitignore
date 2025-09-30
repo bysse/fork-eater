@@ -2,3 +2,4 @@ build
 external/imgui
 .idea
 .vscode
+*.log

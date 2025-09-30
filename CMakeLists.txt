@@ -46,6 +46,7 @@ set(SOURCES
     src/ShaderProject.cpp
     src/ShaderTemplates.cpp
     src/Framebuffer.cpp
+    src/ShaderPreprocessor.cpp
 )
 
 # GLAD library

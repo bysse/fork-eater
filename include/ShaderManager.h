@@ -12,6 +12,8 @@ typedef unsigned int GLenum;
 
 #include "Framebuffer.h"
 
+class ShaderPreprocessor;
+
 class ShaderManager {
 public:
     struct ShaderProgram {
@@ -20,6 +22,7 @@ public:
         GLuint fragmentShaderId;
         std::string vertexPath;
         std::string fragmentPath;
+        std::vector<std::string> includedFiles;
         std::string lastError;
         bool isValid;
     };
@@ -77,4 +80,6 @@ private:
     std::string getShaderInfoLog(GLuint shader);
     std::string getProgramInfoLog(GLuint program);
     void cleanupShader(ShaderProgram& shader);
+    
+    ShaderPreprocessor* m_preprocessor;
 };

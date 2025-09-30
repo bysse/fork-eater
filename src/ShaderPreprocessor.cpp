@@ -1,0 +1,90 @@
+#include "ShaderPreprocessor.h"
+#include "Logger.h" // For LOG_ERROR
+#include <fstream>
+#include <sstream>
+#include <regex>
+#include <filesystem>
+#include <algorithm>
+
+// Helper function to read a file's content
+static std::string readFileContent(const std::string& filePath) {
+    std::ifstream file(filePath);
+    if (!file.is_open()) {
+        // LOG_ERROR("Failed to open file: {}", filePath); // Log here or via callback
+        return "";
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
+}
+
+ShaderPreprocessor::ShaderPreprocessor() {
+    // Default empty onMessage callback
+    onMessage = [](const std::string& msg) { LOG_ERROR("ShaderPreprocessor: {}", msg); };
+}
+
+std::string ShaderPreprocessor::preprocess(const std::string& filePath, std::vector<std::string>& includedFiles) {
+    includedFiles.clear();
+    std::vector<std::string> includeStack; // To detect circular dependencies
+    std::set<std::string> uniqueIncludedFiles; // To collect all unique included files
+
+    std::string preprocessedSource = preprocessRecursive(filePath, includeStack, uniqueIncludedFiles);
+
+    // Convert set to vector
+    for (const auto& file : uniqueIncludedFiles) {
+        includedFiles.push_back(file);
+    }
+    
+    return preprocessedSource;
+}
+
+std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
+                                                    std::vector<std::string>& includeStack,
+                                                    std::set<std::string>& uniqueIncludedFiles) {
+    // Check for include loops
+    if (std::find(includeStack.begin(), includeStack.end(), filePath) != includeStack.end()) {
+        std::string errorMsg = "Include loop detected: " + filePath;
+        if (onMessage) onMessage(errorMsg);
+        return "#error " + errorMsg + "\n";
+    }
+
+    includeStack.push_back(filePath);
+    uniqueIncludedFiles.insert(filePath);
+
+    std::string source = readFileContent(filePath);
+    if (source.empty()) {
+        includeStack.pop_back();
+        std::string errorMsg = "Failed to read included file: " + filePath;
+        if (onMessage) onMessage(errorMsg);
+        return "#error " + errorMsg + "\n";
+    }
+
+    std::stringstream preprocessedSource;
+    std::stringstream ss(source);
+    std::string line;
+    std::regex includeRegex("#pragma include\(\"<([a-zA-Z0-9_./-]+)>\")");
+    
+    while (std::getline(ss, line)) {
+        std::smatch matches;
+        if (std::regex_search(line, matches, includeRegex)) {
+            if (matches.size() == 2) {
+                std::string includeFileName = matches[1].str();
+                std::filesystem::path currentDirPath = std::filesystem::path(filePath).parent_path(); // Use parent_path
+                std::string includePath = (currentDirPath / includeFileName).string();
+
+                // Recursively preprocess included file
+                std::string includedContent = preprocessRecursive(includePath, includeStack, uniqueIncludedFiles);
+                preprocessedSource << includedContent;
+            } else {
+                std::string errorMsg = "Invalid include directive: " + line;
+                if (onMessage) onMessage(errorMsg);
+                preprocessedSource << "#error " + errorMsg + "\n";
+            }
+        } else {
+            preprocessedSource << line << "\n";
+        }
+    }
+
+    includeStack.pop_back();
+    return preprocessedSource.str();
+}

@@ -1,12 +1,27 @@
 #include "ShaderManager.h"
+#include "ShaderPreprocessor.h"
 #include "Logger.h"
 #include "glad.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <vector>
+#include <regex> // Required for regex_search
+#include <filesystem> // Required for path manipulation
 
-ShaderManager::ShaderManager() : m_quadVAO(0), m_quadVBO(0) {
+// Helper function to read a file's content
+static std::string readFileContent(const std::string& filePath) {
+    std::ifstream file(filePath);
+    if (!file.is_open()) {
+        LOG_ERROR("Failed to open file: {}", filePath);
+        return "";
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
+}
+
+ShaderManager::ShaderManager() : m_quadVAO(0), m_quadVBO(0), m_preprocessor(new ShaderPreprocessor()) {
     // Full-screen quad vertices
     float vertices[] = {
         -1.0f, -1.0f, 0.0f, 0.0f,
@@ -38,12 +53,15 @@ ShaderManager::ShaderManager() : m_quadVAO(0), m_quadVBO(0) {
 }
 
 ShaderManager::~ShaderManager() {
+    delete m_preprocessor;
     for (auto& pair : m_shaders) {
         cleanupShader(*pair.second);
     }
     glDeleteVertexArrays(1, &m_quadVAO);
     glDeleteBuffers(1, &m_quadVBO);
 }
+
+
 
 std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     const std::string& name, 
@@ -56,13 +74,21 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     shader->vertexPath = vertexPath;
     shader->fragmentPath = fragmentPath;
     shader->isValid = false;
+
+    std::vector<std::string> vertexIncludes, fragmentIncludes;
+    std::string vertexSource = m_preprocessor->preprocess(vertexPath, vertexIncludes);
+    std::string fragmentSource = m_preprocessor->preprocess(fragmentPath, fragmentIncludes);
+
+    // Combine and unique-ify included files
+    shader->includedFiles = vertexIncludes;
+    shader->includedFiles.insert(shader->includedFiles.end(), fragmentIncludes.begin(), fragmentIncludes.end());
+    std::sort(shader->includedFiles.begin(), shader->includedFiles.end());
+    shader->includedFiles.erase(std::unique(shader->includedFiles.begin(), shader->includedFiles.end()), shader->includedFiles.end());
     
-    // Read shader sources
-    std::string vertexSource = readFile(vertexPath);
-    std::string fragmentSource = readFile(fragmentPath);
-    
-    if (vertexSource.empty() || fragmentSource.empty()) {
-        shader->lastError = "Failed to read shader files";
+    if (vertexSource.empty() || fragmentSource.empty() || 
+        vertexSource.find("#error") != std::string::npos || 
+        fragmentSource.find("#error") != std::string::npos) {
+        shader->lastError = "Failed to preprocess shader files or include error";
         if (m_compilationCallback) {
             m_compilationCallback(name, false, shader->lastError);
         }
@@ -236,18 +262,6 @@ GLuint ShaderManager::linkProgram(GLuint vertexShader, GLuint fragmentShader) {
     }
     
     return program;
-}
-
-std::string ShaderManager::readFile(const std::string& filePath) {
-    std::ifstream file(filePath);
-    if (!file.is_open()) {
-        LOG_ERROR("Failed to open file: {}", filePath);
-        return "";
-    }
-    
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    return buffer.str();
 }
 
 std::string ShaderManager::getShaderInfoLog(GLuint shader) {

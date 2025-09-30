@@ -6,14 +6,14 @@
 # set -e removed to allow custom exit codes in tests
 
 PROJECT_DIR=$(dirname "$(realpath "$0")")
-cd "$PROJECT_DIR/build"
+cd "$PROJECT_DIR/"
 
 echo "🧪 Testing Fork Eater Exit Functionality..."
 echo "============================================="
 
 # Test 1: Help command
 echo "1️⃣  Testing --help command..."
-./fork-eater --help > /dev/null 2>&1
+./build/fork-eater --help > /dev/null 2>&1
 if [ $? -eq 0 ]; then
     echo "   ✅ Help command works"
 else
@@ -23,7 +23,7 @@ fi
 
 # Test 2: Test mode with default exit code
 echo "2️⃣  Testing --test mode (default exit code)..."
-./fork-eater --test > /dev/null 2>&1
+./build/fork-eater --test > /dev/null 2>&1
 if [ $? -eq 0 ]; then
     echo "   ✅ Test mode works with exit code 0"
 else
@@ -33,7 +33,7 @@ fi
 
 # Test 3: Test mode with custom exit code
 echo "3️⃣  Testing --test mode (custom exit code 42)..."
-./fork-eater --test 42 > /dev/null 2>&1
+./build/fork-eater --test 42 > /dev/null 2>&1
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 42 ]; then
     echo "   ✅ Test mode works with custom exit code 42"
@@ -44,7 +44,7 @@ fi
 
 # Test 4: Application starts and can be terminated
 echo "4️⃣  Testing application startup and termination..."
-timeout 5s ./fork-eater shaders/basic > /dev/null 2> error.log &
+timeout 5s ./build/fork-eater project/test > /dev/null 2> error.log &
 APP_PID=$!
 sleep 1
 
