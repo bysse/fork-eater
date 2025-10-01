@@ -2,6 +2,7 @@
 #include "ShaderPreprocessor.h"
 #include "Logger.h"
 #include "glad.h"
+#include "imgui/imgui.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -318,9 +319,13 @@ void ShaderManager::renderToFramebuffer(const std::string& name, int width, int 
     m_framebuffers[name]->bind();
     glViewport(0, 0, scaledWidth, scaledHeight); // Set viewport to scaled dimensions
     useShader(name);
-    setUniform("u_time", time);
-    float resolution[2] = {(float)scaledWidth, (float)scaledHeight};
-    setUniform("u_resolution", resolution, 2);
+    setUniform("iTime", time);
+    float resolution[3] = {(float)scaledWidth, (float)scaledHeight, 1.0f};
+    setUniform("iResolution", resolution, 3);
+
+    ImGuiIO& io = ImGui::GetIO();
+    float mouse[4] = { io.MousePos.x, io.MousePos.y, io.MouseDown[0] ? 1.0f : 0.0f, 0.0f };
+    setUniform("iMouse", mouse, 4);
 
     glBindVertexArray(m_quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);

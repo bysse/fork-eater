@@ -64,7 +64,7 @@ void LeftPanel::renderUniformList(const std::string& selectedShader) {
             while (std::regex_search(it, source.cend(), matches, uniformRegex)) {
                 if (matches.size() == 2) {
                     std::string uniformName = matches[1].str();
-                    bool isSystemUniform = (uniformName == "u_time" || uniformName == "u_resolution");
+                    bool isSystemUniform = (uniformName == "iTime" || uniformName == "iResolution" || uniformName == "iMouse");
                     if (isSystemUniform) {
                         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
                     }

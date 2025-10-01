@@ -2,15 +2,15 @@
 out vec4 FragColor;
 
 in vec2 TexCoord;
-uniform float u_time;
-uniform vec2 u_resolution;
+uniform float iTime;
+uniform vec3 iResolution;
 
 void main()
 {
-    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    vec2 uv = gl_FragCoord.xy / iResolution.xy;
     
     // Music-synchronized patterns (128 BPM)
-    float beat = u_time * 128.0 / 60.0;  // Convert to beats
+    float beat = iTime * 128.0 / 60.0;  // Convert to beats
     float beatPulse = sin(beat * 3.14159) * 0.5 + 0.5;
     float barPulse = sin(beat * 3.14159 / 4.0) * 0.5 + 0.5;
     
@@ -18,7 +18,7 @@ void main()
     vec2 center = vec2(0.5, 0.5);
     float dist = length(uv - center);
     
-    float circles = sin(dist * 20.0 - u_time * 5.0) * beatPulse;
+    float circles = sin(dist * 20.0 - iTime * 5.0) * beatPulse;
     
     // Beat-synchronized colors
     vec3 color1 = vec3(0.8, 0.2, 0.8);  // Magenta
