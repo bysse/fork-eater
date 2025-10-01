@@ -82,6 +82,37 @@ file(WRITE ${GENERATED_TEMPLATES_HEADER} "${GENERATED_CONTENT}")
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 # --- End Embed Shader Templates ---
 
+# --- Embed Shader Libraries ---
+file(GLOB_RECURSE LIB_FILES "libs/*")
+set(GENERATED_LIBS_HEADER ${CMAKE_CURRENT_BINARY_DIR}/GeneratedShaderLibraries.h)
+
+set(GENERATED_LIB_CONTENT "#pragma once\n#include <map>\n#include <string>\n#include <utility>\n\n")
+set(GENERATED_LIB_CONTENT "${GENERATED_LIB_CONTENT}namespace EmbeddedLibraries {\n")
+set(GENERATED_LIB_CONTENT "${GENERATED_LIB_CONTENT}std::map<std::string, std::pair<const char*, size_t>> g_libs;\n")
+set(GENERATED_LIB_CONTENT "${GENERATED_LIB_CONTENT}void initialize() {\n")
+
+foreach(LIB_FILE ${LIB_FILES})
+    file(RELATIVE_PATH REL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/libs ${LIB_FILE})
+    file(READ ${LIB_FILE} FILE_CONTENT HEX)
+    string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," FILE_CONTENT ${FILE_CONTENT})
+
+    string(REPLACE "/" "_" VAR_NAME ${REL_PATH})
+    string(REPLACE "." "_" VAR_NAME ${VAR_NAME})
+    string(TOUPPER ${VAR_NAME} VAR_NAME)
+
+    set(GENERATED_LIB_CONTENT "${GENERATED_LIB_CONTENT}    static const unsigned char ${VAR_NAME}[] = { ${FILE_CONTENT} };\n")
+    set(GENERATED_LIB_CONTENT "${GENERATED_LIB_CONTENT}    g_libs[\"${REL_PATH}\"] = { reinterpret_cast<const char*>(${VAR_NAME}), sizeof(${VAR_NAME}) };\n")
+endforeach()
+
+set(GENERATED_LIB_CONTENT "${GENERATED_LIB_CONTENT}}\n")
+set(GENERATED_LIB_CONTENT "${GENERATED_LIB_CONTENT}}\n")
+
+file(WRITE ${GENERATED_LIBS_HEADER} "${GENERATED_LIB_CONTENT}")
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+# --- End Embed Shader Libraries ---
+
+
 # Create executable
 add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES})
 

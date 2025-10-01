@@ -14,7 +14,6 @@
 static std::string readFileContent(const std::string& filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
-        LOG_ERROR("Failed to open file: {}", filePath);
         return "";
     }
     std::stringstream buffer;

@@ -1,5 +1,6 @@
 #include "ShaderPreprocessor.h"
 #include "Logger.h" // For LOG_ERROR
+#include "GeneratedShaderLibraries.h"
 #include <fstream>
 #include <sstream>
 #include <regex>
@@ -10,7 +11,6 @@
 static std::string readFileContent(const std::string& filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
-        // LOG_ERROR("Failed to open file: {}", filePath); // Log here or via callback
         return "";
     }
     std::stringstream buffer;
@@ -21,6 +21,9 @@ static std::string readFileContent(const std::string& filePath) {
 ShaderPreprocessor::ShaderPreprocessor() {
     // Default empty onMessage callback
     onMessage = [](const std::string& msg) { LOG_ERROR("ShaderPreprocessor: {}", msg); };
+
+    // Initialize embedded libraries
+    EmbeddedLibraries::initialize();
 }
 
 std::string ShaderPreprocessor::preprocess(const std::string& filePath, std::vector<std::string>& includedFiles) {
@@ -29,6 +32,8 @@ std::string ShaderPreprocessor::preprocess(const std::string& filePath, std::vec
     std::set<std::string> uniqueIncludedFiles; // To collect all unique included files
 
     std::string preprocessedSource = preprocessRecursive(filePath, includeStack, uniqueIncludedFiles);
+
+    LOG_DEBUG("Preprocessed source for {}:\n{}", filePath, preprocessedSource);
 
     // Convert set to vector
     for (const auto& file : uniqueIncludedFiles) {
@@ -41,6 +46,7 @@ std::string ShaderPreprocessor::preprocess(const std::string& filePath, std::vec
 std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
                                                     std::vector<std::string>& includeStack,
                                                     std::set<std::string>& uniqueIncludedFiles) {
+    LOG_DEBUG("Preprocessing file: {}", filePath);
     // Check for include loops
     if (std::find(includeStack.begin(), includeStack.end(), filePath) != includeStack.end()) {
         std::string errorMsg = "Include loop detected: " + filePath;
@@ -53,11 +59,19 @@ std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
 
     std::string source = readFileContent(filePath);
     if (source.empty()) {
-        includeStack.pop_back();
-        std::string errorMsg = "Failed to read included file: " + filePath;
-        if (onMessage) onMessage(errorMsg);
-        return "#error " + errorMsg + "\n";
+        // Try to load from embedded libraries
+        auto it = EmbeddedLibraries::g_libs.find(std::filesystem::path(filePath).filename().string());
+        if (it != EmbeddedLibraries::g_libs.end()) {
+            source = std::string(it->second.first, it->second.second);
+        } else {
+            includeStack.pop_back();
+            std::string errorMsg = "Failed to read included file: " + filePath;
+            if (onMessage) onMessage(errorMsg);
+            return "#error " + errorMsg + "\n";
+        }
     }
+
+    LOG_DEBUG("Source for {}:\n{}", filePath, source);
 
     std::stringstream preprocessedSource;
     std::stringstream ss(source);
