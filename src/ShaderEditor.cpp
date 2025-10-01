@@ -429,22 +429,14 @@ void ShaderEditor::setupProjectFileWatching() {
     const auto& passes = m_currentProject->getPasses();
     for (const auto& pass : passes) {
         if (!pass.enabled) continue;
-        
-        std::string vertPath = m_currentProject->getShaderPath(pass.vertexShader);
-        std::string fragPath = m_currentProject->getShaderPath(pass.fragmentShader);
-        
-        // Set up file watching for vertex shader
-        if (!pass.vertexShader.empty()) {
-            m_fileWatcher->addWatch(vertPath, 
-                [this](const std::string& path) { onShaderFileChanged(path); });
-            LOG_DEBUG("Watching vertex shader: {}", vertPath);
-        }
-        
-        // Set up file watching for fragment shader
-        if (!pass.fragmentShader.empty()) {
-            m_fileWatcher->addWatch(fragPath, 
-                [this](const std::string& path) { onShaderFileChanged(path); });
-            LOG_DEBUG("Watching fragment shader: {}", fragPath);
+
+        auto shader = m_shaderManager->getShader(pass.name);
+        if (shader) {
+            for (const auto& includedFile : shader->includedFiles) {
+                m_fileWatcher->addWatch(includedFile, 
+                    [this](const std::string& path) { onShaderFileChanged(path); });
+                LOG_DEBUG("Watching included file: {}", includedFile);
+            }
         }
     }
 }
@@ -457,18 +449,20 @@ void ShaderEditor::onShaderFileChanged(const std::string& filePath) {
     for (const auto& pass : passes) {
         if (!pass.enabled) continue;
         
-        std::string vertPath = m_currentProject->getShaderPath(pass.vertexShader);
-        std::string fragPath = m_currentProject->getShaderPath(pass.fragmentShader);
-        
-        if (vertPath == filePath || fragPath == filePath) {
-            LOG_DEBUG("File changed, queuing shader reload: {} ({})", pass.name, filePath);
-            
-            // Thread-safely queue the reload
-            {
-                std::lock_guard<std::mutex> lock(m_reloadQueueMutex);
-                m_pendingReloads.push(pass.name);
+        auto shader = m_shaderManager->getShader(pass.name);
+        if (shader) {
+            for (const auto& includedFile : shader->includedFiles) {
+                if (includedFile == filePath) {
+                    LOG_DEBUG("File changed, queuing shader reload: {} ({})", pass.name, filePath);
+                    
+                    // Thread-safely queue the reload
+                    {
+                        std::lock_guard<std::mutex> lock(m_reloadQueueMutex);
+                        m_pendingReloads.push(pass.name);
+                    }
+                    return; // Found the pass, no need to check further
+                }
             }
-            break;
         }
     }
 }
