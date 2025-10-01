@@ -1,0 +1,11 @@
+{
+    "name": "Raymarching",
+    "description": "A basic raymarching shader.",
+    "passes": [
+        {
+            "name": "main",
+            "vertexShader": "raymarching.vert",
+            "fragmentShader": "raymarching.frag"
+        }
+    ]
+}
