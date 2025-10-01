@@ -65,6 +65,8 @@ public:
     
     // Shader pass management
     const std::vector<ShaderPass>& getPasses() const { return m_manifest.passes; }
+    std::vector<ShaderPass>& getPasses() { return m_manifest.passes; }
+    ShaderPass& getPass(size_t index) { return m_manifest.passes[index]; }
     void addPass(const ShaderPass& pass);
     void removePass(size_t index);
     void movePass(size_t from, size_t to);

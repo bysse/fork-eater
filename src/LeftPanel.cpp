@@ -33,23 +33,21 @@ void LeftPanel::renderPassList() {
     ImGui::Separator();
     
     if (m_currentProject && m_currentProject->isLoaded()) {
-        const auto& passes = m_currentProject->getPasses();
+        auto& passes = m_currentProject->getPasses();
         for (size_t i = 0; i < passes.size(); ++i) {
-            const auto& pass = passes[i];
+            auto& pass = passes[i];
             bool selected = (i == 0); // For now, just select the first pass
             std::string displayName = pass.name + (pass.enabled ? "" : " (disabled)");
             if (ImGui::Selectable(displayName.c_str(), selected)) {
-                // Pass selection logic here
+                pass.enabled = !pass.enabled;
+                if (onPassesChanged) onPassesChanged();
             }
         }
     } else {
         ImGui::Text("No project loaded");
     }
     
-    ImGui::Spacing();
-    if (ImGui::Button("Add Pass", ImVec2(-1, 0))) {
-        // Add new pass logic
-    }
+
 }
 
 void LeftPanel::renderFileList(const std::string& selectedShader) {

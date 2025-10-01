@@ -194,6 +194,13 @@ void ShaderEditor::setupCallbacks() {
         // Double-click to reload
         m_shaderManager->reloadShader(name);
     };
+
+    m_leftPanel->onPassesChanged = [this]() {
+        if (m_currentProject) {
+            m_shaderManager->clearShaders();
+            m_currentProject->loadShadersIntoManager(m_shaderManager);
+        }
+    };
     
 }
 

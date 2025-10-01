@@ -22,6 +22,7 @@ public:
     std::function<void(const std::string&)> onShaderSelected;
     std::function<void(const std::string&)> onShaderDoubleClicked;
     std::function<void()> onNewShader;
+    std::function<void()> onPassesChanged;
     
 private:
     std::shared_ptr<ShaderManager> m_shaderManager;
