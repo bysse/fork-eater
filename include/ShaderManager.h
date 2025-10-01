@@ -22,6 +22,8 @@ public:
         GLuint fragmentShaderId;
         std::string vertexPath;
         std::string fragmentPath;
+        std::string preprocessedVertexSource;
+        std::string preprocessedFragmentSource;
         std::vector<std::string> includedFiles;
         std::string lastError;
         bool isValid;
@@ -64,6 +66,9 @@ public:
     
     // Set compilation callback
     void setCompilationCallback(std::function<void(const std::string&, bool, const std::string&)> callback);
+
+    // Get preprocessed shader source
+    std::string getPreprocessedSource(const std::string& name, bool fragment = true);
 
 private:
     std::unordered_map<std::string, std::shared_ptr<ShaderProgram>> m_shaders;

@@ -79,6 +79,9 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     std::string vertexSource = m_preprocessor->preprocess(vertexPath, vertexIncludes);
     std::string fragmentSource = m_preprocessor->preprocess(fragmentPath, fragmentIncludes);
 
+    shader->preprocessedVertexSource = vertexSource;
+    shader->preprocessedFragmentSource = fragmentSource;
+
     // Combine and unique-ify included files
     shader->includedFiles = vertexIncludes;
     shader->includedFiles.insert(shader->includedFiles.end(), fragmentIncludes.begin(), fragmentIncludes.end());
@@ -222,6 +225,14 @@ std::vector<std::string> ShaderManager::getShaderNames() const {
 
 void ShaderManager::setCompilationCallback(std::function<void(const std::string&, bool, const std::string&)> callback) {
     m_compilationCallback = callback;
+}
+
+std::string ShaderManager::getPreprocessedSource(const std::string& name, bool fragment) {
+    auto shader = getShader(name);
+    if (shader) {
+        return fragment ? shader->preprocessedFragmentSource : shader->preprocessedVertexSource;
+    }
+    return "";
 }
 
 GLuint ShaderManager::compileShader(const std::string& source, GLenum shaderType) {

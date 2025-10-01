@@ -30,5 +30,5 @@ private:
     
     // Private methods
     void renderPassList();
-    void renderFileList(const std::string& selectedShader);
+    void renderUniformList(const std::string& selectedShader);
 };

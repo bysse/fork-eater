@@ -3,6 +3,7 @@
 #include "ShaderProject.h"
 
 #include "imgui/imgui.h"
+#include <regex>
 
 LeftPanel::LeftPanel(std::shared_ptr<ShaderManager> shaderManager)
     : m_shaderManager(shaderManager) {
@@ -24,7 +25,7 @@ void LeftPanel::render(const std::string& selectedShader) {
     
     // File list (bottom half)
     ImGui::BeginChild("FileList", ImVec2(leftSize.x, leftSize.y * 0.6f - 10), true);
-    renderFileList(selectedShader);
+    renderUniformList(selectedShader);
     ImGui::EndChild();
 }
 
@@ -50,82 +51,32 @@ void LeftPanel::renderPassList() {
 
 }
 
-void LeftPanel::renderFileList(const std::string& selectedShader) {
-    ImGui::Text("Shader Files");
+void LeftPanel::renderUniformList(const std::string& selectedShader) {
+    ImGui::Text("Shader Uniforms");
     ImGui::Separator();
-    
-    if (m_currentProject && m_currentProject->isLoaded()) {
-        const auto& passes = m_currentProject->getPasses();
-        
-        // Show files from the current project
-        for (const auto& pass : passes) {
-            if (!pass.enabled) continue;
-            
-            // Vertex shader file
-            if (!pass.vertexShader.empty()) {
-                bool isSelected = (pass.name == selectedShader);
-                std::string displayName = "📄 " + pass.vertexShader;
-                if (ImGui::Selectable(displayName.c_str(), isSelected)) {
-                    if (onShaderSelected) onShaderSelected(pass.name);
+
+    if (m_shaderManager && !selectedShader.empty()) {
+        std::string source = m_shaderManager->getPreprocessedSource(selectedShader);
+        if (!source.empty()) {
+            std::regex uniformRegex("uniform\\s+\\w+\\s+([a-zA-Z0-9_]+)");
+            std::smatch matches;
+            auto it = source.cbegin();
+            while (std::regex_search(it, source.cend(), matches, uniformRegex)) {
+                if (matches.size() == 2) {
+                    std::string uniformName = matches[1].str();
+                    bool isSystemUniform = (uniformName == "u_time" || uniformName == "u_resolution");
+                    if (isSystemUniform) {
+                        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+                    }
+                    ImGui::Text("%s", uniformName.c_str());
+                    if (isSystemUniform) {
+                        ImGui::PopStyleColor();
+                    }
                 }
-                
-                if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
-                    if (onShaderDoubleClicked) onShaderDoubleClicked(pass.name);
-                }
-                
-                // Show file path as tooltip
-                if (ImGui::IsItemHovered()) {
-                    ImGui::BeginTooltip();
-                    ImGui::Text("Vertex shader: %s", pass.vertexShader.c_str());
-                    ImGui::Text("Pass: %s", pass.name.c_str());
-                    ImGui::EndTooltip();
-                }
-            }
-            
-            // Fragment shader file
-            if (!pass.fragmentShader.empty()) {
-                bool isSelected = (pass.name == selectedShader);
-                std::string displayName = "🎨 " + pass.fragmentShader;
-                if (ImGui::Selectable(displayName.c_str(), isSelected)) {
-                    if (onShaderSelected) onShaderSelected(pass.name);
-                }
-                
-                if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
-                    if (onShaderDoubleClicked) onShaderDoubleClicked(pass.name);
-                }
-                
-                // Show file path as tooltip
-                if (ImGui::IsItemHovered()) {
-                    ImGui::BeginTooltip();
-                    ImGui::Text("Fragment shader: %s", pass.fragmentShader.c_str());
-                    ImGui::Text("Pass: %s", pass.name.c_str());
-                    ImGui::EndTooltip();
-                }
+                it = matches.suffix().first;
             }
         }
     } else {
-        // Fallback: show shaders from ShaderManager if no project loaded
-        auto shaderNames = m_shaderManager->getShaderNames();
-        for (const auto& name : shaderNames) {
-            bool isSelected = (name == selectedShader);
-            if (ImGui::Selectable(name.c_str(), isSelected)) {
-                if (onShaderSelected) onShaderSelected(name);
-            }
-            
-            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
-                if (onShaderDoubleClicked) onShaderDoubleClicked(name);
-            }
-            
-            // Show file path as tooltip
-            if (ImGui::IsItemHovered()) {
-                auto shader = m_shaderManager->getShader(name);
-                if (shader) {
-                    ImGui::BeginTooltip();
-                    ImGui::Text("Vertex: %s", shader->vertexPath.c_str());
-                    ImGui::Text("Fragment: %s", shader->fragmentPath.c_str());
-                    ImGui::EndTooltip();
-                }
-            }
-        }
+        ImGui::Text("No shader selected");
     }
 }
