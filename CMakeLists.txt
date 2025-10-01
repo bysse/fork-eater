@@ -40,7 +40,6 @@ set(SOURCES
     src/MenuSystem.cpp
     src/LeftPanel.cpp
     src/FileManager.cpp
-    src/ErrorPanel.cpp
     src/Timeline.cpp
     src/ShortcutManager.cpp
     src/ShaderProject.cpp

@@ -1,5 +1,4 @@
-Remove the compilation llog pane completely, all log message should be written to the console. 
----
+
 Change all system uniforms to be ShaderToy compatible. Make sure the templates are changed. These should be supported:
 
 uniform vec3      iResolution;           // viewport resolution (in pixels)

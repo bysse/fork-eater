@@ -7,7 +7,7 @@
 
 MenuSystem::MenuSystem()
     : m_showLeftPanel(true)
-    , m_showErrorPanel(true)
+    
     , m_autoReload(true)
     , m_showSettingsWindow(false)
     , m_aspectMode(AspectMode::Fixed_16_9) {
@@ -28,7 +28,6 @@ void MenuSystem::renderMenuBar() {
     
     if (ImGui::BeginMenu("View")) {
         ImGui::MenuItem("Left Panel", nullptr, &m_showLeftPanel);
-        ImGui::MenuItem("Error Panel", nullptr, &m_showErrorPanel);
         ImGui::EndMenu();
     }
     

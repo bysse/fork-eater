@@ -5,7 +5,7 @@
 #include "MenuSystem.h"
 #include "LeftPanel.h"
 #include "FileManager.h"
-#include "ErrorPanel.h"
+
 #include "Timeline.h"
 #include "ShortcutManager.h"
 #include "ShaderProject.h"
@@ -25,7 +25,7 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     : m_shaderManager(shaderManager)
     , m_fileWatcher(fileWatcher)
     , m_leftPanelWidth(300.0f)
-    , m_errorPanelHeight(200.0f)
+
     , m_timelineHeight(65.0f) 
     , m_exitRequested(false)
     , m_showShortcutsHelp(false)
@@ -39,7 +39,7 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     m_menuSystem = std::make_unique<MenuSystem>();
     m_leftPanel = std::make_unique<LeftPanel>(m_shaderManager);
     m_fileManager = std::make_unique<FileManager>(m_shaderManager, m_fileWatcher);
-    m_errorPanel = std::make_unique<ErrorPanel>();
+
     m_timeline = std::make_unique<Timeline>();
     m_shortcutManager = std::make_unique<ShortcutManager>();
     m_currentProject = std::make_shared<ShaderProject>();
@@ -98,7 +98,7 @@ void ShaderEditor::render() {
     // Sync settings between components
     m_previewPanel->setAspectMode(m_menuSystem->getAspectMode());
     m_fileManager->setAutoReload(m_menuSystem->isAutoReloadEnabled());
-    m_errorPanel->setAutoScroll(m_menuSystem->isAutoReloadEnabled()); // Reuse this flag
+
     
     // Get the main viewport and create a fullscreen window
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -258,47 +258,10 @@ void ShaderEditor::renderMainLayout() {
     // Right side - preview and error panels
     ImGui::BeginChild("RightSide", contentSize, false, noNavFlags);
 
-    // Enforce a minimum for the error panel so it can give up space when scaled
-    float errorMin = 100.0f * uiScale; // scale-aware min
-
-    // Always show preview panel
-    float previewHeight = m_menuSystem->shouldShowErrorPanel() ? 
-                         contentSize.y - m_errorPanelHeight - 4 : contentSize.y;
-
-    // If the preview area is negative due to scaling, take space back from error panel first
-    if (m_menuSystem->shouldShowErrorPanel() && previewHeight < 0.0f) {
-        float deficit = -previewHeight;
-        float canGive = std::max(0.0f, m_errorPanelHeight - errorMin);
-        float give = std::min(deficit, canGive);
-        m_errorPanelHeight -= give;
-        previewHeight += give;
-    }
-
-    // Clamp previewHeight to >= 0
-    if (previewHeight < 0.0f) previewHeight = 0.0f;
-    ImGui::BeginChild("PreviewPanel", ImVec2(contentSize.x, previewHeight), true, noNavFlags);
+    ImGui::BeginChild("PreviewPanel", ImVec2(contentSize.x, contentSize.y), true, noNavFlags);
     GLuint finalTexture = m_shaderManager->getFramebufferTexture(m_selectedShader);
     m_previewPanel->render(finalTexture, m_timeline->getCurrentTime(), m_renderScaleFactor);
     ImGui::EndChild();
-    
-    if (m_menuSystem->shouldShowErrorPanel()) {
-        // Horizontal splitter
-        ImGui::Button("##hsplitter", ImVec2(contentSize.x, 4));
-        if (ImGui::IsItemActive()) {
-            m_errorPanelHeight -= ImGui::GetIO().MouseDelta.y;
-            float errorMinScaled = 100.0f * uiScale;
-            if (m_errorPanelHeight < errorMinScaled) m_errorPanelHeight = errorMinScaled;
-            if (m_errorPanelHeight > contentSize.y - errorMinScaled) m_errorPanelHeight = contentSize.y - errorMinScaled;
-        }
-    }
-    
-    if (m_menuSystem->shouldShowErrorPanel()) {
-        float errorHeight = m_errorPanelHeight;
-        ImGui::BeginChild("ErrorPanel", ImVec2(contentSize.x, errorHeight), true, 
-                         ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoNavInputs);
-        m_errorPanel->render();
-        ImGui::EndChild();
-    }
     
     ImGui::EndChild(); // End RightSide
     ImGui::EndChild(); // End MainContent
@@ -325,10 +288,7 @@ void ShaderEditor::renderMainLayout() {
 }
 
 void ShaderEditor::onShaderCompiled(const std::string& name, bool success, const std::string& error) {
-    std::string logMessage = "[" + name + "] " + (success ? "SUCCESS" : "ERROR") + ": " + error + "\n";
-    
-    // Add to GUI log
-    m_errorPanel->addToLog(logMessage);
+    std::string logMessage = "[" + name + "] " + (success ? "SUCCESS" : "ERROR") + ": " + error;
     
     // Output to terminal as well using Logger
     if (success) {
