@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <map>
 
 // Constants
 static const char* const SHADER_PROJECT_MANIFEST_FILENAME = "4k-eater.project";
@@ -67,6 +68,7 @@ public:
     const std::vector<ShaderPass>& getPasses() const { return m_manifest.passes; }
     std::vector<ShaderPass>& getPasses() { return m_manifest.passes; }
     ShaderPass& getPass(size_t index) { return m_manifest.passes[index]; }
+    std::map<std::string, std::map<std::string, std::vector<float>>>& getUniformValues() { return m_uniformValues; }
     void addPass(const ShaderPass& pass);
     void removePass(size_t index);
     void movePass(size_t from, size_t to);
@@ -87,10 +89,13 @@ private:
     ShaderProjectManifest m_manifest;
     std::string m_projectPath;
     bool m_isLoaded;
+    std::map<std::string, std::map<std::string, std::vector<float>>> m_uniformValues;
     
     // Private methods
     bool loadManifest();
     bool saveManifest() const;
+    bool loadUniforms();
+    bool saveUniforms() const;
     bool parseManifestJson(const std::string& jsonContent);
     std::string generateManifestJson() const;
     bool createDirectoryStructure() const;

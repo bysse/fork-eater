@@ -129,6 +129,38 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
         }
         return shader;
     }
+
+    // Parse uniforms
+    std::regex uniformRegex("uniform\\s+(float|vec2|vec3|vec4)\\s+([a-zA-Z0-9_]+);");
+    std::string shaderCode = shader->preprocessedFragmentSource;
+    std::smatch matches;
+    auto it = shaderCode.cbegin();
+    while (std::regex_search(it, shaderCode.cend(), matches, uniformRegex)) {
+        if (matches.size() == 3) {
+            std::string typeStr = matches[1].str();
+            std::string nameStr = matches[2].str();
+
+            // Skip system uniforms
+            if (nameStr == "iTime" || nameStr == "iResolution" || nameStr == "iMouse") {
+                it = matches[0].second;
+                continue;
+            }
+
+            ShaderUniform uniform;
+            uniform.name = nameStr;
+            if (typeStr == "float") {
+                uniform.type = GL_FLOAT;
+            } else if (typeStr == "vec2") {
+                uniform.type = GL_FLOAT_VEC2;
+            } else if (typeStr == "vec3") {
+                uniform.type = GL_FLOAT_VEC3;
+            } else if (typeStr == "vec4") {
+                uniform.type = GL_FLOAT_VEC4;
+            }
+            shader->uniforms.push_back(uniform);
+        }
+        it = matches[0].second;
+    }
     
     shader->isValid = true;
     shader->lastError = "Compilation successful";
@@ -221,6 +253,10 @@ std::vector<std::string> ShaderManager::getShaderNames() const {
         names.push_back(pair.first);
     }
     return names;
+}
+
+std::string ShaderManager::getCurrentShader() const {
+    return m_currentShader;
 }
 
 void ShaderManager::setCompilationCallback(std::function<void(const std::string&, bool, const std::string&)> callback) {
@@ -321,6 +357,29 @@ void ShaderManager::renderToFramebuffer(const std::string& name, int width, int 
     setUniform("iTime", time);
     float resolution[3] = {(float)scaledWidth, (float)scaledHeight, 1.0f};
     setUniform("iResolution", resolution, 3);
+
+    auto shader = getShader(name);
+    if (shader) {
+        for (const auto& uniform : shader->uniforms) {
+            GLint location = glGetUniformLocation(shader->programId, uniform.name.c_str());
+            if (location != -1) {
+                switch (uniform.type) {
+                    case GL_FLOAT:
+                        glUniform1f(location, uniform.value[0]);
+                        break;
+                    case GL_FLOAT_VEC2:
+                        glUniform2fv(location, 1, uniform.value);
+                        break;
+                    case GL_FLOAT_VEC3:
+                        glUniform3fv(location, 1, uniform.value);
+                        break;
+                    case GL_FLOAT_VEC4:
+                        glUniform4fv(location, 1, uniform.value);
+                        break;
+                }
+            }
+        }
+    }
 
     ImGuiIO& io = ImGui::GetIO();
     float mouse[4] = { io.MousePos.x, io.MousePos.y, io.MouseDown[0] ? 1.0f : 0.0f, 0.0f };

@@ -14,6 +14,12 @@ typedef unsigned int GLenum;
 
 class ShaderPreprocessor;
 
+struct ShaderUniform {
+    std::string name;
+    GLenum type;
+    float value[4];
+};
+
 class ShaderManager {
 public:
     struct ShaderProgram {
@@ -25,6 +31,7 @@ public:
         std::string preprocessedVertexSource;
         std::string preprocessedFragmentSource;
         std::vector<std::string> includedFiles;
+        std::vector<ShaderUniform> uniforms;
         std::string lastError;
         bool isValid;
     };
@@ -60,6 +67,9 @@ public:
     
     // Get all shader names
     std::vector<std::string> getShaderNames() const;
+
+    // Get current shader name
+    std::string getCurrentShader() const;
     
     // Clear all loaded shaders
     void clearShaders();

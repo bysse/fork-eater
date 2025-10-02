@@ -33,6 +33,10 @@ bool ShaderProject::loadFromDirectory(const std::string& projectPath) {
         LOG_ERROR("Failed to load manifest from: {}", projectPath);
         return false;
     }
+
+    if (!loadUniforms()) {
+        LOG_WARN("Failed to load uniforms from: {}. Using default values.", projectPath);
+    }
     
     if (!validateProject()) {
         LOG_ERROR("Project validation failed for: {}", projectPath);
@@ -53,7 +57,11 @@ bool ShaderProject::saveToDirectory(const std::string& projectPath) const {
         }
     }
     
-    return saveManifest();
+    if (!saveManifest()) {
+        return false;
+    }
+
+    return saveUniforms();
 }
 
 bool ShaderProject::createNew(const std::string& projectPath, const std::string& name, const std::string& templateName) {
@@ -145,6 +153,51 @@ bool ShaderProject::saveManifest() const {
     
     std::string jsonContent = generateManifestJson();
     file << jsonContent;
+    return true;
+}
+
+bool ShaderProject::loadUniforms() {
+    std::string uniformsPath = m_projectPath + "/uniforms.json";
+    if (!fs::exists(uniformsPath)) {
+        return false;
+    }
+
+    std::ifstream file(uniformsPath);
+    if (!file.is_open()) {
+        LOG_ERROR("Cannot open uniforms file: {}", uniformsPath);
+        return false;
+    }
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::string content = buffer.str();
+
+    try {
+        json j = json::parse(content);
+        m_uniformValues.clear();
+        for (auto& [shaderName, uniforms] : j.items()) {
+            for (auto& [uniformName, value] : uniforms.items()) {
+                m_uniformValues[shaderName][uniformName] = value.get<std::vector<float>>();
+            }
+        }
+    } catch (const json::parse_error& e) {
+        LOG_ERROR("Error parsing uniforms JSON: {}", e.what());
+        return false;
+    }
+
+    return true;
+}
+
+bool ShaderProject::saveUniforms() const {
+    std::string uniformsPath = m_projectPath + "/uniforms.json";
+    std::ofstream file(uniformsPath);
+    if (!file.is_open()) {
+        LOG_ERROR("Cannot create uniforms file: {}", uniformsPath);
+        return false;
+    }
+
+    json j = m_uniformValues;
+    file << j.dump(2);
     return true;
 }
 
@@ -321,9 +374,22 @@ bool ShaderProject::loadShadersIntoManager(std::shared_ptr<ShaderManager> shader
         std::string vertPath = getShaderPath(pass.vertexShader);
         std::string fragPath = getShaderPath(pass.fragmentShader);
         
-        if (!shaderManager->loadShader(pass.name, vertPath, fragPath)) {
+        auto shader = shaderManager->loadShader(pass.name, vertPath, fragPath);
+        if (!shader) {
             LOG_ERROR("Failed to load shader pass: {}", pass.name);
             return false;
+        }
+
+        // Apply saved uniform values
+        if (m_uniformValues.count(pass.name)) {
+            for (auto& uniform : shader->uniforms) {
+                if (m_uniformValues.at(pass.name).count(uniform.name)) {
+                    const auto& savedValue = m_uniformValues.at(pass.name).at(uniform.name);
+                    for (size_t i = 0; i < savedValue.size() && i < 4; ++i) {
+                        uniform.value[i] = savedValue[i];
+                    }
+                }
+            }
         }
     }
     
