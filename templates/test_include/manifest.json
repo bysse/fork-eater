@@ -1,0 +1,11 @@
+{
+    "name": "Test Include",
+    "description": "A shader that tests the include directive.",
+    "passes": [
+        {
+            "name": "main",
+            "vertexShader": "test_include.vert",
+            "fragmentShader": "test_include.frag"
+        }
+    ]
+}

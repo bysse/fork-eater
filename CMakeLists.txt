@@ -88,8 +88,8 @@ set(GENERATED_LIBS_HEADER ${CMAKE_CURRENT_BINARY_DIR}/GeneratedShaderLibraries.h
 
 set(GENERATED_LIB_CONTENT "#pragma once\n#include <map>\n#include <string>\n#include <utility>\n\n")
 set(GENERATED_LIB_CONTENT "${GENERATED_LIB_CONTENT}namespace EmbeddedLibraries {\n")
-set(GENERATED_LIB_CONTENT "${GENERATED_LIB_CONTENT}std::map<std::string, std::pair<const char*, size_t>> g_libs;\n")
-set(GENERATED_LIB_CONTENT "${GENERATED_LIB_CONTENT}void initialize() {\n")
+set(GENERATED_LIB_CONTENT "${GENERATED_LIB_CONTENT}inline std::map<std::string, std::pair<const char*, size_t>> g_libs;\n")
+set(GENERATED_LIB_CONTENT "${GENERATED_LIB_CONTENT}inline void initialize() {\n")
 
 foreach(LIB_FILE ${LIB_FILES})
     file(RELATIVE_PATH REL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/libs ${LIB_FILE})

@@ -59,16 +59,10 @@ std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
 
     std::string source = readFileContent(filePath);
     if (source.empty()) {
-        // Try to load from embedded libraries
-        auto it = EmbeddedLibraries::g_libs.find(std::filesystem::path(filePath).filename().string());
-        if (it != EmbeddedLibraries::g_libs.end()) {
-            source = std::string(it->second.first, it->second.second);
-        } else {
-            includeStack.pop_back();
-            std::string errorMsg = "Failed to read included file: " + filePath;
-            if (onMessage) onMessage(errorMsg);
-            return "#error " + errorMsg + "\n";
-        }
+        includeStack.pop_back();
+        std::string errorMsg = "Failed to read file: " + filePath;
+        if (onMessage) onMessage(errorMsg);
+        return "#error " + errorMsg + "\n";
     }
 
     LOG_DEBUG("Source for {}:\n{}", filePath, source);
@@ -76,18 +70,24 @@ std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
     std::stringstream preprocessedSource;
     std::stringstream ss(source);
     std::string line;
-    std::regex includeRegex("#pragma include\(\"<([a-zA-Z0-9_./-]+)>\")");
+    std::regex includeRegex(R"x(#pragma\s+include\s*\(([^)]+)\))x");
     
     while (std::getline(ss, line)) {
         std::smatch matches;
         if (std::regex_search(line, matches, includeRegex)) {
             if (matches.size() == 2) {
                 std::string includeFileName = matches[1].str();
-                std::filesystem::path currentDirPath = std::filesystem::path(filePath).parent_path(); // Use parent_path
-                std::string includePath = (currentDirPath / includeFileName).string();
-
-                // Recursively preprocess included file
-                std::string includedContent = preprocessRecursive(includePath, includeStack, uniqueIncludedFiles);
+                std::string includedContent;
+                // Try to load from embedded libraries first
+                auto it = EmbeddedLibraries::g_libs.find(includeFileName);
+                if (it != EmbeddedLibraries::g_libs.end()) {
+                    includedContent = std::string(it->second.first, it->second.second);
+                } else {
+                    // If not in embedded libs, try to read from filesystem relative to current file
+                    std::filesystem::path currentDirPath = std::filesystem::path(filePath).parent_path();
+                    std::string includePath = (currentDirPath / includeFileName).string();
+                    includedContent = preprocessRecursive(includePath, includeStack, uniqueIncludedFiles);
+                }
                 preprocessedSource << includedContent;
             } else {
                 std::string errorMsg = "Invalid include directive: " + line;

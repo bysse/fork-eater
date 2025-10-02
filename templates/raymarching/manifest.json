@@ -1,11 +1,29 @@
 {
-    "name": "Raymarching",
-    "description": "A basic raymarching shader.",
-    "passes": [
+  "name": "Raymarching with Depth of Field",
+  "description": "A basic raymarching shader with a second depth of field pass.",
+  "version": "1.0",
+  "timelineLength": 60.0,
+  "bpm": 120.0,
+  "beatsPerBar": 4,
+  "passes": [
+    {
+      "name": "raymarching",
+      "vertexShader": "raymarching.vert",
+      "fragmentShader": "raymarching.frag",
+      "enabled": true,
+      "output": "raymarching_buffer"
+    },
+    {
+      "name": "dof",
+      "vertexShader": "raymarching.vert",
+      "fragmentShader": "dof.frag",
+      "enabled": true,
+      "inputs": [
         {
-            "name": "main",
-            "vertexShader": "raymarching.vert",
-            "fragmentShader": "raymarching.frag"
+          "name": "iChannel0",
+          "pass": "raymarching"
         }
-    ]
+      ]
+    }
+  ]
 }

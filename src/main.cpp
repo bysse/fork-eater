@@ -20,6 +20,7 @@
 #include "Logger.h"
 #include "Settings.h"
 #include "Timeline.h"
+#include "GeneratedShaderLibraries.h"
 #include <filesystem>
 
 // Constants
@@ -321,6 +322,7 @@ void printUsage(const char* programName);
 void printTemplates();
 
 int main(int argc, char* argv[]) {
+    EmbeddedLibraries::initialize();
     Application app;
     bool testMode = false;
     int testExitCode = 0;

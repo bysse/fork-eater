@@ -57,6 +57,7 @@ The application follows a modular architecture with these key classes:
 - **ShaderManager**: Handles OpenGL shader compilation, linking, uniform management, and program lifecycle
 - **FileWatcher**: Linux inotify-based file monitoring for hot reloading of shader files
 - **ShaderEditor**: Main GUI coordinator that orchestrates all UI components
+- **ShaderPreprocessor**: Handles `#pragma include` directives to allow for modular shader code.
 
 ### GUI System (Dear ImGui-based)
 
@@ -68,6 +69,7 @@ The interface is composed of specialized panel components:
 - **ErrorPanel**: Compilation error display and logging
 - **Timeline**: Time-based controls for shader animations
 - **ShortcutManager**: Keyboard shortcut handling and help system
+- **ParameterPanel**: Dynamically generated panel for controlling shader uniforms.
 
 ### Shader Pipeline
 
@@ -129,8 +131,16 @@ The application supports multiple exit methods:
 - File menu exit option
 - Command-line test modes with custom exit codes
 
+### Shader Libraries
+
+The project supports embedding shader libraries into the binary. These libraries can be included in other shaders using the `#pragma include(filename)` directive. The `CMakeLists.txt` file handles the embedding of all files in the `libs/` directory. The `ShaderPreprocessor` class then handles the inclusion of these libraries.
+
 ### Shader structure
 A shader must reside in its own directory with a manifest file named "4k-eater". The manifest includes the shader's name, lists all shader passes with their source shaders, the timeline length, and a BPM value to scale the timeline for music beat synchronization.
+
+### Uniform Management
+
+The application automatically detects non-system uniforms (float, vec2, vec3, vec4) in fragment shaders and displays corresponding sliders in the `ParameterPanel`. The values of these uniforms are automatically saved to a `uniforms.json` file in the project directory and are reloaded when the project is opened.
 
 ## Development Notes
 
@@ -148,7 +158,9 @@ New interface panels can be added by:
 4. Setting up any necessary callbacks in setupCallbacks()
 
 ### Shader Examples
-Basic shaders are provided in the `shaders/` directory. The system expects paired `.vert` and `.frag` files following OpenGL 3.3 Core Profile syntax.
+Basic shaders are provided in the `templates/` directory. The system expects paired `.vert` and `.frag` files following OpenGL 3.3 Core Profile syntax.
+
+A raymarching example with a depth of field pass is available in `templates/raymarching`.
 
 ## Shader Project Structure
 

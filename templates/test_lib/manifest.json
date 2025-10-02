@@ -1,0 +1,11 @@
+{
+    "name": "Test Library",
+    "description": "A shader that tests the embedded library.",
+    "passes": [
+        {
+            "name": "main",
+            "vertexShader": "test_lib.vert",
+            "fragmentShader": "test_lib.frag"
+        }
+    ]
+}

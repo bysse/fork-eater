@@ -146,6 +146,16 @@ The editor automatically provides these uniforms to fragment shaders:
 - `u_time`: Time in seconds since startup
 - `u_resolution`: Viewport resolution as vec2
 
+### Shader Libraries
+
+You can include shared code in your shaders using `#pragma include`. The editor will look for the included file in the `libs/` directory.
+
+```glsl
+#pragma include(utils.glsl)
+```
+
+This will include the content of `libs/utils.glsl` into your shader.
+
 ## Architecture
 
 ### Core Components
