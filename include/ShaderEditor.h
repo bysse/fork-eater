@@ -64,7 +64,7 @@ private:
     std::unique_ptr<MenuSystem> m_menuSystem;
     std::unique_ptr<LeftPanel> m_leftPanel;
     std::unique_ptr<FileManager> m_fileManager;
-    std::unique_ptr<ParameterPanel> m_parameterPanel;
+    std::shared_ptr<ParameterPanel> m_parameterPanel;
 
     std::unique_ptr<Timeline> m_timeline;
     std::unique_ptr<ShortcutManager> m_shortcutManager;

@@ -1,12 +1,13 @@
 #include "LeftPanel.h"
 #include "ShaderManager.h"
 #include "ShaderProject.h"
+#include "ParameterPanel.h"
 
 #include "imgui/imgui.h"
 #include <regex>
 
-LeftPanel::LeftPanel(std::shared_ptr<ShaderManager> shaderManager)
-    : m_shaderManager(shaderManager) {
+LeftPanel::LeftPanel(std::shared_ptr<ShaderManager> shaderManager, std::shared_ptr<ParameterPanel> parameterPanel)
+    : m_shaderManager(shaderManager), m_parameterPanel(parameterPanel) {
 }
 
 void LeftPanel::setCurrentProject(std::shared_ptr<ShaderProject> project) {
@@ -25,7 +26,7 @@ void LeftPanel::render(const std::string& selectedShader) {
     
     // File list (bottom half)
     ImGui::BeginChild("FileList", ImVec2(leftSize.x, leftSize.y * 0.6f - 10), true);
-    renderUniformList(selectedShader);
+    renderParameters(selectedShader);
     ImGui::EndChild();
 }
 
@@ -51,32 +52,6 @@ void LeftPanel::renderPassList() {
 
 }
 
-void LeftPanel::renderUniformList(const std::string& selectedShader) {
-    ImGui::Text("Shader Uniforms");
-    ImGui::Separator();
-
-    if (m_shaderManager && !selectedShader.empty()) {
-        std::string source = m_shaderManager->getPreprocessedSource(selectedShader);
-        if (!source.empty()) {
-            std::regex uniformRegex("uniform\\s+\\w+\\s+([a-zA-Z0-9_]+)");
-            std::smatch matches;
-            auto it = source.cbegin();
-            while (std::regex_search(it, source.cend(), matches, uniformRegex)) {
-                if (matches.size() == 2) {
-                    std::string uniformName = matches[1].str();
-                    bool isSystemUniform = (uniformName == "iTime" || uniformName == "iResolution" || uniformName == "iMouse");
-                    if (isSystemUniform) {
-                        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-                    }
-                    ImGui::Text("%s", uniformName.c_str());
-                    if (isSystemUniform) {
-                        ImGui::PopStyleColor();
-                    }
-                }
-                it = matches.suffix().first;
-            }
-        }
-    } else {
-        ImGui::Text("No shader selected");
-    }
+void LeftPanel::renderParameters(const std::string& selectedShader) {
+    m_parameterPanel->render(selectedShader);
 }

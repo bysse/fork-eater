@@ -39,9 +39,9 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     // Create component classes
     m_previewPanel = std::make_unique<PreviewPanel>(m_shaderManager);
     m_menuSystem = std::make_unique<MenuSystem>();
-    m_leftPanel = std::make_unique<LeftPanel>(m_shaderManager);
+    m_parameterPanel = std::make_shared<ParameterPanel>(m_shaderManager, m_currentProject);
+    m_leftPanel = std::make_unique<LeftPanel>(m_shaderManager, m_parameterPanel);
     m_fileManager = std::make_unique<FileManager>(m_shaderManager, m_fileWatcher);
-    m_parameterPanel = std::make_unique<ParameterPanel>(m_shaderManager, m_currentProject);
 
     m_timeline = std::make_unique<Timeline>();
     m_shortcutManager = std::make_unique<ShortcutManager>();
@@ -262,17 +262,10 @@ void ShaderEditor::renderMainLayout() {
     ImGui::BeginChild("RightSide", contentSize, false, noNavFlags);
 
     ImVec2 rightContentSize = ImGui::GetContentRegionAvail();
-    float parameterPanelWidth = 250.0f;
 
-    ImGui::BeginChild("PreviewPanel", ImVec2(rightContentSize.x - parameterPanelWidth, rightContentSize.y), true, noNavFlags);
+    ImGui::BeginChild("PreviewPanel", rightContentSize, true, noNavFlags);
     GLuint finalTexture = m_shaderManager->getFramebufferTexture(m_selectedShader);
     m_previewPanel->render(finalTexture, m_timeline->getCurrentTime(), m_renderScaleFactor);
-    ImGui::EndChild();
-
-    ImGui::SameLine();
-
-    ImGui::BeginChild("Parameters", ImVec2(parameterPanelWidth, rightContentSize.y), true, noNavFlags);
-    m_parameterPanel->render(m_selectedShader);
     ImGui::EndChild();
     
     ImGui::EndChild(); // End RightSide

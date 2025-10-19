@@ -6,10 +6,11 @@
 
 class ShaderManager;
 class ShaderProject;
+class ParameterPanel;
 
 class LeftPanel {
 public:
-    LeftPanel(std::shared_ptr<ShaderManager> shaderManager);
+    LeftPanel(std::shared_ptr<ShaderManager> shaderManager, std::shared_ptr<ParameterPanel> parameterPanel);
     ~LeftPanel() = default;
     
     // Render the left panel
@@ -27,8 +28,9 @@ public:
 private:
     std::shared_ptr<ShaderManager> m_shaderManager;
     std::shared_ptr<ShaderProject> m_currentProject;
+    std::shared_ptr<ParameterPanel> m_parameterPanel;
     
     // Private methods
     void renderPassList();
-    void renderUniformList(const std::string& selectedShader);
+    void renderParameters(const std::string& selectedShader);
 };

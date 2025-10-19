@@ -5,8 +5,6 @@ ParameterPanel::ParameterPanel(std::shared_ptr<ShaderManager> shaderManager, std
     : m_shaderManager(shaderManager), m_shaderProject(shaderProject) {}
 
 void ParameterPanel::render(const std::string& shaderName) {
-    ImGui::Begin("Parameters");
-
     auto shader = m_shaderManager->getShader(shaderName);
     if (shader && !shader->uniforms.empty()) {
         for (auto& uniform : shader->uniforms) {
@@ -50,6 +48,4 @@ void ParameterPanel::render(const std::string& shaderName) {
     } else {
         ImGui::Text("No parameters found.");
     }
-
-    ImGui::End();
 }
