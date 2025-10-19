@@ -1,6 +1,7 @@
 #include "ShaderPreprocessor.h"
 #include "Logger.h" // For LOG_ERROR
 #include "GeneratedShaderLibraries.h"
+#include "ShaderManager.h"
 #include <fstream>
 #include <sstream>
 #include <regex>
@@ -26,26 +27,24 @@ ShaderPreprocessor::ShaderPreprocessor() {
     EmbeddedLibraries::initialize();
 }
 
-std::string ShaderPreprocessor::preprocess(const std::string& filePath, std::vector<std::string>& includedFiles) {
-    includedFiles.clear();
-    std::vector<std::string> includeStack; // To detect circular dependencies
-    std::set<std::string> uniqueIncludedFiles; // To collect all unique included files
+ShaderPreprocessor::PreprocessResult ShaderPreprocessor::preprocess(const std::string& filePath) {
+    PreprocessResult result;
+    std::vector<std::string> includeStack;
+    std::set<std::string> uniqueIncludedFiles;
 
-    std::string preprocessedSource = preprocessRecursive(filePath, includeStack, uniqueIncludedFiles);
+    result.source = preprocessRecursive(filePath, includeStack, uniqueIncludedFiles, result.switchFlags);
 
-    LOG_DEBUG("Preprocessed source for {}:\n{}", filePath, preprocessedSource);
-
-    // Convert set to vector
     for (const auto& file : uniqueIncludedFiles) {
-        includedFiles.push_back(file);
+        result.includedFiles.push_back(file);
     }
     
-    return preprocessedSource;
+    return result;
 }
 
 std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
                                                     std::vector<std::string>& includeStack,
-                                                    std::set<std::string>& uniqueIncludedFiles) {
+                                                    std::set<std::string>& uniqueIncludedFiles,
+                                                    std::vector<std::string>& switchFlags) {
     LOG_DEBUG("Preprocessing file: {}", filePath);
     // Check for include loops
     if (std::find(includeStack.begin(), includeStack.end(), filePath) != includeStack.end()) {
@@ -71,6 +70,7 @@ std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
     std::stringstream ss(source);
     std::string line;
     std::regex includeRegex(R"x(#pragma\s+include\s*\(([^)]+)\))x");
+    std::regex switchRegex(R"x(#pragma\s+switch\s*\(([^)]+)\))x");
     
     while (std::getline(ss, line)) {
         std::smatch matches;
@@ -78,19 +78,41 @@ std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
             if (matches.size() == 2) {
                 std::string includeFileName = matches[1].str();
                 std::string includedContent;
-                // Try to load from embedded libraries first
-                auto it = EmbeddedLibraries::g_libs.find(includeFileName);
-                if (it != EmbeddedLibraries::g_libs.end()) {
-                    includedContent = std::string(it->second.first, it->second.second);
+
+                if (includeFileName.rfind("lib/", 0) == 0) {
+                    std::filesystem::path projectRoot = std::filesystem::path(filePath).parent_path().parent_path();
+                    std::filesystem::path libDir = projectRoot / "lib";
+                    std::filesystem::create_directories(libDir);
+                    std::string libFileName = includeFileName.substr(4);
+                    std::filesystem::path libFilePath = libDir / libFileName;
+
+                    if (!std::filesystem::exists(libFilePath)) {
+                        auto it = EmbeddedLibraries::g_libs.find(libFileName);
+                        if (it != EmbeddedLibraries::g_libs.end()) {
+                            std::ofstream outFile(libFilePath);
+                            outFile.write(it->second.first, it->second.second);
+                            outFile.close();
+                        }
+                    }
+                    includedContent = preprocessRecursive(libFilePath.string(), includeStack, uniqueIncludedFiles, switchFlags);
                 } else {
                     // If not in embedded libs, try to read from filesystem relative to current file
                     std::filesystem::path currentDirPath = std::filesystem::path(filePath).parent_path();
                     std::string includePath = (currentDirPath / includeFileName).string();
-                    includedContent = preprocessRecursive(includePath, includeStack, uniqueIncludedFiles);
+                    includedContent = preprocessRecursive(includePath, includeStack, uniqueIncludedFiles, switchFlags);
                 }
                 preprocessedSource << includedContent;
             } else {
                 std::string errorMsg = "Invalid include directive: " + line;
+                if (onMessage) onMessage(errorMsg);
+                preprocessedSource << "#error " + errorMsg + "\n";
+            }
+        } else if (std::regex_search(line, matches, switchRegex)) {
+            if (matches.size() == 2) {
+                std::string switchName = matches[1].str();
+                switchFlags.push_back(switchName);
+            } else {
+                std::string errorMsg = "Invalid switch directive: " + line;
                 if (onMessage) onMessage(errorMsg);
                 preprocessedSource << "#error " + errorMsg + "\n";
             }

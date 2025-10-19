@@ -32,6 +32,7 @@ public:
         std::string preprocessedFragmentSource;
         std::vector<std::string> includedFiles;
         std::vector<ShaderUniform> uniforms;
+        std::vector<std::string> switchFlags;
         std::string lastError;
         bool isValid;
     };
@@ -80,6 +81,10 @@ public:
     // Get preprocessed shader source
     std::string getPreprocessedSource(const std::string& name, bool fragment = true);
 
+    // Switch state management
+    bool getSwitchState(const std::string& name) const;
+    void setSwitchState(const std::string& name, bool enabled);
+
 private:
     std::unordered_map<std::string, std::shared_ptr<ShaderProgram>> m_shaders;
     std::unordered_map<std::string, std::unique_ptr<Framebuffer>> m_framebuffers;
@@ -88,6 +93,7 @@ private:
     GLuint m_quadVAO;
     GLuint m_quadVBO;
     std::unordered_map<std::string, bool> m_errorLogged;
+    std::unordered_map<std::string, bool> m_switchStates;
     
     // Helper functions
     GLuint compileShader(const std::string& source, GLenum shaderType);

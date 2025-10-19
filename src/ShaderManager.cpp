@@ -76,22 +76,23 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     shader->fragmentPath = fragmentPath;
     shader->isValid = false;
 
-    std::vector<std::string> vertexIncludes, fragmentIncludes;
-    std::string vertexSource = m_preprocessor->preprocess(vertexPath, vertexIncludes);
-    std::string fragmentSource = m_preprocessor->preprocess(fragmentPath, fragmentIncludes);
+    auto vertexResult = m_preprocessor->preprocess(vertexPath);
+    auto fragmentResult = m_preprocessor->preprocess(fragmentPath);
 
-    shader->preprocessedVertexSource = vertexSource;
-    shader->preprocessedFragmentSource = fragmentSource;
+    shader->preprocessedVertexSource = vertexResult.source;
+    shader->preprocessedFragmentSource = fragmentResult.source;
+    shader->includedFiles = vertexResult.includedFiles;
+    shader->includedFiles.insert(shader->includedFiles.end(), fragmentResult.includedFiles.begin(), fragmentResult.includedFiles.end());
+    shader->switchFlags = vertexResult.switchFlags;
+    shader->switchFlags.insert(shader->switchFlags.end(), fragmentResult.switchFlags.begin(), fragmentResult.switchFlags.end());
 
     // Combine and unique-ify included files
-    shader->includedFiles = vertexIncludes;
-    shader->includedFiles.insert(shader->includedFiles.end(), fragmentIncludes.begin(), fragmentIncludes.end());
     std::sort(shader->includedFiles.begin(), shader->includedFiles.end());
     shader->includedFiles.erase(std::unique(shader->includedFiles.begin(), shader->includedFiles.end()), shader->includedFiles.end());
     
-    if (vertexSource.empty() || fragmentSource.empty() || 
-        vertexSource.find("#error") != std::string::npos || 
-        fragmentSource.find("#error") != std::string::npos) {
+    if (vertexResult.source.empty() || fragmentResult.source.empty() || 
+        vertexResult.source.find("#error") != std::string::npos || 
+        fragmentResult.source.find("#error") != std::string::npos) {
         shader->lastError = "Failed to preprocess shader files or include error";
         if (m_compilationCallback) {
             m_compilationCallback(name, false, shader->lastError);
@@ -100,7 +101,7 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     }
     
     // Compile vertex shader
-    shader->vertexShaderId = compileShader(vertexSource, GL_VERTEX_SHADER);
+    shader->vertexShaderId = compileShader(vertexResult.source, GL_VERTEX_SHADER);
     if (shader->vertexShaderId == 0) {
         shader->lastError = "Failed to compile vertex shader";
         if (m_compilationCallback) {
@@ -110,7 +111,7 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     }
     
     // Compile fragment shader
-    shader->fragmentShaderId = compileShader(fragmentSource, GL_FRAGMENT_SHADER);
+    shader->fragmentShaderId = compileShader(fragmentResult.source, GL_FRAGMENT_SHADER);
     if (shader->fragmentShaderId == 0) {
         shader->lastError = "Failed to compile fragment shader";
         cleanupShader(*shader);
@@ -276,10 +277,35 @@ std::string ShaderManager::getPreprocessedSource(const std::string& name, bool f
     return "";
 }
 
+bool ShaderManager::getSwitchState(const std::string& name) const {
+    auto it = m_switchStates.find(name);
+    if (it != m_switchStates.end()) {
+        return it->second;
+    }
+    return false;
+}
+
+void ShaderManager::setSwitchState(const std::string& name, bool enabled) {
+    m_switchStates[name] = enabled;
+}
+
 GLuint ShaderManager::compileShader(const std::string& source, GLenum shaderType) {
+    std::string finalSource = source;
+    for (const auto& [name, enabled] : m_switchStates) {
+        if (enabled) {
+            size_t versionPos = finalSource.find("#version");
+            if (versionPos != std::string::npos) {
+                size_t eolPos = finalSource.find('\n', versionPos);
+                if (eolPos != std::string::npos) {
+                    finalSource.insert(eolPos + 1, "#define " + name + "\n");
+                }
+            }
+        }
+    }
+
     GLuint shader = glCreateShader(shaderType);
     
-    const char* sourcePtr = source.c_str();
+    const char* sourcePtr = finalSource.c_str();
     glShaderSource(shader, 1, &sourcePtr, nullptr);
     glCompileShader(shader);
     

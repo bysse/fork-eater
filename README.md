@@ -148,13 +148,11 @@ The editor automatically provides these uniforms to fragment shaders:
 
 ### Shader Libraries
 
-You can include shared code in your shaders using `#pragma include`. The editor will look for the included file in the `libs/` directory.
+You can include shared code in your shaders using `#pragma include`. For more details on this and other advanced features, see the [Shader Development Guide](SHADER_DEVELOPMENT.md).
 
-```glsl
-#pragma include(utils.glsl)
-```
+## Shader Development
 
-This will include the content of `libs/utils.glsl` into your shader.
+For a detailed guide on the shader development workflow, including advanced features like `#pragma` directives and shader libraries, please see the [Shader Development Guide](SHADER_DEVELOPMENT.md).
 
 ## Architecture
 

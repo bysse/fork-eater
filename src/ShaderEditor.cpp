@@ -13,6 +13,7 @@
 #include "Logger.h"
 #include "Settings.h"
 #include "glad.h"
+#include <filesystem>
 
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -270,7 +271,7 @@ void ShaderEditor::renderMainLayout() {
 
     ImGui::SameLine();
 
-    ImGui::BeginChild("ParameterPanel", ImVec2(parameterPanelWidth, rightContentSize.y), true, noNavFlags);
+    ImGui::BeginChild("Parameters", ImVec2(parameterPanelWidth, rightContentSize.y), true, noNavFlags);
     m_parameterPanel->render(m_selectedShader);
     ImGui::EndChild();
     
@@ -436,6 +437,15 @@ void ShaderEditor::setupProjectFileWatching() {
     m_fileWatcher->addWatch(manifestPath, 
         [this](const std::string& path) { onManifestFileChanged(path); });
     LOG_DEBUG("Watching manifest file: {}", manifestPath);
+
+    // Watch the lib directory
+    std::filesystem::path projectRoot = std::filesystem::path(m_currentProject->getManifestPath()).parent_path();
+    std::filesystem::path libDir = projectRoot / "lib";
+    if (std::filesystem::exists(libDir)) {
+        m_fileWatcher->addWatch(libDir.string(), 
+            [this](const std::string& path) { onShaderFileChanged(path); });
+        LOG_DEBUG("Watching lib directory: {}", libDir.string());
+    }
     
     const auto& passes = m_currentProject->getPasses();
     for (const auto& pass : passes) {
