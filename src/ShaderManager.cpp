@@ -70,6 +70,7 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     
     LOG_DEBUG("[ShaderManager] Loading shader '{}': {} + {}", name, vertexPath, fragmentPath);
     
+    m_errorLogged[name] = false;
     auto shader = std::make_shared<ShaderProgram>();
     shader->vertexPath = vertexPath;
     shader->fragmentPath = fragmentPath;
@@ -179,6 +180,7 @@ bool ShaderManager::reloadShader(const std::string& name) {
         return false;
     }
     
+    m_errorLogged[name] = false;
     auto oldShader = it->second;
     auto newShader = loadShader(name, oldShader->vertexPath, oldShader->fragmentPath);
     
@@ -201,7 +203,10 @@ void ShaderManager::useShader(const std::string& name) {
         glUseProgram(shader->programId);
         m_currentShader = name;
     } else {
-        LOG_ERROR("[ShaderManager] Failed to use shader: {} (not found or invalid)", name);
+        if (!m_errorLogged[name]) {
+            LOG_ERROR("[ShaderManager] Failed to use shader: {} (not found or invalid)", name);
+            m_errorLogged[name] = true;
+        }
     }
 }
 

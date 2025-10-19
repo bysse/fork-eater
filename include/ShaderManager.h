@@ -87,6 +87,7 @@ private:
     std::function<void(const std::string&, bool, const std::string&)> m_compilationCallback;
     GLuint m_quadVAO;
     GLuint m_quadVBO;
+    std::unordered_map<std::string, bool> m_errorLogged;
     
     // Helper functions
     GLuint compileShader(const std::string& source, GLenum shaderType);
