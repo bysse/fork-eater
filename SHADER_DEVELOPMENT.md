@@ -56,6 +56,22 @@ You can then use this define in your shader code for conditional logic:
 
 Toggling the switch in the UI will trigger an automatic shader reload with the define either present or absent.
 
+## System Uniforms
+
+Fork Eater provides several built-in uniforms that are automatically available in your fragment shaders. For consistency with different shader sources, both `u_` (Unreal-style) and `i_` (Shadertoy-style) prefixes are supported.
+
+- `uniform float u_time;` / `uniform float iTime;`
+  - The current time in seconds since the application started.
+
+- `uniform vec2 u_resolution;` / `uniform vec2 iResolution;`
+  - The resolution of the viewport in pixels.
+
+- `uniform vec4 u_mouse;` / `uniform vec4 iMouse;`
+  - The mouse coordinates, normalized to the range [0, 1].
+  - `.xy`: The normalized mouse coordinates (from bottom-left).
+  - `.z`: 1.0 if the left mouse button is pressed, 0.0 otherwise.
+  - `.w`: 1.0 if the right mouse button is pressed, 0.0 otherwise. (Currently `.w` is the same as `.z`)
+
 ## Development Workflow
 
 Here is a typical workflow for creating and developing a new shader project from scratch.
