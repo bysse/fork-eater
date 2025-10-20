@@ -84,6 +84,7 @@ public:
     // Switch state management
     bool getSwitchState(const std::string& name) const;
     void setSwitchState(const std::string& name, bool enabled);
+    const std::unordered_map<std::string, bool>& getSwitchStates() const;
 
 private:
     std::unordered_map<std::string, std::shared_ptr<ShaderProgram>> m_shaders;

@@ -290,6 +290,10 @@ void ShaderManager::setSwitchState(const std::string& name, bool enabled) {
     m_switchStates[name] = enabled;
 }
 
+const std::unordered_map<std::string, bool>& ShaderManager::getSwitchStates() const {
+    return m_switchStates;
+}
+
 GLuint ShaderManager::compileShader(const std::string& source, GLenum shaderType) {
     std::string finalSource = source;
     for (const auto& [name, enabled] : m_switchStates) {

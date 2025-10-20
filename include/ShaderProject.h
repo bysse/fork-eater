@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ShaderManager.h"
+
 #include <string>
 #include <vector>
 #include <memory>
@@ -83,7 +85,12 @@ public:
     std::vector<std::string> getValidationErrors() const;
     
     // Load shaders into ShaderManager
-    bool loadShadersIntoManager(std::shared_ptr<ShaderManager> shaderManager) const;
+    bool loadShadersIntoManager(std::shared_ptr<ShaderManager> shaderManager);
+
+    // Uniform and switch state management
+    bool loadState(std::shared_ptr<ShaderManager> shaderManager);
+    bool saveState(std::shared_ptr<ShaderManager> shaderManager) const;
+    void applyUniformsToShader(const std::string& passName, std::shared_ptr<ShaderManager::ShaderProgram> shader);
 
 private:
     ShaderProjectManifest m_manifest;
@@ -94,8 +101,6 @@ private:
     // Private methods
     bool loadManifest();
     bool saveManifest() const;
-    bool loadUniforms();
-    bool saveUniforms() const;
     bool parseManifestJson(const std::string& jsonContent);
     std::string generateManifestJson() const;
     bool createDirectoryStructure() const;

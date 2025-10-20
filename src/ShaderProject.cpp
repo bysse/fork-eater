@@ -34,10 +34,6 @@ bool ShaderProject::loadFromDirectory(const std::string& projectPath) {
         return false;
     }
 
-    if (!loadUniforms()) {
-        LOG_WARN("Failed to load uniforms from: {}. Using default values.", projectPath);
-    }
-    
     if (!validateProject()) {
         LOG_ERROR("Project validation failed for: {}", projectPath);
         return false;
@@ -57,11 +53,7 @@ bool ShaderProject::saveToDirectory(const std::string& projectPath) const {
         }
     }
     
-    if (!saveManifest()) {
-        return false;
-    }
-
-    return saveUniforms();
+    return saveManifest();
 }
 
 bool ShaderProject::createNew(const std::string& projectPath, const std::string& name, const std::string& templateName) {
@@ -156,7 +148,7 @@ bool ShaderProject::saveManifest() const {
     return true;
 }
 
-bool ShaderProject::loadUniforms() {
+bool ShaderProject::loadState(std::shared_ptr<ShaderManager> shaderManager) {
     std::string uniformsPath = m_projectPath + "/uniforms.json";
     if (!fs::exists(uniformsPath)) {
         return false;
@@ -174,10 +166,17 @@ bool ShaderProject::loadUniforms() {
 
     try {
         json j = json::parse(content);
-        m_uniformValues.clear();
-        for (auto& [shaderName, uniforms] : j.items()) {
-            for (auto& [uniformName, value] : uniforms.items()) {
-                m_uniformValues[shaderName][uniformName] = value.get<std::vector<float>>();
+        if (j.contains("uniforms")) {
+            m_uniformValues.clear();
+            for (auto& [shaderName, uniforms] : j["uniforms"].items()) {
+                for (auto& [uniformName, value] : uniforms.items()) {
+                    m_uniformValues[shaderName][uniformName] = value.get<std::vector<float>>();
+                }
+            }
+        }
+        if (j.contains("switches")) {
+            for (auto& [switchName, value] : j["switches"].items()) {
+                shaderManager->setSwitchState(switchName, value.get<bool>());
             }
         }
     } catch (const json::parse_error& e) {
@@ -188,7 +187,7 @@ bool ShaderProject::loadUniforms() {
     return true;
 }
 
-bool ShaderProject::saveUniforms() const {
+bool ShaderProject::saveState(std::shared_ptr<ShaderManager> shaderManager) const {
     std::string uniformsPath = m_projectPath + "/uniforms.json";
     std::ofstream file(uniformsPath);
     if (!file.is_open()) {
@@ -196,7 +195,9 @@ bool ShaderProject::saveUniforms() const {
         return false;
     }
 
-    json j = m_uniformValues;
+    json j;
+    j["uniforms"] = m_uniformValues;
+    j["switches"] = shaderManager->getSwitchStates();
     file << j.dump(2);
     return true;
 }
@@ -363,7 +364,7 @@ std::vector<std::string> ShaderProject::getValidationErrors() const {
     return errors;
 }
 
-bool ShaderProject::loadShadersIntoManager(std::shared_ptr<ShaderManager> shaderManager) const {
+bool ShaderProject::loadShadersIntoManager(std::shared_ptr<ShaderManager> shaderManager) {
     if (!shaderManager || !m_isLoaded) {
         return false;
     }
@@ -381,19 +382,45 @@ bool ShaderProject::loadShadersIntoManager(std::shared_ptr<ShaderManager> shader
         }
 
         // Apply saved uniform values
-        if (m_uniformValues.count(pass.name)) {
-            for (auto& uniform : shader->uniforms) {
-                if (m_uniformValues.at(pass.name).count(uniform.name)) {
-                    const auto& savedValue = m_uniformValues.at(pass.name).at(uniform.name);
-                    for (size_t i = 0; i < savedValue.size() && i < 4; ++i) {
-                        uniform.value[i] = savedValue[i];
-                    }
-                }
-            }
-        }
+        applyUniformsToShader(pass.name, shader);
     }
     
     return true;
+}
+
+void ShaderProject::applyUniformsToShader(const std::string& passName, std::shared_ptr<ShaderManager::ShaderProgram> shader) {
+    if (!shader) {
+        return;
+    }
+
+    std::map<std::string, bool> uniformExistsInShader;
+
+    for (auto& uniform : shader->uniforms) {
+        uniformExistsInShader[uniform.name] = true;
+        if (m_uniformValues.count(passName) && m_uniformValues.at(passName).count(uniform.name)) {
+            // Uniform exists in project file, so apply saved value
+            const auto& savedValue = m_uniformValues.at(passName).at(uniform.name);
+            for (size_t i = 0; i < savedValue.size() && i < 4; ++i) {
+                uniform.value[i] = savedValue[i];
+            }
+        } else {
+            // Uniform is not in project file, so add it with default value
+            std::vector<float> values(std::begin(uniform.value), std::end(uniform.value));
+            m_uniformValues[passName][uniform.name] = values;
+        }
+    }
+
+    // Clean up uniforms from project file that are no longer in the shader
+    if (m_uniformValues.count(passName)) {
+        auto& projectUniforms = m_uniformValues.at(passName);
+        for (auto it = projectUniforms.begin(); it != projectUniforms.end(); ) {
+            if (uniformExistsInShader.find(it->first) == uniformExistsInShader.end()) {
+                it = projectUniforms.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
 }
 
 void ShaderProject::addPass(const ShaderPass& pass) {

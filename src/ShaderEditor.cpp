@@ -382,6 +382,7 @@ void ShaderEditor::setupShortcuts() {
 void ShaderEditor::openProject(const std::string& projectPath) {
     if (loadProjectFromPath(projectPath)) {
         m_currentProjectPath = projectPath;
+        m_parameterPanel->setProject(m_currentProject);
         LOG_SUCCESS("Opened project: {}", m_currentProject->getManifest().name);
     }
 }
@@ -398,6 +399,7 @@ bool ShaderEditor::loadProjectFromPath(const std::string& projectPath) {
     bool success = false;
     
     if (m_currentProject->loadFromDirectory(projectPath)) {
+        m_currentProject->loadState(m_shaderManager);
         if (m_currentProject->loadShadersIntoManager(m_shaderManager)) {
             LOG_INFO("Loaded shader project: {}", m_currentProject->getManifest().name);
             m_leftPanel->setCurrentProject(m_currentProject);
@@ -531,7 +533,12 @@ void ShaderEditor::processPendingReloads() {
         m_pendingReloads.pop();
         
         LOG_DEBUG("Processing shader reload: {}", shaderName);
-        m_shaderManager->reloadShader(shaderName);
+        if (m_shaderManager->reloadShader(shaderName)) {
+            auto shader = m_shaderManager->getShader(shaderName);
+            if (shader && m_currentProject) {
+                m_currentProject->applyUniformsToShader(shaderName, shader);
+            }
+        }
     }
 }
 

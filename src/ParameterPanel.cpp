@@ -30,8 +30,23 @@ void ParameterPanel::render(const std::string& shaderName) {
             }
 
             if (valueChanged && m_shaderProject) {
-                std::vector<float> values(std::begin(uniform.value), std::end(uniform.value));
+                std::vector<float> values;
+                switch (uniform.type) {
+                    case GL_FLOAT:
+                        values.assign(uniform.value, uniform.value + 1);
+                        break;
+                    case GL_FLOAT_VEC2:
+                        values.assign(uniform.value, uniform.value + 2);
+                        break;
+                    case GL_FLOAT_VEC3:
+                        values.assign(uniform.value, uniform.value + 3);
+                        break;
+                    case GL_FLOAT_VEC4:
+                        values.assign(uniform.value, uniform.value + 4);
+                        break;
+                }
                 m_shaderProject->getUniformValues()[shaderName][uniform.name] = values;
+                m_shaderProject->saveState(m_shaderManager);
             }
         }
 
@@ -41,11 +56,21 @@ void ParameterPanel::render(const std::string& shaderName) {
                 bool enabled = m_shaderManager->getSwitchState(flag);
                 if (ImGui::Checkbox(flag.c_str(), &enabled)) {
                     m_shaderManager->setSwitchState(flag, enabled);
-                    m_shaderManager->reloadShader(shaderName);
+                    if (m_shaderManager->reloadShader(shaderName)) {
+                        auto newShader = m_shaderManager->getShader(shaderName);
+                        if (newShader && m_shaderProject) {
+                            m_shaderProject->applyUniformsToShader(shaderName, newShader);
+                            m_shaderProject->saveState(m_shaderManager);
+                        }
+                    }
                 }
             }
         }
     } else {
         ImGui::Text("No parameters found.");
     }
+}
+
+void ParameterPanel::setProject(std::shared_ptr<ShaderProject> shaderProject) {
+    m_shaderProject = shaderProject;
 }
