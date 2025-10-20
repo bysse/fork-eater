@@ -388,9 +388,9 @@ void ShaderManager::renderToFramebuffer(const std::string& name, int width, int 
     useShader(name);
     setUniform("u_time", time);
     setUniform("iTime", time);
-    float resolution[2] = {(float)scaledWidth, (float)scaledHeight};
+    float resolution[3] = {(float)scaledWidth, (float)scaledHeight, (float)scaledWidth / (float)scaledHeight};
     setUniform("u_resolution", resolution, 2);
-    setUniform("iResolution", resolution, 2);
+    setUniform("iResolution", resolution, 3);
 
     auto shader = getShader(name);
     if (shader) {

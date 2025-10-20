@@ -102,6 +102,7 @@ private:
     
 public:
     // Project management
+    void takeScreenshot();
     void openProject(const std::string& projectPath);
     void setupFileWatching();
     void dumpFramebuffer(const std::string& passName, const std::string& outputPath);

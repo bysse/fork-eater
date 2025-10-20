@@ -7,14 +7,8 @@ uniform vec3 iResolution;
 
 void main()
 {
-    vec2 uv = gl_FragCoord.xy / iResolution.xy;
-    
-    // Simple time-based color
-    vec3 color = vec3(
-        0.5 + 0.5 * sin(iTime),
-        0.5 + 0.5 * sin(iTime + 2.0),
-        0.5 + 0.5 * sin(iTime + 4.0)
-    );
-    
-    FragColor = vec4(color, 1.0);
+    vec2 uv = 0.01*iResolution.xy;
+    uv.y = 1.0 - uv.y; // Flip y-coordinate to match TexCoord
+    vec3 col = 0.5 + 0.5 * cos(iTime + uv.xyx + vec3(0, 2, 4));
+    FragColor = vec4(col, 1.0);
 }

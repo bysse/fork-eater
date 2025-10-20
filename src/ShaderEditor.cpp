@@ -14,6 +14,8 @@
 #include "Settings.h"
 #include "glad.h"
 #include <filesystem>
+#include <chrono>
+#include <iomanip>
 
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -181,6 +183,10 @@ void ShaderEditor::setupCallbacks() {
     
     m_menuSystem->onShowHelp = [this]() {
         m_showShortcutsHelp = true;
+    };
+
+    m_menuSystem->onTakeScreenshot = [this]() {
+        takeScreenshot();
     };
 
     m_menuSystem->onScreenSizeChanged = [this](int width, int height) {
@@ -367,6 +373,10 @@ void ShaderEditor::setupShortcuts() {
     m_shortcutManager->registerShortcut(GLFW_KEY_F1, KeyModifier::None, 
         [this]() { m_showShortcutsHelp = true; },
         "F1", "Show keyboard shortcuts", "Help");
+
+    m_shortcutManager->registerShortcut(GLFW_KEY_F2, KeyModifier::None,
+        [this]() { takeScreenshot(); },
+        "F2", "Take Screenshot", "File");
 }
 
 void ShaderEditor::openProject(const std::string& projectPath) {
@@ -548,6 +558,32 @@ void ShaderEditor::dumpFramebuffer(const std::string& passName, const std::strin
     delete[] data;
 
     LOG_IMPORTANT("Framebuffer for pass '{}' dumped to {}", passName, outputPath);
+}
+
+void ShaderEditor::takeScreenshot() {
+    if (m_currentProjectPath.empty() || m_selectedShader.empty()) {
+        LOG_ERROR("Cannot take screenshot: No project or shader selected.");
+        return;
+    }
+
+    std::filesystem::path projectPath(m_currentProjectPath);
+    std::filesystem::path screenshotsPath = projectPath / "screenshots";
+
+    if (!std::filesystem::exists(screenshotsPath)) {
+        std::filesystem::create_directory(screenshotsPath);
+    }
+
+    auto now = std::chrono::system_clock::now();
+    auto in_time_t = std::chrono::system_clock::to_time_t(now);
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&in_time_t), "%Y%m%d_%H%M%S");
+    ss << '_' << std::setfill('0') << std::setw(3) << ms.count();
+    std::string filename = "" + ss.str() + ".png";
+    std::filesystem::path outputPath = screenshotsPath / filename;
+
+    dumpFramebuffer(m_selectedShader, outputPath.string());
 }
 
 void ShaderEditor::openProjectDialog() {

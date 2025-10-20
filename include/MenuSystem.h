@@ -26,6 +26,7 @@ public:
     std::function<void()> onExit;
     std::function<void()> onShowHelp;
     std::function<void(int, int)> onScreenSizeChanged;
+    std::function<void()> onTakeScreenshot;
     
 private:
     // GUI state

@@ -46,6 +46,7 @@ cd build && ./fork-eater
 # Run comprehensive exit functionality tests
 ./test_exit.sh
 ```
+All test runs must be done with the `--test` flag set, so that the process exits.
 
 ## Architecture
 

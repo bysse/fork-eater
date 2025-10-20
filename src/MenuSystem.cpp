@@ -15,13 +15,11 @@ MenuSystem::MenuSystem()
 
 void MenuSystem::renderMenuBar() {
     if (ImGui::BeginMenu("File")) {
-        if (ImGui::MenuItem("Exit", "Alt+F4")) {
-            if (onExit) {
-                onExit();
-            } else {
-                LOG_INFO("File->Exit selected");
-                std::exit(0);  // Fallback immediate exit
-            }
+        if (ImGui::MenuItem("Take Screenshot", "F2")) {
+            if (onTakeScreenshot) onTakeScreenshot();
+        }
+        if (ImGui::MenuItem("Exit", "ESC")) {
+            if (onExit) onExit();
         }
         ImGui::EndMenu();
     }
