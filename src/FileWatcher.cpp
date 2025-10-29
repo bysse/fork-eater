@@ -55,25 +55,31 @@ bool FileWatcher::addWatch(const std::string& filePath, FileChangedCallback call
     
     // Remove existing watch if it exists
     removeWatch(filePath);
-    
-    int wd = inotify_add_watch(m_inotifyFd, filePath.c_str(), IN_MODIFY | IN_CLOSE_WRITE);
+
+    int wd = inotify_add_watch(
+        m_inotifyFd,
+        filePath.c_str(),
+        IN_MODIFY | IN_CLOSE_WRITE | IN_MOVE_SELF | IN_DELETE_SELF);
     if (wd == -1) {
         std::cerr << "Failed to add watch for: " << filePath << std::endl;
         return false;
     }
-    
+
     WatchInfo info;
     info.watchDescriptor = wd;
     info.filePath = filePath;
     info.callback = callback;
-    
-    m_watches[filePath] = info;
-    m_watchDescriptorToPath[wd] = filePath;
+    {
+        std::lock_guard<std::mutex> lock(m_watchMutex);
+        m_watches[filePath] = info;
+        m_watchDescriptorToPath[wd] = filePath;
+    }
     
     return true;
 }
 
 void FileWatcher::removeWatch(const std::string& filePath) {
+    std::lock_guard<std::mutex> lock(m_watchMutex);
     auto it = m_watches.find(filePath);
     if (it == m_watches.end()) {
         return;
@@ -89,12 +95,19 @@ void FileWatcher::removeWatch(const std::string& filePath) {
 
 void FileWatcher::clearWatches() {
     if (m_inotifyFd != -1) {
+        std::lock_guard<std::mutex> lock(m_watchMutex);
         for (const auto& pair : m_watches) {
             inotify_rm_watch(m_inotifyFd, pair.second.watchDescriptor);
         }
+        m_watches.clear();
+        m_watchDescriptorToPath.clear();
+        return;
     }
-    m_watches.clear();
-    m_watchDescriptorToPath.clear();
+    {
+        std::lock_guard<std::mutex> lock(m_watchMutex);
+        m_watches.clear();
+        m_watchDescriptorToPath.clear();
+    }
 }
 
 bool FileWatcher::isWatching() const {
@@ -126,18 +139,50 @@ void FileWatcher::processEvents(char* buffer, ssize_t length) {
     
     while (i < length) {
         struct inotify_event* event = (struct inotify_event*)&buffer[i];
-        
-        if (event->mask & (IN_MODIFY | IN_CLOSE_WRITE)) {
-            auto it = m_watchDescriptorToPath.find(event->wd);
-            if (it != m_watchDescriptorToPath.end()) {
-                const std::string& filePath = it->second;
-                auto watchIt = m_watches.find(filePath);
-                if (watchIt != m_watches.end() && watchIt->second.callback) {
-                    watchIt->second.callback(filePath);
+
+        WatchInfo info;
+        bool hasInfo = false;
+        {
+            std::lock_guard<std::mutex> lock(m_watchMutex);
+            auto pathIt = m_watchDescriptorToPath.find(event->wd);
+            if (pathIt != m_watchDescriptorToPath.end()) {
+                auto watchIt = m_watches.find(pathIt->second);
+                if (watchIt != m_watches.end()) {
+                    info = watchIt->second;
+                    hasInfo = true;
                 }
+
+                if (event->mask & IN_IGNORED) {
+                    m_watchDescriptorToPath.erase(pathIt);
+                    if (hasInfo) {
+                        m_watches.erase(info.filePath);
+                    }
+                }
+            }
+        }
+
+        if (hasInfo) {
+            bool shouldNotify = false;
+            if (event->mask & (IN_MODIFY | IN_CLOSE_WRITE)) {
+                shouldNotify = true;
+            }
+            if (event->mask & (IN_MOVE_SELF | IN_DELETE_SELF)) {
+                rearmWatch(info);
+                shouldNotify = true;
+            }
+
+            if (shouldNotify && info.callback) {
+                info.callback(info.filePath);
             }
         }
         
         i += EVENT_SIZE + event->len;
     }
+}
+
+void FileWatcher::rearmWatch(const WatchInfo& info) {
+    if (info.filePath.empty() || !info.callback) {
+        return;
+    }
+    addWatch(info.filePath, info.callback);
 }

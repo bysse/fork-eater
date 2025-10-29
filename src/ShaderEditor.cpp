@@ -526,11 +526,17 @@ void ShaderEditor::processProjectReload() {
 }
 
 void ShaderEditor::processPendingReloads() {
-    std::lock_guard<std::mutex> lock(m_reloadQueueMutex);
-    
-    while (!m_pendingReloads.empty()) {
-        std::string shaderName = m_pendingReloads.front();
-        m_pendingReloads.pop();
+    std::queue<std::string> reloadQueue;
+    {
+        std::lock_guard<std::mutex> lock(m_reloadQueueMutex);
+        std::swap(reloadQueue, m_pendingReloads);
+    }
+
+    bool refreshedWatches = false;
+
+    while (!reloadQueue.empty()) {
+        std::string shaderName = reloadQueue.front();
+        reloadQueue.pop();
         
         LOG_DEBUG("Processing shader reload: {}", shaderName);
         if (m_shaderManager->reloadShader(shaderName)) {
@@ -538,7 +544,12 @@ void ShaderEditor::processPendingReloads() {
             if (shader && m_currentProject) {
                 m_currentProject->applyUniformsToShader(shaderName, shader);
             }
+            refreshedWatches = true;
         }
+    }
+
+    if (refreshedWatches) {
+        setupProjectFileWatching();
     }
 }
 

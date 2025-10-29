@@ -5,6 +5,7 @@
 #include <functional>
 #include <thread>
 #include <atomic>
+#include <mutex>
 #include <sys/inotify.h>
 
 class FileWatcher {
@@ -44,10 +45,13 @@ private:
     std::thread m_watchThread;
     std::unordered_map<std::string, WatchInfo> m_watches;
     std::unordered_map<int, std::string> m_watchDescriptorToPath;
+    mutable std::mutex m_watchMutex;
     
     // Thread function for watching files
     void watchThread();
     
     // Process inotify events
     void processEvents(char* buffer, ssize_t length);
+
+    void rearmWatch(const WatchInfo& info);
 };
