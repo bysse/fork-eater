@@ -3,3 +3,4 @@ external/imgui
 .idea
 .vscode
 *.log
+tmp
