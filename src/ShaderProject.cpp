@@ -6,6 +6,7 @@
 #include <filesystem>
 #include "Logger.h"
 #include <algorithm>
+#include <unordered_set>
 #include "json.hpp"
 
 using json = nlohmann::json;
@@ -73,8 +74,14 @@ bool ShaderProject::createNew(const std::string& projectPath, const std::string&
         }
     }
     
+    if (shaderTemplate->manifestJson == nullptr || shaderTemplate->manifestJsonSize == 0) {
+        LOG_ERROR("Template manifest is empty or missing: {}", templateName);
+        return false;
+    }
+
     // Parse manifest from template
-    if (!parseManifestJson(shaderTemplate->manifestJson)) {
+    std::string manifestContent(shaderTemplate->manifestJson, shaderTemplate->manifestJsonSize);
+    if (!parseManifestJson(manifestContent)) {
         LOG_ERROR("Failed to parse template manifest");
         return false;
     }
@@ -442,37 +449,43 @@ void ShaderProject::movePass(size_t from, size_t to) {
 }
 
 bool ShaderProject::createShadersFromTemplate(const ShaderTemplate& shaderTemplate) const {
-    // Get the first pass to determine shader filenames
     if (m_manifest.passes.empty()) {
         LOG_ERROR("No passes defined in manifest");
         return false;
     }
-    
-    const auto& firstPass = m_manifest.passes[0];
-    
-    // Create vertex shader
-    if (!firstPass.vertexShader.empty()) {
-        std::string vertexPath = getShaderPath(firstPass.vertexShader);
-        std::ofstream vertFile(vertexPath);
-        if (!vertFile.is_open()) {
-            LOG_ERROR("Failed to create vertex shader file: {}", vertexPath);
+
+    std::unordered_set<std::string> createdFiles;
+
+    auto writeShaderFile = [&](const std::string& filename) -> bool {
+        if (filename.empty() || createdFiles.count(filename) > 0) {
+            return true;
+        }
+
+        auto fileIt = shaderTemplate.files.find(filename);
+        if (fileIt == shaderTemplate.files.end()) {
+            LOG_ERROR("Shader file '{}' not found in template '{}'", filename, shaderTemplate.name);
             return false;
         }
-        vertFile << shaderTemplate.vertexShader;
-        vertFile.close();
-    }
-    
-    // Create fragment shader
-    if (!firstPass.fragmentShader.empty()) {
-        std::string fragmentPath = getShaderPath(firstPass.fragmentShader);
-        std::ofstream fragFile(fragmentPath);
-        if (!fragFile.is_open()) {
-            LOG_ERROR("Failed to create fragment shader file: {}", fragmentPath);
+
+        std::string outputPath = getShaderPath(filename);
+        std::ofstream outFile(outputPath, std::ios::binary);
+        if (!outFile.is_open()) {
+            LOG_ERROR("Failed to create shader file: {}", outputPath);
             return false;
         }
-        fragFile << shaderTemplate.fragmentShader;
-        fragFile.close();
+        outFile.write(fileIt->second.first, static_cast<std::streamsize>(fileIt->second.second));
+        createdFiles.insert(filename);
+        return true;
+    };
+
+    for (const auto& pass : m_manifest.passes) {
+        if (!writeShaderFile(pass.vertexShader)) {
+            return false;
+        }
+        if (!writeShaderFile(pass.fragmentShader)) {
+            return false;
+        }
     }
-    
+
     return true;
 }

@@ -2,6 +2,9 @@
 #include "GeneratedShaderTemplates.h"
 #include "json.hpp"
 
+#include <algorithm>
+#include <string>
+
 using json = nlohmann::json;
 
 ShaderTemplateManager& ShaderTemplateManager::getInstance() {
@@ -16,30 +19,54 @@ ShaderTemplateManager::ShaderTemplateManager() {
 void ShaderTemplateManager::initializeTemplates() {
     EmbeddedTemplates::initialize();
 
+    const std::string prefix = "templates/";
+
     for (auto const& [path, data] : EmbeddedTemplates::g_templates) {
-        if (path.find("manifest.json") != std::string::npos) {
-            std::string templateName = path.substr(10, path.find_last_of('/') - 10);
+        if (path.compare(0, prefix.size(), prefix) != 0) {
+            continue;
+        }
 
-            json manifest = json::parse(data.first, data.first + data.second);
+        std::string relativePath = path.substr(prefix.size());
+        auto separatorPos = relativePath.find('/');
+        if (separatorPos == std::string::npos) {
+            continue;
+        }
 
-            ShaderTemplate newTemplate;
-            newTemplate.name = templateName;
-            newTemplate.description = manifest["description"];
+        std::string templateName = relativePath.substr(0, separatorPos);
+        std::string fileName = relativePath.substr(separatorPos + 1);
 
-            std::string vertPath = "templates/" + templateName + "/" + templateName + ".vert";
-            std::string fragPath = "templates/" + templateName + "/" + templateName + ".frag";
+        auto& shaderTemplate = m_templates[templateName];
+        shaderTemplate.name = templateName;
 
-            newTemplate.manifestJson = data.first;
-            newTemplate.manifestJsonSize = data.second;
-            newTemplate.vertexShader = EmbeddedTemplates::g_templates[vertPath].first;
-            newTemplate.vertexShaderSize = EmbeddedTemplates::g_templates[vertPath].second;
-            newTemplate.fragmentShader = EmbeddedTemplates::g_templates[fragPath].first;
-            newTemplate.fragmentShaderSize = EmbeddedTemplates::g_templates[fragPath].second;
+        if (fileName == "manifest.json") {
+            shaderTemplate.manifestJson = data.first;
+            shaderTemplate.manifestJsonSize = data.second;
 
-            m_templates[templateName] = newTemplate;
-            m_templateNames.push_back(templateName);
+            try {
+                json manifest = json::parse(data.first, data.first + data.second);
+                shaderTemplate.description = manifest.value("description", "");
+            } catch (const json::parse_error&) {
+                shaderTemplate.description.clear();
+            }
+        } else {
+            shaderTemplate.files[fileName] = data;
         }
     }
+
+    for (auto it = m_templates.begin(); it != m_templates.end(); ) {
+        if (it->second.manifestJson == nullptr) {
+            it = m_templates.erase(it);
+            continue;
+        }
+        ++it;
+    }
+
+    m_templateNames.reserve(m_templates.size());
+    for (const auto& [name, shaderTemplate] : m_templates) {
+        (void)shaderTemplate;
+        m_templateNames.push_back(name);
+    }
+    std::sort(m_templateNames.begin(), m_templateNames.end());
 }
 
 const std::vector<std::string>& ShaderTemplateManager::getTemplateNames() const {

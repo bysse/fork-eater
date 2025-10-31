@@ -8,12 +8,9 @@
 struct ShaderTemplate {
     std::string name;
     std::string description;
-    const char* manifestJson;
-    size_t manifestJsonSize;
-    const char* vertexShader;
-    size_t vertexShaderSize;
-    const char* fragmentShader;
-    size_t fragmentShaderSize;
+    const char* manifestJson = nullptr;
+    size_t manifestJsonSize = 0;
+    std::unordered_map<std::string, std::pair<const char*, size_t>> files;
 };
 
 class ShaderTemplateManager {
@@ -23,11 +20,6 @@ public:
     const std::vector<std::string>& getTemplateNames() const;
     const ShaderTemplate* getTemplate(const std::string& name) const;
     const ShaderTemplate* getDefaultTemplate() const;
-
-    void registerTemplate(const std::string& name, const std::string& description,
-                          const std::pair<const unsigned char*, size_t>& manifest,
-                          const std::pair<const unsigned char*, size_t>& vertex,
-                          const std::pair<const unsigned char*, size_t>& fragment);
 
 private:
     ShaderTemplateManager();

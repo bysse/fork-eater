@@ -37,9 +37,13 @@ vec3 calcNormal(vec3 p) {
 void main() {
     vec2 uv = (2.0 * gl_FragCoord.xy - iResolution.xy) / iResolution.y;
 
-    // Camera
-    vec3 ro = vec3(2.0 * cos(iTime), 1.0, 2.0 * sin(iTime));
-    vec3 rd = normalize(vec3(uv, -1.0));
+    // Camera orbits the scene and always looks toward the target
+    vec3 ro = vec3(2.0 * cos(iTime * 0.5), 1.2, 2.0 * sin(iTime * 0.5));
+    vec3 target = vec3(0.0, 0.5, 0.0);
+    vec3 forward = normalize(target - ro);
+    vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), forward));
+    vec3 up = cross(forward, right);
+    vec3 rd = normalize(uv.x * right + uv.y * up + forward);
 
     float t = 0.0;
     for (int i = 0; i < 100; i++) {
