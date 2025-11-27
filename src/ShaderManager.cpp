@@ -420,14 +420,15 @@ void ShaderManager::renderToFramebuffer(const std::string& name, int width, int 
     }
 
     ImGuiIO& io = ImGui::GetIO();
-    float mouse[4] = {
-        io.MousePos.x / (float)width,
-        io.MousePos.y / (float)height,
-        io.MouseDown[0] ? 1.0f : 0.0f,
-        0.0f
-    };
-    setUniform("iMouse", mouse, 4);
-    setUniform("u_mouse", mouse, 4);
+    bool mouseDown = io.MouseDown[0];
+    if (mouseDown) {
+        m_mouseUniform[0] = io.MousePos.x / (float)width;
+        m_mouseUniform[1] = io.MousePos.y / (float)height;
+    }
+    m_mouseUniform[2] = mouseDown ? 1.0f : 0.0f;
+    m_mouseUniform[3] = 0.0f;
+    setUniform("iMouse", m_mouseUniform, 4);
+    setUniform("u_mouse", m_mouseUniform, 4);
 
     glBindVertexArray(m_quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);

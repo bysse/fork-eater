@@ -84,7 +84,8 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 # --- End Embed Shader Templates ---
 
 # --- Embed Shader Libraries ---
-file(GLOB_RECURSE LIB_FILES "libs/*")
+# CONFIGURE_DEPENDS ensures new files (e.g., added shader libs) retrigger CMake so they get embedded.
+file(GLOB_RECURSE LIB_FILES CONFIGURE_DEPENDS "libs/*")
 set(GENERATED_LIBS_HEADER ${CMAKE_CURRENT_BINARY_DIR}/GeneratedShaderLibraries.h)
 
 set(GENERATED_LIB_CONTENT "#pragma once\n#include <map>\n#include <string>\n#include <utility>\n\n")

@@ -95,6 +95,7 @@ private:
     GLuint m_quadVBO;
     std::unordered_map<std::string, bool> m_errorLogged;
     std::unordered_map<std::string, bool> m_switchStates;
+    float m_mouseUniform[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     
     // Helper functions
     GLuint compileShader(const std::string& source, GLenum shaderType);
