@@ -98,8 +98,8 @@ private:
     float m_mouseUniform[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     
     // Helper functions
-    GLuint compileShader(const std::string& source, GLenum shaderType);
-    GLuint linkProgram(GLuint vertexShader, GLuint fragmentShader);
+    GLuint compileShader(const std::string& source, GLenum shaderType, std::string& outErrorLog);
+    GLuint linkProgram(GLuint vertexShader, GLuint fragmentShader, std::string& outErrorLog);
     std::string readFile(const std::string& filePath);
     std::string getShaderInfoLog(GLuint shader);
     std::string getProgramInfoLog(GLuint program);

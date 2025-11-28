@@ -101,9 +101,10 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     }
     
     // Compile vertex shader
-    shader->vertexShaderId = compileShader(vertexResult.source, GL_VERTEX_SHADER);
+    std::string vertexErrorLog;
+    shader->vertexShaderId = compileShader(vertexResult.source, GL_VERTEX_SHADER, vertexErrorLog);
     if (shader->vertexShaderId == 0) {
-        shader->lastError = "Failed to compile vertex shader";
+        shader->lastError = vertexErrorLog.empty() ? "Failed to compile vertex shader" : "Vertex shader compilation failed: " + vertexErrorLog;
         if (m_compilationCallback) {
             m_compilationCallback(name, false, shader->lastError);
         }
@@ -111,9 +112,10 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     }
     
     // Compile fragment shader
-    shader->fragmentShaderId = compileShader(fragmentResult.source, GL_FRAGMENT_SHADER);
+    std::string fragmentErrorLog;
+    shader->fragmentShaderId = compileShader(fragmentResult.source, GL_FRAGMENT_SHADER, fragmentErrorLog);
     if (shader->fragmentShaderId == 0) {
-        shader->lastError = "Failed to compile fragment shader";
+        shader->lastError = fragmentErrorLog.empty() ? "Failed to compile fragment shader" : "Fragment shader compilation failed: " + fragmentErrorLog;
         cleanupShader(*shader);
         if (m_compilationCallback) {
             m_compilationCallback(name, false, shader->lastError);
@@ -122,9 +124,10 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     }
     
     // Link program
-    shader->programId = linkProgram(shader->vertexShaderId, shader->fragmentShaderId);
+    std::string linkErrorLog;
+    shader->programId = linkProgram(shader->vertexShaderId, shader->fragmentShaderId, linkErrorLog);
     if (shader->programId == 0) {
-        shader->lastError = "Failed to link shader program";
+        shader->lastError = linkErrorLog.empty() ? "Failed to link shader program" : "Shader linking failed: " + linkErrorLog;
         cleanupShader(*shader);
         if (m_compilationCallback) {
             m_compilationCallback(name, false, shader->lastError);
@@ -294,8 +297,11 @@ const std::unordered_map<std::string, bool>& ShaderManager::getSwitchStates() co
     return m_switchStates;
 }
 
-GLuint ShaderManager::compileShader(const std::string& source, GLenum shaderType) {
+GLuint ShaderManager::compileShader(const std::string& source, GLenum shaderType, std::string& outErrorLog) {
+    outErrorLog.clear();
     std::string finalSource = source;
+    const char* stageName = (shaderType == GL_VERTEX_SHADER) ? "Vertex" :
+                            (shaderType == GL_FRAGMENT_SHADER) ? "Fragment" : "Unknown";
     for (const auto& [name, enabled] : m_switchStates) {
         if (enabled) {
             size_t versionPos = finalSource.find("#version");
@@ -318,8 +324,11 @@ GLuint ShaderManager::compileShader(const std::string& source, GLenum shaderType
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     
     if (!success) {
-        std::string errorLog = getShaderInfoLog(shader);
-        LOG_ERROR("Shader compilation failed: {}", errorLog);
+        outErrorLog = getShaderInfoLog(shader);
+        if (outErrorLog.empty()) {
+            outErrorLog = "Shader compilation failed with an unknown error";
+        }
+        LOG_ERROR("{} shader compilation failed: {}", stageName, outErrorLog);
         glDeleteShader(shader);
         return 0;
     }
@@ -327,7 +336,8 @@ GLuint ShaderManager::compileShader(const std::string& source, GLenum shaderType
     return shader;
 }
 
-GLuint ShaderManager::linkProgram(GLuint vertexShader, GLuint fragmentShader) {
+GLuint ShaderManager::linkProgram(GLuint vertexShader, GLuint fragmentShader, std::string& outErrorLog) {
+    outErrorLog.clear();
     GLuint program = glCreateProgram();
     
     glAttachShader(program, vertexShader);
@@ -338,8 +348,11 @@ GLuint ShaderManager::linkProgram(GLuint vertexShader, GLuint fragmentShader) {
     glGetProgramiv(program, GL_LINK_STATUS, &success);
     
     if (!success) {
-        std::string errorLog = getProgramInfoLog(program);
-        LOG_ERROR("Shader linking failed: {}", errorLog);
+        outErrorLog = getProgramInfoLog(program);
+        if (outErrorLog.empty()) {
+            outErrorLog = "Shader linking failed with an unknown error";
+        }
+        LOG_ERROR("Shader linking failed: {}", outErrorLog);
         glDeleteProgram(program);
         return 0;
     }
