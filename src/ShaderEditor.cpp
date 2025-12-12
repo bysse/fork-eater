@@ -571,6 +571,7 @@ void ShaderEditor::dumpFramebuffer(const std::string& passName, const std::strin
     unsigned char* data = new unsigned char[width * height * 3];
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
 
+    stbi_flip_vertically_on_write(1);
     stbi_write_png(outputPath.c_str(), width, height, 3, data, width * 3);
 
     delete[] data;
