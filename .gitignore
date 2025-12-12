@@ -4,3 +4,5 @@ external/imgui
 .vscode
 *.log
 tmp
+*.vsix
+node_modules

@@ -113,6 +113,7 @@ preinstall/fast:
 
 # clear depends
 depend:
+	$(CMAKE_COMMAND) -P /home/erikb/dev/demo/fork-eater/CMakeFiles/VerifyGlobs.cmake
 	$(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
 .PHONY : depend
 
@@ -334,30 +335,6 @@ external/imgui/imgui_widgets.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/fork-eater.dir/build.make CMakeFiles/fork-eater.dir/external/imgui/imgui_widgets.cpp.s
 .PHONY : external/imgui/imgui_widgets.cpp.s
 
-src/ErrorPanel.o: src/ErrorPanel.cpp.o
-.PHONY : src/ErrorPanel.o
-
-# target to build an object file
-src/ErrorPanel.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fork-eater.dir/build.make CMakeFiles/fork-eater.dir/src/ErrorPanel.cpp.o
-.PHONY : src/ErrorPanel.cpp.o
-
-src/ErrorPanel.i: src/ErrorPanel.cpp.i
-.PHONY : src/ErrorPanel.i
-
-# target to preprocess a source file
-src/ErrorPanel.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fork-eater.dir/build.make CMakeFiles/fork-eater.dir/src/ErrorPanel.cpp.i
-.PHONY : src/ErrorPanel.cpp.i
-
-src/ErrorPanel.s: src/ErrorPanel.cpp.s
-.PHONY : src/ErrorPanel.s
-
-# target to generate assembly for a file
-src/ErrorPanel.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fork-eater.dir/build.make CMakeFiles/fork-eater.dir/src/ErrorPanel.cpp.s
-.PHONY : src/ErrorPanel.cpp.s
-
 src/FileManager.o: src/FileManager.cpp.o
 .PHONY : src/FileManager.o
 
@@ -502,6 +479,30 @@ src/MenuSystem.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/fork-eater.dir/build.make CMakeFiles/fork-eater.dir/src/MenuSystem.cpp.s
 .PHONY : src/MenuSystem.cpp.s
 
+src/ParameterPanel.o: src/ParameterPanel.cpp.o
+.PHONY : src/ParameterPanel.o
+
+# target to build an object file
+src/ParameterPanel.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fork-eater.dir/build.make CMakeFiles/fork-eater.dir/src/ParameterPanel.cpp.o
+.PHONY : src/ParameterPanel.cpp.o
+
+src/ParameterPanel.i: src/ParameterPanel.cpp.i
+.PHONY : src/ParameterPanel.i
+
+# target to preprocess a source file
+src/ParameterPanel.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fork-eater.dir/build.make CMakeFiles/fork-eater.dir/src/ParameterPanel.cpp.i
+.PHONY : src/ParameterPanel.cpp.i
+
+src/ParameterPanel.s: src/ParameterPanel.cpp.s
+.PHONY : src/ParameterPanel.s
+
+# target to generate assembly for a file
+src/ParameterPanel.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fork-eater.dir/build.make CMakeFiles/fork-eater.dir/src/ParameterPanel.cpp.s
+.PHONY : src/ParameterPanel.cpp.s
+
 src/PreviewPanel.o: src/PreviewPanel.cpp.o
 .PHONY : src/PreviewPanel.o
 
@@ -597,6 +598,30 @@ src/ShaderManager.s: src/ShaderManager.cpp.s
 src/ShaderManager.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/fork-eater.dir/build.make CMakeFiles/fork-eater.dir/src/ShaderManager.cpp.s
 .PHONY : src/ShaderManager.cpp.s
+
+src/ShaderPreprocessor.o: src/ShaderPreprocessor.cpp.o
+.PHONY : src/ShaderPreprocessor.o
+
+# target to build an object file
+src/ShaderPreprocessor.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fork-eater.dir/build.make CMakeFiles/fork-eater.dir/src/ShaderPreprocessor.cpp.o
+.PHONY : src/ShaderPreprocessor.cpp.o
+
+src/ShaderPreprocessor.i: src/ShaderPreprocessor.cpp.i
+.PHONY : src/ShaderPreprocessor.i
+
+# target to preprocess a source file
+src/ShaderPreprocessor.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fork-eater.dir/build.make CMakeFiles/fork-eater.dir/src/ShaderPreprocessor.cpp.i
+.PHONY : src/ShaderPreprocessor.cpp.i
+
+src/ShaderPreprocessor.s: src/ShaderPreprocessor.cpp.s
+.PHONY : src/ShaderPreprocessor.s
+
+# target to generate assembly for a file
+src/ShaderPreprocessor.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fork-eater.dir/build.make CMakeFiles/fork-eater.dir/src/ShaderPreprocessor.cpp.s
+.PHONY : src/ShaderPreprocessor.cpp.s
 
 src/ShaderProject.o: src/ShaderProject.cpp.o
 .PHONY : src/ShaderProject.o
@@ -752,9 +777,6 @@ help:
 	@echo "... external/imgui/imgui_widgets.o"
 	@echo "... external/imgui/imgui_widgets.i"
 	@echo "... external/imgui/imgui_widgets.s"
-	@echo "... src/ErrorPanel.o"
-	@echo "... src/ErrorPanel.i"
-	@echo "... src/ErrorPanel.s"
 	@echo "... src/FileManager.o"
 	@echo "... src/FileManager.i"
 	@echo "... src/FileManager.s"
@@ -773,6 +795,9 @@ help:
 	@echo "... src/MenuSystem.o"
 	@echo "... src/MenuSystem.i"
 	@echo "... src/MenuSystem.s"
+	@echo "... src/ParameterPanel.o"
+	@echo "... src/ParameterPanel.i"
+	@echo "... src/ParameterPanel.s"
 	@echo "... src/PreviewPanel.o"
 	@echo "... src/PreviewPanel.i"
 	@echo "... src/PreviewPanel.s"
@@ -785,6 +810,9 @@ help:
 	@echo "... src/ShaderManager.o"
 	@echo "... src/ShaderManager.i"
 	@echo "... src/ShaderManager.s"
+	@echo "... src/ShaderPreprocessor.o"
+	@echo "... src/ShaderPreprocessor.i"
+	@echo "... src/ShaderPreprocessor.s"
 	@echo "... src/ShaderProject.o"
 	@echo "... src/ShaderProject.i"
 	@echo "... src/ShaderProject.s"
@@ -811,6 +839,7 @@ help:
 # No rule that depends on this can have commands that come from listfiles
 # because they might be regenerated.
 cmake_check_build_system:
+	$(CMAKE_COMMAND) -P /home/erikb/dev/demo/fork-eater/CMakeFiles/VerifyGlobs.cmake
 	$(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
 .PHONY : cmake_check_build_system
 
