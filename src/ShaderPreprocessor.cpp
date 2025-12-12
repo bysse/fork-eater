@@ -1,7 +1,6 @@
 #include "ShaderPreprocessor.h"
 #include "Logger.h" // For LOG_ERROR
 #include "GeneratedShaderLibraries.h"
-#include "ShaderManager.h"
 #include <fstream>
 #include <sstream>
 #include <regex>
@@ -31,8 +30,8 @@ ShaderPreprocessor::PreprocessResult ShaderPreprocessor::preprocess(const std::s
     PreprocessResult result;
     std::vector<std::string> includeStack;
     std::set<std::string> uniqueIncludedFiles;
-
-    result.source = preprocessRecursive(filePath, includeStack, uniqueIncludedFiles, result.switchFlags);
+    int currentLine = 1;
+    result.source = preprocessRecursive(filePath, includeStack, uniqueIncludedFiles, result.switchFlags, result.lineMappings, currentLine);
 
     for (const auto& file : uniqueIncludedFiles) {
         result.includedFiles.push_back(file);
@@ -44,7 +43,9 @@ ShaderPreprocessor::PreprocessResult ShaderPreprocessor::preprocess(const std::s
 std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
                                                     std::vector<std::string>& includeStack,
                                                     std::set<std::string>& uniqueIncludedFiles,
-                                                    std::vector<std::string>& switchFlags) {
+                                                    std::vector<std::string>& switchFlags,
+                                                    std::vector<LineMapping>& lineMappings,
+                                                    int& currentLine) {
     LOG_DEBUG("Preprocessing file: {}", filePath);
     // Check for include loops
     if (std::find(includeStack.begin(), includeStack.end(), filePath) != includeStack.end()) {
@@ -71,8 +72,10 @@ std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
     std::string line;
     std::regex includeRegex(R"x(#pragma\s+include\s*\(([^)]+)\))x");
     std::regex switchRegex(R"x(#pragma\s+switch\s*\(([^)]+)\))x");
+    int fileLineNumber = 0;
     
     while (std::getline(ss, line)) {
+        ++fileLineNumber;
         std::smatch matches;
         if (std::regex_search(line, matches, includeRegex)) {
             if (matches.size() == 2) {
@@ -94,18 +97,19 @@ std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
                             outFile.close();
                         }
                     }
-                    includedContent = preprocessRecursive(libFilePath.string(), includeStack, uniqueIncludedFiles, switchFlags);
+                    includedContent = preprocessRecursive(libFilePath.string(), includeStack, uniqueIncludedFiles, switchFlags, lineMappings, currentLine);
                 } else {
                     // If not in embedded libs, try to read from filesystem relative to current file
                     std::filesystem::path currentDirPath = std::filesystem::path(filePath).parent_path();
                     std::string includePath = (currentDirPath / includeFileName).string();
-                    includedContent = preprocessRecursive(includePath, includeStack, uniqueIncludedFiles, switchFlags);
+                    includedContent = preprocessRecursive(includePath, includeStack, uniqueIncludedFiles, switchFlags, lineMappings, currentLine);
                 }
                 preprocessedSource << includedContent;
             } else {
                 std::string errorMsg = "Invalid include directive: " + line;
                 if (onMessage) onMessage(errorMsg);
                 preprocessedSource << "#error " + errorMsg + "\n";
+                lineMappings.push_back({currentLine++, filePath, fileLineNumber});
             }
         } else if (std::regex_search(line, matches, switchRegex)) {
             if (matches.size() == 2) {
@@ -115,9 +119,11 @@ std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
                 std::string errorMsg = "Invalid switch directive: " + line;
                 if (onMessage) onMessage(errorMsg);
                 preprocessedSource << "#error " + errorMsg + "\n";
+                lineMappings.push_back({currentLine++, filePath, fileLineNumber});
             }
         } else {
             preprocessedSource << line << "\n";
+            lineMappings.push_back({currentLine++, filePath, fileLineNumber});
         }
     }
 

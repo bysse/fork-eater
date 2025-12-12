@@ -81,6 +81,8 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
 
     shader->preprocessedVertexSource = vertexResult.source;
     shader->preprocessedFragmentSource = fragmentResult.source;
+    shader->vertexLineMappings = vertexResult.lineMappings;
+    shader->fragmentLineMappings = fragmentResult.lineMappings;
     shader->includedFiles = vertexResult.includedFiles;
     shader->includedFiles.insert(shader->includedFiles.end(), fragmentResult.includedFiles.begin(), fragmentResult.includedFiles.end());
     shader->switchFlags = vertexResult.switchFlags;
@@ -102,7 +104,7 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     
     // Compile vertex shader
     std::string vertexErrorLog;
-    shader->vertexShaderId = compileShader(vertexResult.source, GL_VERTEX_SHADER, vertexErrorLog);
+    shader->vertexShaderId = compileShader(vertexResult.source, GL_VERTEX_SHADER, vertexErrorLog, &shader->vertexLineMappings);
     if (shader->vertexShaderId == 0) {
         shader->lastError = vertexErrorLog.empty() ? "Failed to compile vertex shader" : "Vertex shader compilation failed: " + vertexErrorLog;
         if (m_compilationCallback) {
@@ -113,7 +115,7 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     
     // Compile fragment shader
     std::string fragmentErrorLog;
-    shader->fragmentShaderId = compileShader(fragmentResult.source, GL_FRAGMENT_SHADER, fragmentErrorLog);
+    shader->fragmentShaderId = compileShader(fragmentResult.source, GL_FRAGMENT_SHADER, fragmentErrorLog, &shader->fragmentLineMappings);
     if (shader->fragmentShaderId == 0) {
         shader->lastError = fragmentErrorLog.empty() ? "Failed to compile fragment shader" : "Fragment shader compilation failed: " + fragmentErrorLog;
         cleanupShader(*shader);
@@ -297,7 +299,7 @@ const std::unordered_map<std::string, bool>& ShaderManager::getSwitchStates() co
     return m_switchStates;
 }
 
-GLuint ShaderManager::compileShader(const std::string& source, GLenum shaderType, std::string& outErrorLog) {
+GLuint ShaderManager::compileShader(const std::string& source, GLenum shaderType, std::string& outErrorLog, const std::vector<ShaderPreprocessor::LineMapping>* lineMappings) {
     outErrorLog.clear();
     std::string finalSource = source;
     const char* stageName = (shaderType == GL_VERTEX_SHADER) ? "Vertex" :
@@ -328,6 +330,7 @@ GLuint ShaderManager::compileShader(const std::string& source, GLenum shaderType
         if (outErrorLog.empty()) {
             outErrorLog = "Shader compilation failed with an unknown error";
         }
+        outErrorLog = remapErrorLog(outErrorLog, lineMappings);
         LOG_ERROR("{} shader compilation failed: {}", stageName, outErrorLog);
         glDeleteShader(shader);
         return 0;
@@ -386,6 +389,72 @@ std::string ShaderManager::getProgramInfoLog(GLuint program) {
     glGetProgramInfoLog(program, logLength, nullptr, log.data());
     
     return std::string(log.data());
+}
+
+std::string ShaderManager::remapErrorLog(const std::string& log, const std::vector<ShaderPreprocessor::LineMapping>* lineMappings) const {
+    if (!lineMappings || lineMappings->empty() || log.empty()) {
+        return log;
+    }
+
+    // Build quick lookup by preprocessed line (1-based)
+    int maxLine = lineMappings->back().preprocessedLine;
+    if (maxLine <= 0) {
+        return log;
+    }
+    std::vector<ShaderPreprocessor::LineMapping> table(static_cast<size_t>(maxLine) + 1);
+    std::vector<bool> has(static_cast<size_t>(maxLine) + 1, false);
+    for (const auto& mapping : *lineMappings) {
+        if (mapping.preprocessedLine > 0 && static_cast<size_t>(mapping.preprocessedLine) < table.size()) {
+            table[static_cast<size_t>(mapping.preprocessedLine)] = mapping;
+            has[static_cast<size_t>(mapping.preprocessedLine)] = true;
+        }
+    }
+
+    std::stringstream input(log);
+    std::stringstream output;
+    std::string line;
+    std::regex lineRegex(R"((\d+):(\d+)(?:\(\d+\))?)");
+    bool first = true;
+
+    while (std::getline(input, line)) {
+        std::smatch match;
+        std::string remappedLine = line;
+
+        if (std::regex_search(line, match, lineRegex) && match.size() >= 3) {
+            int preprocessedLine = 0;
+            try {
+                preprocessedLine = std::stoi(match[2].str());
+            } catch (...) {
+                preprocessedLine = 0;
+            }
+
+            const ShaderPreprocessor::LineMapping* mappingPtr = nullptr;
+            auto lookup = [&](int lineNumber) -> const ShaderPreprocessor::LineMapping* {
+                if (lineNumber > 0 && static_cast<size_t>(lineNumber) < has.size() && has[static_cast<size_t>(lineNumber)]) {
+                    return &table[static_cast<size_t>(lineNumber)];
+                }
+                return nullptr;
+            };
+
+            mappingPtr = lookup(preprocessedLine);
+            if (!mappingPtr && preprocessedLine > 1) {
+                // Try off-by-one correction since some drivers report 0-based lines
+                mappingPtr = lookup(preprocessedLine - 1);
+            }
+
+            if (mappingPtr && !mappingPtr->filePath.empty()) {
+                remappedLine = line + " [at " + mappingPtr->filePath + ":" + std::to_string(mappingPtr->fileLine) + "]";
+            }
+        }
+
+        if (!first) {
+            output << "\n";
+        }
+        output << remappedLine;
+        first = false;
+    }
+
+    return output.str();
 }
 
 void ShaderManager::renderToFramebuffer(const std::string& name, int width, int height, float time, float renderScaleFactor) {

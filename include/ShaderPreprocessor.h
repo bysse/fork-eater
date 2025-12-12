@@ -7,10 +7,17 @@
 
 class ShaderPreprocessor {
 public:
+    struct LineMapping {
+        int preprocessedLine = 0;   // 1-based line number in the flattened shader source
+        std::string filePath;       // Original file path
+        int fileLine = 0;           // 1-based line number in the original file
+    };
+
     struct PreprocessResult {
         std::string source;
         std::vector<std::string> includedFiles;
         std::vector<std::string> switchFlags;
+        std::vector<LineMapping> lineMappings;
     };
 
     // Callback for logging errors/warnings during preprocessing
@@ -26,5 +33,7 @@ private:
     std::string preprocessRecursive(const std::string& filePath,
                                     std::vector<std::string>& includeStack,
                                     std::set<std::string>& uniqueIncludedFiles,
-                                    std::vector<std::string>& switchFlags);
+                                    std::vector<std::string>& switchFlags,
+                                    std::vector<LineMapping>& lineMappings,
+                                    int& currentLine);
 };

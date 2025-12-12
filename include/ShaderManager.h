@@ -6,6 +6,8 @@
 #include <functional>
 #include <vector>
 
+#include "ShaderPreprocessor.h"
+
 // Forward declare OpenGL types
 typedef unsigned int GLuint;
 typedef unsigned int GLenum;
@@ -30,6 +32,8 @@ public:
         std::string fragmentPath;
         std::string preprocessedVertexSource;
         std::string preprocessedFragmentSource;
+        std::vector<ShaderPreprocessor::LineMapping> vertexLineMappings;
+        std::vector<ShaderPreprocessor::LineMapping> fragmentLineMappings;
         std::vector<std::string> includedFiles;
         std::vector<ShaderUniform> uniforms;
         std::vector<std::string> switchFlags;
@@ -98,12 +102,13 @@ private:
     float m_mouseUniform[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     
     // Helper functions
-    GLuint compileShader(const std::string& source, GLenum shaderType, std::string& outErrorLog);
+    GLuint compileShader(const std::string& source, GLenum shaderType, std::string& outErrorLog, const std::vector<ShaderPreprocessor::LineMapping>* lineMappings = nullptr);
     GLuint linkProgram(GLuint vertexShader, GLuint fragmentShader, std::string& outErrorLog);
     std::string readFile(const std::string& filePath);
     std::string getShaderInfoLog(GLuint shader);
     std::string getProgramInfoLog(GLuint program);
     void cleanupShader(ShaderProgram& shader);
+    std::string remapErrorLog(const std::string& log, const std::vector<ShaderPreprocessor::LineMapping>* lineMappings) const;
     
     ShaderPreprocessor* m_preprocessor;
 };
