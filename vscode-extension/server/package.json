@@ -1,0 +1,16 @@
+{
+	"name": "fork-eater-server",
+	"description": "Fork Eater Language Server",
+	"version": "0.0.1",
+	"publisher": "fork-eater",
+	"engines": {
+		"node": "*"
+	},
+	"dependencies": {
+		"vscode-languageserver": "^8.1.0",
+		"vscode-languageserver-textdocument": "^1.0.8"
+	},
+	"devDependencies": {
+		"@types/node": "^18.0.0"
+	}
+}

@@ -1,0 +1,16 @@
+{
+	"name": "fork-eater-client",
+	"description": "Fork Eater Language Server Client",
+	"version": "0.0.1",
+	"publisher": "fork-eater",
+	"engines": {
+		"vscode": "^1.75.0"
+	},
+	"dependencies": {
+		"vscode-languageclient": "^8.1.0"
+	},
+	"devDependencies": {
+		"@types/vscode": "^1.75.0",
+		"@types/node": "^18.0.0"
+	}
+}

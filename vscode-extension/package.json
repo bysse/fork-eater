@@ -1,0 +1,50 @@
+{
+	"name": "fork-eater-language-server",
+	"displayName": "Fork Eater Language Server",
+	"description": "Language server for Fork Eater shader editor",
+	"version": "0.0.1",
+	"publisher": "fork-eater",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/erikbratt/fork-eater.git"
+	},
+	"engines": {
+		"vscode": "^1.75.0"
+	},
+	"categories": [
+		"Programming Languages"
+	],
+	"activationEvents": [
+		"onLanguage:glsl"
+	],
+	"main": "./client/out/extension",
+	"contributes": {
+		"languages": [
+			{
+				"id": "glsl",
+				"extensions": [
+					".glsl",
+					".vert",
+					".frag"
+				],
+				"configuration": "./language-configuration.json"
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "npm run compile:client && npm run compile:server",
+		"compile:client": "tsc -b client",
+		"compile:server": "tsc -b server",
+		"watch": "npm run watch:client & npm run watch:server",
+		"watch:client": "tsc -b client -w",
+		"watch:server": "tsc -b server -w",
+		"postinstall": "cd client && npm install && cd ../server && npm install"
+	},
+	"devDependencies": {
+		"@types/node": "^18.0.0",
+		"@types/vscode": "^1.75.0",
+		"typescript": "^4.9.0",
+		"vsce": "^2.15.0"
+	}
+}
