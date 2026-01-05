@@ -6,6 +6,7 @@
 #include <queue>
 #include <mutex>
 #include <unordered_map>
+#include <deque>
 
 // Forward declare ImGui types
 struct ImVec2;
@@ -87,6 +88,7 @@ private:
     int m_screenHeight;
     float m_renderScaleFactor; // Current render scale factor (1.0, 0.5, 0.25)
     std::unordered_map<std::string, std::pair<int, int>> m_passOutputSizes;
+    std::deque<float> m_fpsHistory;
     
     // Thread-safe shader reload queue
     std::queue<std::string> m_pendingReloads;

@@ -42,6 +42,12 @@ void Framebuffer::resize(int width, int height) {
     setupFramebuffer();
 }
 
+void Framebuffer::setFilter(GLenum filter) {
+    glBindTexture(GL_TEXTURE_2D, m_textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
 void Framebuffer::setupFramebuffer() {
     // Generate FBO
     glGenFramebuffers(1, &m_fbo);

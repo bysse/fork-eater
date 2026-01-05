@@ -14,6 +14,7 @@ public:
     int getWidth() const;
     int getHeight() const;
     void resize(int width, int height);
+    void setFilter(GLenum filter);
 
 private:
     GLuint m_fbo;

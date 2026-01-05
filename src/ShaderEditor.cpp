@@ -16,6 +16,7 @@
 #include <filesystem>
 #include <chrono>
 #include <iomanip>
+#include <algorithm>
 
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -76,20 +77,70 @@ void ShaderEditor::render() {
                 }
                 auto startTime = glfwGetTime();
                 m_shaderManager->renderToFramebuffer(pass.name, width, height, m_timeline->getCurrentTime(), m_renderScaleFactor);
+                glFinish(); // Wait for GPU to finish
                 auto endTime = glfwGetTime();
                 auto duration = endTime - startTime;
-                float currentFPS = (duration > 1e-6) ? (1.0f / static_cast<float>(duration)) : 0.0f;
-                m_timeline->addFPS(m_timeline->getCurrentTime(), currentFPS, m_renderScaleFactor);
 
-                // Adjust render scale factor based on FPS
-                Settings& settings = Settings::getInstance();
-                if (currentFPS < settings.getLowFPSRenderThreshold25()) {
-                    m_renderScaleFactor = 0.25f;
-                } else if (currentFPS < settings.getLowFPSRenderThreshold50()) {
-                    m_renderScaleFactor = 0.5f;
-                } else {
-                    m_renderScaleFactor = 1.0f;
+                float currentFPS = (duration > 1e-6) ? (1.0f / static_cast<float>(duration)) : 0.0f;
+                
+                std::stringstream ss;
+                ss << "Frame Duration: " << std::fixed << std::setprecision(4) << duration << "s, Current FPS: " << std::setprecision(2) << currentFPS;
+                LOG_DEBUG(ss.str());
+
+                float lastRenderScaleFactor = m_renderScaleFactor;
+
+                // Add to history and maintain size
+                m_fpsHistory.push_back(currentFPS);
+                if (m_fpsHistory.size() > 10) { // Average over last 10 frames
+                    m_fpsHistory.pop_front();
                 }
+
+                // Adjust render scale factor for the NEXT frame
+                Settings& settings = Settings::getInstance();
+                const float MIN_SCALE = 0.05f;
+                const float MAX_SCALE = 1.0f;
+
+                // Aggressive drop for critical performance
+                if (currentFPS < settings.getLowFPSRenderThreshold25()) {
+                    m_renderScaleFactor = 0.4f;
+                } else if (currentFPS < settings.getLowFPSRenderThreshold50()) {
+                    m_renderScaleFactor = 0.6f;
+                } else {
+                    // Progressive scaling for fine-tuning
+                    if (m_fpsHistory.size() >= 10) { // Only adjust if we have enough data
+                        float sum = 0.0f;
+                        for (float fps : m_fpsHistory) {
+                            sum += fps;
+                        }
+                        float averageFPS = sum / m_fpsHistory.size();
+
+                        const float SCALE_DOWN_STEP = 0.05f;
+                        const float SCALE_UP_STEP = 0.025f;
+                        const float TARGET_FPS = (settings.getLowFPSThreshold() + settings.getHighFPSThreshold()) / 2.0f;
+                        const float SCALE_UP_THRESHOLD = settings.getHighFPSThreshold();
+
+                        if (averageFPS < TARGET_FPS) {
+                            m_renderScaleFactor -= SCALE_DOWN_STEP;
+                        } else if (averageFPS > SCALE_UP_THRESHOLD) {
+                            m_renderScaleFactor += SCALE_UP_STEP;
+                        }
+                    }
+                }
+
+                // Clamp the render scale factor
+                m_renderScaleFactor = std::clamp(m_renderScaleFactor, MIN_SCALE, MAX_SCALE);
+
+                // Log the render scale factor if it changes
+                static float lastLoggedScale = 1.0f;
+                if (std::abs(m_renderScaleFactor - lastLoggedScale) > 1e-4) {
+                    std::stringstream ss;
+                    ss << "Render scale factor changed to: " << std::fixed << std::setprecision(2) << m_renderScaleFactor;
+                    LOG_INFO(ss.str());
+                    lastLoggedScale = m_renderScaleFactor;
+                }
+                
+                // Add the FPS and the render scale factor that was used for THIS frame
+                m_timeline->addFPS(m_timeline->getCurrentTime(), currentFPS, lastRenderScaleFactor);
             }
         }
     }

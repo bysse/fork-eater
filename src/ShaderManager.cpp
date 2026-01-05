@@ -469,6 +469,9 @@ void ShaderManager::renderToFramebuffer(const std::string& name, int width, int 
         it->second->resize(scaledWidth, scaledHeight);
     }
 
+    // Set texture filtering based on render scale
+    m_framebuffers[name]->setFilter(renderScaleFactor < 1.0f ? GL_NEAREST : GL_LINEAR);
+
     m_framebuffers[name]->bind();
     glViewport(0, 0, scaledWidth, scaledHeight); // Set viewport to scaled dimensions
     useShader(name);
