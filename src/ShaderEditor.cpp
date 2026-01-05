@@ -78,8 +78,8 @@ void ShaderEditor::render() {
                 m_shaderManager->renderToFramebuffer(pass.name, width, height, m_timeline->getCurrentTime(), m_renderScaleFactor);
                 auto endTime = glfwGetTime();
                 auto duration = endTime - startTime;
-                float currentFPS = (duration > 0) ? (1.0 / duration) : 0.0f;
-                m_timeline->addFPS(m_timeline->getCurrentTime(), currentFPS);
+                float currentFPS = (duration > 1e-6) ? (1.0f / static_cast<float>(duration)) : 0.0f;
+                m_timeline->addFPS(m_timeline->getCurrentTime(), currentFPS, m_renderScaleFactor);
 
                 // Adjust render scale factor based on FPS
                 Settings& settings = Settings::getInstance();

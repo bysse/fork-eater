@@ -54,7 +54,7 @@ public:
     void stop();
     
     // Add FPS value to buffer
-    void addFPS(float time, float fps);
+    void addFPS(float time, float fps, float renderScaleFactor);
 
     // Clear FPS data
     void clearFPSData();
@@ -80,7 +80,11 @@ private:
 private:
     
     // FPS tracking
-    std::vector<float> m_fpsData;
+    struct FPSData {
+        float fps = -1.0f;
+        float renderScaleFactor = 1.0f;
+    };
+    std::vector<FPSData> m_fpsData;
     float m_timeSliceDuration;
     
     // UI constants

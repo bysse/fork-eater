@@ -161,9 +161,6 @@ public:
             float deltaTime = currentTime - lastTime;
             lastTime = currentTime;
 
-            if (m_shaderEditor->getTimeline()) {
-                m_shaderEditor->getTimeline()->addFPS(m_shaderEditor->getTimeline()->getCurrentTime(), 1.0f / deltaTime);
-            }
 
             // Test mode timeout (5 seconds max)
             if (m_testMode) {

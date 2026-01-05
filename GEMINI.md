@@ -165,7 +165,9 @@ A raymarching example with a depth of field pass is available in `templates/raym
 
 ## Documentation
 
-When a new feature is implemented, the `SHADER_DEVELOPMENT.md` file must be updated to reflect the changes.
+All project documentation is now organized in the `docs/` directory, with `docs/README.md` serving as the central hub. Feature-specific documentation can be found in `docs/features/`.
+
+When a new feature is implemented or an existing one is modified, its corresponding documentation file in `docs/features/` must be updated to reflect the changes. If a new feature is added, a new Markdown file should be created in `docs/features/` and linked from `docs/README.md`.
 
 ## Shader Project Structure
 

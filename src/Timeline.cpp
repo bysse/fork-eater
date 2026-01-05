@@ -21,21 +21,23 @@ Timeline::Timeline()
 {
     // Initialize fpsData with a size based on duration and timeSliceDuration
     // and fill with -1.0f to indicate no data recorded yet
-    m_fpsData.resize(static_cast<size_t>(m_duration / m_timeSliceDuration), -1.0f);
+    m_fpsData.resize(static_cast<size_t>(m_duration / m_timeSliceDuration));
 }
 
-void Timeline::addFPS(float time, float fps) {
+void Timeline::addFPS(float time, float fps, float renderScaleFactor) {
     if (time < 0.0f || time >= m_duration) {
         return; // Time is out of bounds
     }
     size_t index = static_cast<size_t>(time / m_timeSliceDuration);
     if (index < m_fpsData.size()) {
-        m_fpsData[index] = fps;
+        m_fpsData[index] = {fps, renderScaleFactor};
     }
 }
 
 void Timeline::clearFPSData() {
-    std::fill(m_fpsData.begin(), m_fpsData.end(), -1.0f);
+    for (auto& data : m_fpsData) {
+        data = FPSData();
+    }
 }
 
 void Timeline::renderTimelineBar(float renderScaleFactor) {
@@ -62,19 +64,21 @@ void Timeline::renderTimelineBar(float renderScaleFactor) {
     float segmentWidth = bar_width / m_fpsData.size();
 
     for (size_t i = 0; i < m_fpsData.size(); ++i) {
-        float fps = m_fpsData[i];
+        const auto& data = m_fpsData[i];
         ImColor color;
 
-        if (fps < 0.0f) { // Not recorded yet
+        if (data.renderScaleFactor < 1.0f) {
+            color = ImColor(255, 0, 0); // Red
+        } else if (data.fps < 0.0f) { // Not recorded yet
             color = ImColor(128, 128, 128); // Grey
         } else {
-            if (fps < Settings::getInstance().getLowFPSThreshold()) {
+            if (data.fps < Settings::getInstance().getLowFPSThreshold()) {
                 color = ImColor(255, 0, 0); // Red
-            } else if (fps > Settings::getInstance().getHighFPSThreshold()) {
+            } else if (data.fps > Settings::getInstance().getHighFPSThreshold()) {
                 color = ImColor(0, 255, 0); // Green
             } else {
                 // Interpolate between red and green for intermediate values
-                float t = (fps - Settings::getInstance().getLowFPSThreshold()) /
+                float t = (data.fps - Settings::getInstance().getLowFPSThreshold()) /
                           (Settings::getInstance().getHighFPSThreshold() - Settings::getInstance().getLowFPSThreshold());
                 t = std::clamp(t, 0.0f, 1.0f);
                 color = ImColor(static_cast<int>(255 * (1 - t)), static_cast<int>(255 * t), 0); // Red to Green
