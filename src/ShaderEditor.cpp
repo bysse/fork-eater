@@ -37,7 +37,9 @@ ShaderEditor::ShaderEditor(std::shared_ptr<ShaderManager> shaderManager,
     , m_reloadProject(false)
     , m_screenWidth(1280)
     , m_screenHeight(720)
-    , m_renderScaleFactor(1.0f) {
+    , m_renderScaleFactor(1.0f)
+    , m_framesAboveHighThreshold(0)
+    , m_framesBelowLowThreshold(0) {
     
     // Create component classes
     m_previewPanel = std::make_unique<PreviewPanel>(m_shaderManager);
@@ -95,37 +97,46 @@ void ShaderEditor::render() {
                     m_fpsHistory.pop_front();
                 }
 
-                // Adjust render scale factor for the NEXT frame
+                // Hysteresis-based render scaling
                 Settings& settings = Settings::getInstance();
                 const float MIN_SCALE = 0.05f;
                 const float MAX_SCALE = 1.0f;
+                const int FRAMES_TO_INCREASE_SCALE = 60; // Require 60 consecutive frames
+                const int FRAMES_TO_DECREASE_SCALE = 15; // Require 15 consecutive frames
 
-                // Aggressive drop for critical performance
-                if (currentFPS < settings.getLowFPSRenderThreshold25()) {
-                    m_renderScaleFactor = 0.4f;
-                } else if (currentFPS < settings.getLowFPSRenderThreshold50()) {
-                    m_renderScaleFactor = 0.6f;
-                } else {
-                    // Progressive scaling for fine-tuning
-                    if (m_fpsHistory.size() >= 10) { // Only adjust if we have enough data
-                        float sum = 0.0f;
-                        for (float fps : m_fpsHistory) {
-                            sum += fps;
-                        }
-                        float averageFPS = sum / m_fpsHistory.size();
+                if (m_fpsHistory.size() >= 10) { // Only adjust if we have enough data
+                    float sum = 0.0f;
+                    for (float fps : m_fpsHistory) {
+                        sum += fps;
+                    }
+                    float averageFPS = sum / m_fpsHistory.size();
 
-                        const float SCALE_DOWN_STEP = 0.05f;
-                        const float SCALE_UP_STEP = 0.025f;
-                        const float TARGET_FPS = (settings.getLowFPSThreshold() + settings.getHighFPSThreshold()) / 2.0f;
-                        const float SCALE_UP_THRESHOLD = settings.getHighFPSThreshold();
+                    const float SCALE_DOWN_STEP = 0.10f;
+                    const float SCALE_UP_STEP = 0.05f;
+                    const float LOW_FPS_THRESHOLD = settings.getLowFPSThreshold();
+                    const float HIGH_FPS_THRESHOLD = settings.getHighFPSThreshold();
 
-                        if (averageFPS < TARGET_FPS) {
-                            m_renderScaleFactor -= SCALE_DOWN_STEP;
-                        } else if (averageFPS > SCALE_UP_THRESHOLD) {
-                            m_renderScaleFactor += SCALE_UP_STEP;
-                        }
+                    if (averageFPS < LOW_FPS_THRESHOLD) {
+                        m_framesBelowLowThreshold++;
+                        m_framesAboveHighThreshold = 0; // Reset the other counter
+                    } else if (averageFPS > HIGH_FPS_THRESHOLD) {
+                        m_framesBelowLowThreshold = 0; // Reset the other counter
+                        m_framesAboveHighThreshold++;
+                    } else {
+                        // FPS is in the stable range, reset counters
+                        m_framesBelowLowThreshold = 0;
+                        m_framesAboveHighThreshold = 0;
+                    }
+
+                    if (m_framesBelowLowThreshold >= FRAMES_TO_DECREASE_SCALE) {
+                        m_renderScaleFactor -= SCALE_DOWN_STEP;
+                        m_framesBelowLowThreshold = 0; // Reset after scaling
+                    } else if (m_framesAboveHighThreshold >= FRAMES_TO_INCREASE_SCALE) {
+                        m_renderScaleFactor += SCALE_UP_STEP;
+                        m_framesAboveHighThreshold = 0; // Reset after scaling
                     }
                 }
+
 
                 // Clamp the render scale factor
                 m_renderScaleFactor = std::clamp(m_renderScaleFactor, MIN_SCALE, MAX_SCALE);
@@ -203,6 +214,14 @@ bool ShaderEditor::initialize() {
         float scaledInit = Timeline::defaultHeightDIP() * scale + outerChrome;
         if (m_timelineHeight < scaledInit) m_timelineHeight = scaledInit;
     }
+
+    Settings::getInstance().onRenderScaleModeChanged = [this]() {
+        LOG_INFO("Render scale mode changed. Reloading shaders...");
+        if (m_currentProject) {
+            m_shaderManager->clearShaders();
+            m_currentProject->loadShadersIntoManager(m_shaderManager);
+        }
+    };
 
     // Set up shader compilation callback
     m_shaderManager->setCompilationCallback(
@@ -590,7 +609,8 @@ void ShaderEditor::processPendingReloads() {
         reloadQueue.pop();
         
         LOG_DEBUG("Processing shader reload: {}", shaderName);
-        if (m_shaderManager->reloadShader(shaderName)) {
+        RenderScaleMode scaleMode = Settings::getInstance().getRenderScaleMode();
+        if (m_shaderManager->reloadShader(shaderName, scaleMode)) {
             auto shader = m_shaderManager->getShader(shaderName);
             if (shader && m_currentProject) {
                 m_currentProject->applyUniformsToShader(shaderName, shader);

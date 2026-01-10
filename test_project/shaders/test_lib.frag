@@ -7,7 +7,7 @@ in vec2 TexCoord;
 uniform vec3  iResolution;
 uniform float iTime;
 
-#pragma include("<utils.glsl>")
+#pragma include("lib/utils.glsl")
 
 void main() {
     vec2 uv = gl_FragCoord.xy / iResolution.xy;

@@ -4,6 +4,7 @@
 #include <vector>
 #include <set>
 #include <functional>
+#include "RenderScaleMode.h"
 
 class ShaderPreprocessor {
 public:
@@ -26,7 +27,7 @@ public:
     ShaderPreprocessor();
 
     // Preprocesses a shader file, resolving #pragma include directives.
-    PreprocessResult preprocess(const std::string& filePath);
+    PreprocessResult preprocess(const std::string& filePath, RenderScaleMode scaleMode = RenderScaleMode::Resolution);
 
 private:
     // Recursive helper for preprocessing

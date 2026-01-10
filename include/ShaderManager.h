@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "ShaderPreprocessor.h"
+#include "RenderScaleMode.h"
 
 // Forward declare OpenGL types
 typedef unsigned int GLuint;
@@ -47,10 +48,11 @@ public:
     // Load and compile shader program
     std::shared_ptr<ShaderProgram> loadShader(const std::string& name, 
                                                const std::string& vertexPath, 
-                                               const std::string& fragmentPath);
+                                               const std::string& fragmentPath,
+                                               RenderScaleMode scaleMode = RenderScaleMode::Resolution);
     
     // Reload existing shader
-    bool reloadShader(const std::string& name);
+    bool reloadShader(const std::string& name, RenderScaleMode scaleMode = RenderScaleMode::Resolution);
     
     // Get shader program
     std::shared_ptr<ShaderProgram> getShader(const std::string& name);

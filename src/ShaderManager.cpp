@@ -66,7 +66,8 @@ ShaderManager::~ShaderManager() {
 std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     const std::string& name, 
     const std::string& vertexPath, 
-    const std::string& fragmentPath) {
+    const std::string& fragmentPath,
+    RenderScaleMode scaleMode) {
     
     LOG_DEBUG("[ShaderManager] Loading shader '{}': {} + {}", name, vertexPath, fragmentPath);
     
@@ -76,8 +77,8 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     shader->fragmentPath = fragmentPath;
     shader->isValid = false;
 
-    auto vertexResult = m_preprocessor->preprocess(vertexPath);
-    auto fragmentResult = m_preprocessor->preprocess(fragmentPath);
+    auto vertexResult = m_preprocessor->preprocess(vertexPath, scaleMode);
+    auto fragmentResult = m_preprocessor->preprocess(fragmentPath, scaleMode);
 
     shader->preprocessedVertexSource = vertexResult.source;
     shader->preprocessedFragmentSource = fragmentResult.source;
@@ -148,40 +149,50 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
             std::string nameStr = matches[2].str();
 
             // Skip system uniforms
-            if (nameStr == "u_time" || nameStr == "u_resolution" || nameStr == "u_mouse" ||
+            if (nameStr == "u_time" || nameStr == "u_resolution" || nameStr == "u_mouse" || 
                 nameStr == "iTime" || nameStr == "iResolution" || nameStr == "iMouse") {
-                it = matches[0].second;
+                it = matches.suffix().first;
                 continue;
             }
-
+            
+            GLenum type = GL_FLOAT;
+            if (typeStr == "vec2") type = GL_FLOAT_VEC2;
+            else if (typeStr == "vec3") type = GL_FLOAT_VEC3;
+            else if (typeStr == "vec4") type = GL_FLOAT_VEC4;
+            
             ShaderUniform uniform;
             uniform.name = nameStr;
-            if (typeStr == "float") {
-                uniform.type = GL_FLOAT;
-            } else if (typeStr == "vec2") {
-                uniform.type = GL_FLOAT_VEC2;
-            } else if (typeStr == "vec3") {
-                uniform.type = GL_FLOAT_VEC3;
-            } else if (typeStr == "vec4") {
-                uniform.type = GL_FLOAT_VEC4;
+            uniform.type = type;
+            // Initialize with default values (0)
+            uniform.value[0] = uniform.value[1] = uniform.value[2] = uniform.value[3] = 0.0f;
+            
+            // Try to find if this uniform already exists in the previous shader version to preserve value
+            if (m_shaders.find(name) != m_shaders.end()) {
+                auto& oldUniforms = m_shaders[name]->uniforms;
+                for (const auto& oldU : oldUniforms) {
+                    if (oldU.name == nameStr && oldU.type == type) {
+                        for(int i=0; i<4; i++) uniform.value[i] = oldU.value[i];
+                        break;
+                    }
+                }
             }
+            
             shader->uniforms.push_back(uniform);
         }
-        it = matches[0].second;
+        it = matches.suffix().first;
     }
     
     shader->isValid = true;
-    shader->lastError = "Compilation successful";
     m_shaders[name] = shader;
     
     if (m_compilationCallback) {
-        m_compilationCallback(name, true, shader->lastError);
+        m_compilationCallback(name, true, "");
     }
     
     return shader;
 }
 
-bool ShaderManager::reloadShader(const std::string& name) {
+bool ShaderManager::reloadShader(const std::string& name, RenderScaleMode scaleMode) {
     auto it = m_shaders.find(name);
     if (it == m_shaders.end()) {
         return false;
@@ -189,11 +200,10 @@ bool ShaderManager::reloadShader(const std::string& name) {
     
     m_errorLogged[name] = false;
     auto oldShader = it->second;
-    auto newShader = loadShader(name, oldShader->vertexPath, oldShader->fragmentPath);
+    auto newShader = loadShader(name, oldShader->vertexPath, oldShader->fragmentPath, scaleMode);
     
     return newShader->isValid;
 }
-
 std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::getShader(const std::string& name) {
     auto it = m_shaders.find(name);
     return (it != m_shaders.end()) ? it->second : nullptr;

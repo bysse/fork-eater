@@ -2,6 +2,7 @@
 
 #include <string>
 #include <functional>
+#include "RenderScaleMode.h"
 
 enum class DPIScaleMode {
     Auto,       // Automatically detect DPI scaling
@@ -52,8 +53,14 @@ public:
     float getLowFPSRenderThreshold25() const { return m_lowFPSRenderThreshold25; }
     void setLowFPSRenderThreshold25(float threshold);
     
+    // Render Scale Mode
+    RenderScaleMode getRenderScaleMode() const { return m_renderScaleMode; }
+    void setRenderScaleMode(RenderScaleMode mode);
+
     // Callback for when settings change
     std::function<void()> onSettingsChanged;
+    // Callback for when render scale mode changes
+    std::function<void()> onRenderScaleModeChanged;
     
 private:
     Settings() = default;
@@ -73,6 +80,7 @@ private:
     float m_highFPSThreshold = 50.0f;
     float m_lowFPSRenderThreshold50 = 10.0f; // FPS below this will trigger 50% render scale
     float m_lowFPSRenderThreshold25 = 5.0f;  // FPS below this will trigger 25% render scale
+    RenderScaleMode m_renderScaleMode = RenderScaleMode::Resolution;
     
     // Cache detected DPI scale
     float m_detectedDPIScale = 1.0f;

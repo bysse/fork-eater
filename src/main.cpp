@@ -22,6 +22,7 @@
 #include "Timeline.h"
 #include "GeneratedShaderLibraries.h"
 #include <filesystem>
+#include "RenderScaleMode.h"
 
 // Constants
 const int WINDOW_WIDTH = 1280;
@@ -195,6 +196,13 @@ public:
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
             
             glfwSwapBuffers(m_window);
+
+            // Dump framebuffer if requested
+            if (m_dumpFramebuffer) {
+                dumpFramebuffer(m_dumpPassName, m_dumpOutputPath);
+                // Disable dump so we don't dump every frame if we continue running (though test mode will exit)
+                m_dumpFramebuffer = false;
+            }
             
             // Test mode: exit after first render loop
             if (m_testMode) {
@@ -209,6 +217,12 @@ public:
     void setTestMode(bool enabled, int exitCode = 0) {
         m_testMode = enabled;
         m_testExitCode = exitCode;
+    }
+    
+    void setDumpFramebuffer(const std::string& passName, const std::string& outputPath) {
+        m_dumpFramebuffer = true;
+        m_dumpPassName = passName;
+        m_dumpOutputPath = outputPath;
     }
     
     int getTestExitCode() const {
@@ -261,6 +275,11 @@ private:
     std::shared_ptr<FileWatcher> m_fileWatcher;
     std::unique_ptr<ShaderEditor> m_shaderEditor;
     std::unique_ptr<Timeline> m_timeline;
+    
+    // Dump framebuffer options
+    bool m_dumpFramebuffer = false;
+    std::string m_dumpPassName;
+    std::string m_dumpOutputPath;
     
     // Shader project path
     std::string m_shaderProjectPath;
@@ -335,6 +354,8 @@ int main(int argc, char* argv[]) {
     bool overrideScaling = false;
     float customScale = 1.0f;
     bool disableDpiScaling = false;
+    bool overrideRenderScaleMode = false;
+    RenderScaleMode customRenderScaleMode = RenderScaleMode::Resolution;
     
     // Parse command line arguments
     for (int i = 1; i < argc; i++) {
@@ -346,6 +367,19 @@ int main(int argc, char* argv[]) {
         }
         else if (arg == "--debug" || arg == "-d") {
             debugMode = true;
+        }
+        else if (arg == "--render-scale-mode" && i + 1 < argc) {
+            std::string modeStr = argv[i + 1];
+            if (modeStr == "chunk") {
+                customRenderScaleMode = RenderScaleMode::Chunk;
+            } else if (modeStr == "resolution") {
+                customRenderScaleMode = RenderScaleMode::Resolution;
+            } else {
+                LOG_ERROR("Invalid render scale mode: {}. Use 'chunk' or 'resolution'.", modeStr);
+                return 1;
+            }
+            overrideRenderScaleMode = true;
+            i++; // Skip mode argument
         }
         else if (arg == "--test") {
             testMode = true;
@@ -485,8 +519,15 @@ int main(int argc, char* argv[]) {
     }
     
     // Apply command line DPI scaling settings before initialization
+    Settings& settings = Settings::getInstance();
+    
+    if (overrideRenderScaleMode) {
+        settings.setRenderScaleMode(customRenderScaleMode);
+        LOG_INFO("Render scale mode set to {} via command line", 
+                 (customRenderScaleMode == RenderScaleMode::Chunk ? "Chunk" : "Resolution"));
+    }
+
     if (overrideScaling || disableDpiScaling) {
-        Settings& settings = Settings::getInstance();
         
         if (disableDpiScaling) {
             settings.setDPIScaleMode(DPIScaleMode::Disabled);
@@ -505,14 +546,15 @@ int main(int argc, char* argv[]) {
     }
 
     if (dumpFramebuffer) {
-        app.dumpFramebuffer(dumpPassName, dumpOutputPath);
-        return 0;
+        app.setDumpFramebuffer(dumpPassName, dumpOutputPath);
+        // Force test mode to ensure we run one frame and exit
+        app.setTestMode(true, testMode ? testExitCode : 0);
     }
     
     app.run();
     
     // Return test exit code if in test mode
-    if (testMode) {
+    if (testMode || dumpFramebuffer) {
         return app.getTestExitCode();
     }
     

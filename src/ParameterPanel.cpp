@@ -1,5 +1,7 @@
 #include "ParameterPanel.h"
 #include "imgui.h"
+#include "Settings.h"
+#include "RenderScaleMode.h"
 
 ParameterPanel::ParameterPanel(std::shared_ptr<ShaderManager> shaderManager, std::shared_ptr<ShaderProject> shaderProject)
     : m_shaderManager(shaderManager), m_shaderProject(shaderProject) {}
@@ -56,7 +58,8 @@ void ParameterPanel::render(const std::string& shaderName) {
                 bool enabled = m_shaderManager->getSwitchState(flag);
                 if (ImGui::Checkbox(flag.c_str(), &enabled)) {
                     m_shaderManager->setSwitchState(flag, enabled);
-                    if (m_shaderManager->reloadShader(shaderName)) {
+                    RenderScaleMode scaleMode = Settings::getInstance().getRenderScaleMode();
+                    if (m_shaderManager->reloadShader(shaderName, scaleMode)) {
                         auto newShader = m_shaderManager->getShader(shaderName);
                         if (newShader && m_shaderProject) {
                             m_shaderProject->applyUniformsToShader(shaderName, newShader);

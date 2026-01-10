@@ -7,3 +7,4 @@ Welcome to the official documentation for Fork Eater. This documentation is desi
 Below is a list of documented application features. Each file provides a detailed breakdown of its functionality, key code components, and configuration.
 
 *   [Timeline FPS Indicator](./features/timeline-fps-indicator.md)
+*   [Render Scaling](./features/render-scaling.md)

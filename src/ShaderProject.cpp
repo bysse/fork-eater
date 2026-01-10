@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <unordered_set>
 #include "json.hpp"
+#include "Settings.h"
+#include "RenderScaleMode.h"
 
 using json = nlohmann::json;
 
@@ -376,13 +378,15 @@ bool ShaderProject::loadShadersIntoManager(std::shared_ptr<ShaderManager> shader
         return false;
     }
     
+    RenderScaleMode scaleMode = Settings::getInstance().getRenderScaleMode();
+
     for (const auto& pass : m_manifest.passes) {
         if (!pass.enabled) continue;
         
         std::string vertPath = getShaderPath(pass.vertexShader);
         std::string fragPath = getShaderPath(pass.fragmentShader);
         
-        auto shader = shaderManager->loadShader(pass.name, vertPath, fragPath);
+        auto shader = shaderManager->loadShader(pass.name, vertPath, fragPath, scaleMode);
         if (!shader) {
             LOG_ERROR("Failed to load shader pass: {}", pass.name);
             return false;

@@ -3,6 +3,8 @@
 #include "FileWatcher.h"
 #include <fstream>
 #include <iostream>
+#include "Settings.h"
+#include "RenderScaleMode.h"
 
 FileManager::FileManager(std::shared_ptr<ShaderManager> shaderManager, 
                          std::shared_ptr<FileWatcher> fileWatcher)
@@ -80,7 +82,8 @@ void FileManager::createNewShader() {
     }
     
     // Load shader
-    m_shaderManager->loadShader(name, vertPath, fragPath);
+    RenderScaleMode scaleMode = Settings::getInstance().getRenderScaleMode();
+    m_shaderManager->loadShader(name, vertPath, fragPath, scaleMode);
 }
 
 void FileManager::onFileChanged(const std::string& filePath) {
@@ -90,7 +93,8 @@ void FileManager::onFileChanged(const std::string& filePath) {
         for (const auto& name : shaderNames) {
             auto shader = m_shaderManager->getShader(name);
             if (shader && (shader->vertexPath == filePath || shader->fragmentPath == filePath)) {
-                m_shaderManager->reloadShader(name);
+                RenderScaleMode scaleMode = Settings::getInstance().getRenderScaleMode();
+                m_shaderManager->reloadShader(name, scaleMode);
                 break;
             }
         }

@@ -26,7 +26,7 @@ ShaderPreprocessor::ShaderPreprocessor() {
     EmbeddedLibraries::initialize();
 }
 
-ShaderPreprocessor::PreprocessResult ShaderPreprocessor::preprocess(const std::string& filePath) {
+ShaderPreprocessor::PreprocessResult ShaderPreprocessor::preprocess(const std::string& filePath, RenderScaleMode scaleMode) {
     PreprocessResult result;
     std::vector<std::string> includeStack;
     std::set<std::string> uniqueIncludedFiles;
@@ -35,6 +35,44 @@ ShaderPreprocessor::PreprocessResult ShaderPreprocessor::preprocess(const std::s
 
     for (const auto& file : uniqueIncludedFiles) {
         result.includedFiles.push_back(file);
+    }
+    
+    // Conditional Chunk Logic Injection
+    if (scaleMode == RenderScaleMode::Chunk && filePath.find(".frag") != std::string::npos) {
+        std::string chunkUniforms = R"(
+// Chunk rendering uniforms
+uniform bool u_progressive_fill;
+uniform int u_render_phase;
+uniform float u_renderChunkFactor;
+uniform float u_time_offset;
+
+bool shouldDiscard() {
+    if (!u_progressive_fill) return false;
+    ivec2 coord = ivec2(gl_FragCoord.xy);
+    // 2x2 Bayer matrix pattern for 4 phases
+    int phase = (coord.x % 2) + (coord.y % 2) * 2;
+    return phase != u_render_phase;
+}
+)";
+        
+        // Insert uniforms and helper function after version directive
+        size_t versionPos = result.source.find("#version");
+        if (versionPos != std::string::npos) {
+            size_t eolPos = result.source.find('\n', versionPos);
+            if (eolPos != std::string::npos) {
+                result.source.insert(eolPos + 1, chunkUniforms);
+            }
+        } else {
+            result.source.insert(0, chunkUniforms);
+        }
+        
+        // Insert discard check at start of main
+        std::regex mainRegex(R"(void\s+main\s*\(\s*\)\s*\{)");
+        std::smatch matches;
+        if (std::regex_search(result.source, matches, mainRegex)) {
+            size_t mainPos = matches.position() + matches.length();
+            result.source.insert(mainPos, "\n    if (shouldDiscard()) discard;\n");
+        }
     }
     
     return result;
@@ -68,9 +106,27 @@ std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
     LOG_DEBUG("Source for {}:\n{}", filePath, source);
 
     std::stringstream preprocessedSource;
+    std::string versionDirective;
+    std::stringstream content;
     std::stringstream ss(source);
     std::string line;
-    std::regex includeRegex(R"x(#pragma\s+include\s*\(([^)]+)\))x");
+    std::regex versionRegex(R"x(\s*#\s*version\s+\d+\s+\w*)x");
+
+    // First, separate the #version directive from the rest of the content
+    while (std::getline(ss, line)) {
+        if (std::regex_match(line, versionRegex) && versionDirective.empty()) {
+            versionDirective = line + "\n";
+        } else {
+            content << line << "\n";
+        }
+    }
+
+    // Now, process the content for includes and other pragmas
+    preprocessedSource << versionDirective;
+    ss.clear();
+    ss.str(content.str());
+    
+    std::regex includeRegex(R"x(#pragma\s+include\s*(?:<([^>]+)>|"([^"]+)"))x");
     std::regex switchRegex(R"x(#pragma\s+switch\s*\(([^)]+)\))x");
     int fileLineNumber = 0;
     
@@ -78,28 +134,57 @@ std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
         ++fileLineNumber;
         std::smatch matches;
         if (std::regex_search(line, matches, includeRegex)) {
-            if (matches.size() == 2) {
-                std::string includeFileName = matches[1].str();
+            if (matches.size() == 3) {
+                std::string libInclude = matches[1].str();
+                std::string fileInclude = matches[2].str();
+                std::string includeFileName = !libInclude.empty() ? libInclude : fileInclude;
+                
                 std::string includedContent;
+                
+                // Check if it is an embedded library
+                bool isEmbedded = !libInclude.empty();
+                if (!isEmbedded && includeFileName.rfind("lib/", 0) == 0) {
+                    isEmbedded = true;
+                    // Strip "lib/" prefix for lookup if needed, but for now try exact match first
+                    // If we assume libs/utils.glsl is stored as "utils.glsl", we should strip.
+                    // But if it is stored as "lib/utils.glsl", we shouldn't.
+                    // Let's try to lookup exact first, then stripped.
+                }
 
-                if (includeFileName.rfind("lib/", 0) == 0) {
-                    std::filesystem::path projectRoot = std::filesystem::path(filePath).parent_path().parent_path();
-                    std::filesystem::path libDir = projectRoot / "lib";
-                    std::filesystem::create_directories(libDir);
-                    std::string libFileName = includeFileName.substr(4);
-                    std::filesystem::path libFilePath = libDir / libFileName;
-
-                    if (!std::filesystem::exists(libFilePath)) {
-                        auto it = EmbeddedLibraries::g_libs.find(libFileName);
-                        if (it != EmbeddedLibraries::g_libs.end()) {
-                            std::ofstream outFile(libFilePath);
-                            outFile.write(it->second.first, it->second.second);
-                            outFile.close();
-                        }
+                bool foundInEmbedded = false;
+                if (isEmbedded) {
+                     // Try exact match
+                    auto it = EmbeddedLibraries::g_libs.find(includeFileName);
+                    if (it != EmbeddedLibraries::g_libs.end()) {
+                        std::string libContent(it->second.first, it->second.second);
+                        includedContent = libContent;
+                        foundInEmbedded = true;
+                    } else {
+                         // Try stripping "lib/" or "libs/"
+                         std::string strippedName = includeFileName;
+                         if (strippedName.rfind("lib/", 0) == 0) strippedName = strippedName.substr(4);
+                         else if (strippedName.rfind("libs/", 0) == 0) strippedName = strippedName.substr(5);
+                         
+                         it = EmbeddedLibraries::g_libs.find(strippedName);
+                         if (it != EmbeddedLibraries::g_libs.end()) {
+                            std::string libContent(it->second.first, it->second.second);
+                            includedContent = libContent;
+                            foundInEmbedded = true;
+                         }
                     }
-                    includedContent = preprocessRecursive(libFilePath.string(), includeStack, uniqueIncludedFiles, switchFlags, lineMappings, currentLine);
+                }
+
+                if (foundInEmbedded) {
+                    // Already loaded into includedContent
+                } else if (!libInclude.empty()) {
+                    // explicit <lib> but not found
+                    std::string errorMsg = "Embedded library not found: " + includeFileName;
+                    if (onMessage) onMessage(errorMsg);
+                    preprocessedSource << "#error " + errorMsg + "\n";
+                    lineMappings.push_back({currentLine++, filePath, fileLineNumber});
+                    continue;
                 } else {
-                    // If not in embedded libs, try to read from filesystem relative to current file
+                    // Filesystem include
                     std::filesystem::path currentDirPath = std::filesystem::path(filePath).parent_path();
                     std::string includePath = (currentDirPath / includeFileName).string();
                     includedContent = preprocessRecursive(includePath, includeStack, uniqueIncludedFiles, switchFlags, lineMappings, currentLine);

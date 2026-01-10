@@ -225,6 +225,15 @@ void Settings::setLowFPSRenderThreshold50(float threshold) {
     }
 }
 
+void Settings::setRenderScaleMode(RenderScaleMode mode) {
+    if (m_renderScaleMode != mode) {
+        m_renderScaleMode = mode;
+        save();
+        if (onRenderScaleModeChanged) onRenderScaleModeChanged();
+        if (onSettingsChanged) onSettingsChanged();
+    }
+}
+
 void Settings::loadFromFile() {
     std::string settingsPath = getSettingsPath();
     
@@ -267,6 +276,12 @@ void Settings::loadFromFile() {
             if (mode == "auto") m_dpiScaleMode = DPIScaleMode::Auto;
             else if (mode == "manual") m_dpiScaleMode = DPIScaleMode::Manual;
             else if (mode == "disabled") m_dpiScaleMode = DPIScaleMode::Disabled;
+        }
+
+        if (settings.count("render_scale_mode")) {
+            std::string mode = settings["render_scale_mode"];
+            if (mode == "resolution") m_renderScaleMode = RenderScaleMode::Resolution;
+            else if (mode == "chunk") m_renderScaleMode = RenderScaleMode::Chunk;
         }
         
         if (settings.count("ui_scale_factor")) {
@@ -328,6 +343,14 @@ void Settings::saveToFile() {
         }
         
         file << "dpi_scale_mode=" << modeStr << "\n";
+
+        std::string renderModeStr;
+        switch (m_renderScaleMode) {
+            case RenderScaleMode::Resolution: renderModeStr = "resolution"; break;
+            case RenderScaleMode::Chunk: renderModeStr = "chunk"; break;
+        }
+        file << "render_scale_mode=" << renderModeStr << "\n";
+
         file << "ui_scale_factor=" << m_uiScaleFactor << "\n";
         file << "font_scale_factor=" << m_fontScaleFactor << "\n";
         file << "low_fps_treshold=" << m_lowFPSThreshold << "\n";

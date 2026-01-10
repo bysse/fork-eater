@@ -41,12 +41,14 @@ cd build && ./fork-eater
 ./fork-eater --help
 ```
 
+**CRITICAL FOR AGENTS:** An agent may never spawn the editor process without the `--test` command switch (or a similar timeout mechanism) that ensures the process terminates (test mode has a 5-second internal timeout). Spawning the editor without this switch will cause the agent to hang indefinitely.
+
 ### Testing
 ```bash
 # Run comprehensive exit functionality tests
 ./test_exit.sh
 ```
-All test runs must be done with the `--test` flag set, so that the process exits.
+All test runs must be done with the `--test` flag set, so that the process exits. Failure to do so will cause the agent to hang.
 
 ## Architecture
 
