@@ -3,6 +3,8 @@
 #include "Logger.h"
 #include "glad.h"
 #include "imgui/imgui.h"
+#include "Settings.h"
+#include "RenderScaleMode.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -468,8 +470,20 @@ std::string ShaderManager::remapErrorLog(const std::string& log, const std::vect
 }
 
 void ShaderManager::renderToFramebuffer(const std::string& name, int width, int height, float time, float renderScaleFactor) {
-    int scaledWidth = static_cast<int>(width * renderScaleFactor);
-    int scaledHeight = static_cast<int>(height * renderScaleFactor);
+    RenderScaleMode scaleMode = Settings::getInstance().getRenderScaleMode();
+    
+    int scaledWidth, scaledHeight;
+    bool chunkMode = (scaleMode == RenderScaleMode::Chunk);
+
+    if (chunkMode) {
+        // In chunk mode, we maintain full resolution but render sparsely
+        scaledWidth = width;
+        scaledHeight = height;
+    } else {
+        // In resolution mode, we scale the framebuffer dimensions
+        scaledWidth = static_cast<int>(width * renderScaleFactor);
+        scaledHeight = static_cast<int>(height * renderScaleFactor);
+    }
 
     auto it = m_framebuffers.find(name);
     if (it == m_framebuffers.end()) {
@@ -479,8 +493,9 @@ void ShaderManager::renderToFramebuffer(const std::string& name, int width, int 
         it->second->resize(scaledWidth, scaledHeight);
     }
 
-    // Set texture filtering based on render scale
-    m_framebuffers[name]->setFilter(renderScaleFactor < 1.0f ? GL_NEAREST : GL_LINEAR);
+    // Set texture filtering
+    // Always use LINEAR filtering for smoother results when scaling
+    m_framebuffers[name]->setFilter(GL_LINEAR);
 
     m_framebuffers[name]->bind();
     glViewport(0, 0, scaledWidth, scaledHeight); // Set viewport to scaled dimensions
@@ -490,6 +505,23 @@ void ShaderManager::renderToFramebuffer(const std::string& name, int width, int 
     float resolution[3] = {(float)scaledWidth, (float)scaledHeight, (float)scaledWidth / (float)scaledHeight};
     setUniform("u_resolution", resolution, 2);
     setUniform("iResolution", resolution, 3);
+    
+    // Chunk Rendering Uniforms
+    if (chunkMode) {
+        setUniform("u_progressive_fill", true);
+        
+        // Use ImGui frame count for phase synchronization
+        int frameCount = ImGui::GetFrameCount();
+        int phase = frameCount % 4; // 4 phases for 2x2 grid
+        setUniform("u_render_phase", phase);
+        
+        // Optional: pass the chunk factor if we want to support variable sparsity later
+        // For now, it's hardcoded to 2x2 in the injection, effectively 0.25 density
+        setUniform("u_renderChunkFactor", 0.5f); 
+        setUniform("u_time_offset", 0.0f); // Could be used for temporal dithering
+    } else {
+        setUniform("u_progressive_fill", false);
+    }
 
     auto shader = getShader(name);
     if (shader) {

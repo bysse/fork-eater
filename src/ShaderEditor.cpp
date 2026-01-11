@@ -102,7 +102,7 @@ void ShaderEditor::render() {
                 const float MIN_SCALE = 0.05f;
                 const float MAX_SCALE = 1.0f;
                 const int FRAMES_TO_INCREASE_SCALE = 60; // Require 60 consecutive frames
-                const int FRAMES_TO_DECREASE_SCALE = 15; // Require 15 consecutive frames
+                const int FRAMES_TO_DECREASE_SCALE = 10; // Require 10 consecutive frames
 
                 if (m_fpsHistory.size() >= 10) { // Only adjust if we have enough data
                     float sum = 0.0f;
@@ -271,7 +271,8 @@ void ShaderEditor::setupCallbacks() {
     
     m_leftPanel->onShaderDoubleClicked = [this](const std::string& name) {
         // Double-click to reload
-        m_shaderManager->reloadShader(name);
+        RenderScaleMode scaleMode = Settings::getInstance().getRenderScaleMode();
+        m_shaderManager->reloadShader(name, scaleMode);
     };
 
     m_leftPanel->onPassesChanged = [this]() {
