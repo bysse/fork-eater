@@ -45,12 +45,15 @@ uniform bool u_progressive_fill;
 uniform int u_render_phase;
 uniform float u_renderChunkFactor;
 uniform float u_time_offset;
+uniform int u_chunk_stride;
 
 bool shouldDiscard() {
     if (!u_progressive_fill) return false;
-    ivec2 coord = ivec2(gl_FragCoord.xy);
-    // 2x2 Bayer matrix pattern for 4 phases
-    int phase = (coord.x % 2) + (coord.y % 2) * 2;
+    // Use 2x2 pixel blocks to preserve quad efficiency (derivatives)
+    // dividing gl_FragCoord by 2 ensures that a 2x2 pixel quad falls into the same "chunk"
+    ivec2 coord = ivec2(gl_FragCoord.xy) / 2;
+    // Stride-based stipple pattern for variable density
+    int phase = (coord.x % u_chunk_stride) + (coord.y % u_chunk_stride) * u_chunk_stride;
     return phase != u_render_phase;
 }
 )";

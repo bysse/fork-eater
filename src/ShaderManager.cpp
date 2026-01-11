@@ -510,14 +510,20 @@ void ShaderManager::renderToFramebuffer(const std::string& name, int width, int 
     if (chunkMode) {
         setUniform("u_progressive_fill", true);
         
+        // Calculate stride based on render scale factor
+        // Stride = 1 / scale. E.g. 0.5 scale -> stride 2. 0.1 scale -> stride 10.
+        int stride = std::max(1, static_cast<int>(1.0f / renderScaleFactor));
+        setUniform("u_chunk_stride", stride);
+        
         // Use ImGui frame count for phase synchronization
+        int totalPhases = stride * stride;
         int frameCount = ImGui::GetFrameCount();
-        int phase = frameCount % 4; // 4 phases for 2x2 grid
+        int phase = frameCount % totalPhases; 
         setUniform("u_render_phase", phase);
         
         // Optional: pass the chunk factor if we want to support variable sparsity later
         // For now, it's hardcoded to 2x2 in the injection, effectively 0.25 density
-        setUniform("u_renderChunkFactor", 0.5f); 
+        setUniform("u_renderChunkFactor", renderScaleFactor); 
         setUniform("u_time_offset", 0.0f); // Could be used for temporal dithering
     } else {
         setUniform("u_progressive_fill", false);

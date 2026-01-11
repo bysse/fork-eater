@@ -99,7 +99,7 @@ void ShaderEditor::render() {
 
                 // Hysteresis-based render scaling
                 Settings& settings = Settings::getInstance();
-                const float MIN_SCALE = 0.05f;
+                const float MIN_SCALE = 0.01f;
                 const float MAX_SCALE = 1.0f;
                 const int FRAMES_TO_INCREASE_SCALE = 60; // Require 60 consecutive frames
                 const int FRAMES_TO_DECREASE_SCALE = 10; // Require 10 consecutive frames
