@@ -52,12 +52,17 @@ ShaderManager::ShaderManager() : m_quadVAO(0), m_quadVBO(0), m_preprocessor(new 
     
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+
+    setupSimpleTextureProgram();
 }
 
 ShaderManager::~ShaderManager() {
     delete m_preprocessor;
     for (auto& pair : m_shaders) {
         cleanupShader(*pair.second);
+    }
+    if (m_simpleTextureProgram.programId != 0) {
+        glDeleteProgram(m_simpleTextureProgram.programId);
     }
     glDeleteVertexArrays(1, &m_quadVAO);
     glDeleteBuffers(1, &m_quadVBO);
@@ -496,6 +501,21 @@ void ShaderManager::renderToFramebuffer(const std::string& name, int width, int 
         it->second->resize(targetAllocWidth, targetAllocHeight);
     }
     
+    // UPSCALING LOGIC
+    // If we are in Chunk mode, but the current buffer content is scaled down (from a previous Resolution render),
+    // we need to upscale the content to fill the buffer before we start rendering sparse chunks.
+    if (chunkMode) {
+        auto scaleIt = m_framebufferScales.find(name);
+        if (scaleIt != m_framebufferScales.end()) {
+            float sx = scaleIt->second.first;
+            float sy = scaleIt->second.second;
+            // Epsilon check for < 1.0
+            if (sx < 0.99f || sy < 0.99f) {
+                performUpscale(name, targetAllocWidth, targetAllocHeight, sx, sy);
+            }
+        }
+    }
+    
     // Calculate valid UV region for this frame
     if (width > 0 && height > 0) {
         m_framebufferScales[name] = {
@@ -633,4 +653,86 @@ void ShaderManager::cleanupShader(ShaderProgram& shader) {
     }
     
     shader.isValid = false;
+}
+
+void ShaderManager::setupSimpleTextureProgram() {
+    const char* vertexSource = R"(
+        #version 330 core
+        layout (location = 0) in vec2 aPos;
+        layout (location = 1) in vec2 aTexCoord;
+        out vec2 TexCoord;
+        void main() {
+            gl_Position = vec4(aPos, 0.0, 1.0);
+            TexCoord = aTexCoord;
+        }
+    )";
+    
+    const char* fragmentSource = R"(
+        #version 330 core
+        out vec4 FragColor;
+        in vec2 TexCoord;
+        uniform sampler2D screenTexture;
+        void main() {
+            FragColor = texture(screenTexture, TexCoord);
+        }
+    )";
+    
+    std::string errorLog;
+    GLuint vs = compileShader(vertexSource, GL_VERTEX_SHADER, errorLog);
+    if (!vs) LOG_ERROR("Failed to compile internal vertex shader: {}", errorLog);
+    
+    GLuint fs = compileShader(fragmentSource, GL_FRAGMENT_SHADER, errorLog);
+    if (!fs) LOG_ERROR("Failed to compile internal fragment shader: {}", errorLog);
+    
+    m_simpleTextureProgram.programId = linkProgram(vs, fs, errorLog);
+    if (!m_simpleTextureProgram.programId) LOG_ERROR("Failed to link internal shader: {}", errorLog);
+    
+    m_simpleTextureProgram.textureLocation = glGetUniformLocation(m_simpleTextureProgram.programId, "screenTexture");
+    
+    if (vs) glDeleteShader(vs);
+    if (fs) glDeleteShader(fs);
+}
+
+void ShaderManager::performUpscale(const std::string& name, int width, int height, float scaleX, float scaleY) {
+    if (m_simpleTextureProgram.programId == 0) return;
+    
+    auto it = m_framebuffers.find(name);
+    if (it == m_framebuffers.end()) return;
+    
+    int srcW = static_cast<int>(width * scaleX);
+    int srcH = static_cast<int>(height * scaleY);
+    
+    if (srcW <= 0 || srcH <= 0) return;
+
+    // Create temp texture
+    GLuint tempTex;
+    glGenTextures(1, &tempTex);
+    glBindTexture(GL_TEXTURE_2D, tempTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, srcW, srcH, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    
+    // Copy valid region from FBO to temp texture
+    it->second->bind();
+    glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, srcW, srcH);
+    
+    // Render temp texture to full FBO
+    glViewport(0, 0, width, height);
+    glUseProgram(m_simpleTextureProgram.programId);
+    
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, tempTex);
+    glUniform1i(m_simpleTextureProgram.textureLocation, 0);
+    
+    glBindVertexArray(m_quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    
+    it->second->unbind();
+    
+    glDeleteTextures(1, &tempTex);
+    
+    // Update scale to 1.0 since we filled the buffer
+    m_framebufferScales[name] = {1.0f, 1.0f};
+    
+    LOG_DEBUG("Upscaled framebuffer '{}' from {}x{} to {}x{}", name, srcW, srcH, width, height);
 }

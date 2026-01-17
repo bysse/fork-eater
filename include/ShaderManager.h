@@ -117,4 +117,13 @@ private:
     std::string remapErrorLog(const std::string& log, const std::vector<ShaderPreprocessor::LineMapping>* lineMappings) const;
     
     ShaderPreprocessor* m_preprocessor;
+
+    // Internal resources for upscaling
+    struct {
+        GLuint programId;
+        GLuint textureLocation;
+    } m_simpleTextureProgram;
+
+    void setupSimpleTextureProgram();
+    void performUpscale(const std::string& name, int width, int height, float scaleX, float scaleY);
 };
