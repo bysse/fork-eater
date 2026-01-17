@@ -37,4 +37,13 @@ private:
                                     std::vector<std::string>& switchFlags,
                                     std::vector<LineMapping>& lineMappings,
                                     int& currentLine);
+
+    // Helper for preprocessing source content (used by preprocessRecursive and for embedded libs)
+    std::string preprocessSource(const std::string& source,
+                                 const std::string& filePath,
+                                 std::vector<std::string>& includeStack,
+                                 std::set<std::string>& uniqueIncludedFiles,
+                                 std::vector<std::string>& switchFlags,
+                                 std::vector<LineMapping>& lineMappings,
+                                 int& currentLine);
 };

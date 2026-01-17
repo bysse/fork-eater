@@ -106,7 +106,20 @@ std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
         return "#error " + errorMsg + "\n";
     }
 
-    LOG_DEBUG("Source for {}:\n{}", filePath, source);
+    std::string result = preprocessSource(source, filePath, includeStack, uniqueIncludedFiles, switchFlags, lineMappings, currentLine);
+
+    includeStack.pop_back();
+    return result;
+}
+
+std::string ShaderPreprocessor::preprocessSource(const std::string& source,
+                                                 const std::string& filePath,
+                                                 std::vector<std::string>& includeStack,
+                                                 std::set<std::string>& uniqueIncludedFiles,
+                                                 std::vector<std::string>& switchFlags,
+                                                 std::vector<LineMapping>& lineMappings,
+                                                 int& currentLine) {
+    LOG_DEBUG("Processing source for: {}", filePath);
 
     std::stringstream preprocessedSource;
     std::string versionDirective;
@@ -155,12 +168,13 @@ std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
                 }
 
                 bool foundInEmbedded = false;
+                std::string libContent;
+
                 if (isEmbedded) {
                      // Try exact match
                     auto it = EmbeddedLibraries::g_libs.find(includeFileName);
                     if (it != EmbeddedLibraries::g_libs.end()) {
-                        std::string libContent(it->second.first, it->second.second);
-                        includedContent = libContent;
+                        libContent = std::string(it->second.first, it->second.second);
                         foundInEmbedded = true;
                     } else {
                          // Try stripping "lib/" or "libs/"
@@ -170,15 +184,24 @@ std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
                          
                          it = EmbeddedLibraries::g_libs.find(strippedName);
                          if (it != EmbeddedLibraries::g_libs.end()) {
-                            std::string libContent(it->second.first, it->second.second);
-                            includedContent = libContent;
+                            libContent = std::string(it->second.first, it->second.second);
                             foundInEmbedded = true;
                          }
                     }
                 }
 
                 if (foundInEmbedded) {
-                    // Already loaded into includedContent
+                    // Recursively process embedded content
+                    std::string embeddedName = "embedded:" + includeFileName;
+                    if (std::find(includeStack.begin(), includeStack.end(), embeddedName) != includeStack.end()) {
+                        std::string errorMsg = "Include loop detected: " + embeddedName;
+                        if (onMessage) onMessage(errorMsg);
+                        includedContent = "#error " + errorMsg + "\n";
+                    } else {
+                        includeStack.push_back(embeddedName);
+                        includedContent = preprocessSource(libContent, embeddedName, includeStack, uniqueIncludedFiles, switchFlags, lineMappings, currentLine);
+                        includeStack.pop_back();
+                    }
                 } else if (!libInclude.empty()) {
                     // explicit <lib> but not found
                     std::string errorMsg = "Embedded library not found: " + includeFileName;
@@ -215,6 +238,5 @@ std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
         }
     }
 
-    includeStack.pop_back();
     return preprocessedSource.str();
 }
