@@ -3,15 +3,14 @@ VERSION = $(shell node -p "require('./package.json').version")
 
 all: package
 
-package: clean copy_libs compile
+package: clean index_libs compile
 	@echo "📦 Packaging $(NAME)@$(VERSION)..."
 	@npx vsce package --out $(NAME)-$(VERSION).vsix
 	@echo "✅ Extension package created: $(NAME)-$(VERSION).vsix"
 
-copy_libs:
-	@echo "📂 Copying system libraries..."
-	@mkdir -p server/libs
-	@cp -r ../libs/* server/libs/
+index_libs:
+	@echo "📂 Generating system library index..."
+	@node scripts/generate-libs-index.js
 
 compile:
 	@echo "🔨 Compiling client and server..."
@@ -19,7 +18,7 @@ compile:
 
 clean:
 	@echo "🧹 Cleaning up..."
-	@rm -rf client/out server/out server/libs *.vsix
+	@rm -rf client/out server/out server/src/libs-index.json *.vsix
 	@echo "✅ Cleanup complete"
 
 .PHONY: all package compile clean

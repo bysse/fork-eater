@@ -19,6 +19,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
+import * as libsIndex from './libs-index.json';
+
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
 const connection = createConnection(ProposedFeatures.all);
@@ -31,8 +33,8 @@ let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
 
 let workspaceRoot: string | null = null;
-let libsFunctions: CompletionItem[] = [];
-let libsFiles: CompletionItem[] = [];
+let libsFunctions: CompletionItem[] = (libsIndex as any).libsFunctions || [];
+let libsFiles: CompletionItem[] = (libsIndex as any).libsFiles || [];
 
 connection.onInitialize((params: InitializeParams) => {
 	const capabilities = params.capabilities;
@@ -87,54 +89,7 @@ connection.onInitialized(() => {
 			connection.console.log('Workspace folder change event received.');
 		});
 	}
-
-	// Scan libs on startup
-	scanLibs();
 });
-
-function scanLibs() {
-	// Look for bundled libs (copied by Makefile to server/libs)
-	const bundledLibsDir = path.resolve(__dirname, '../../libs');
-	
-	connection.console.log(`Scanning bundled libs at: ${bundledLibsDir}`);
-
-	if (!fs.existsSync(bundledLibsDir)) {
-		connection.console.error(`Bundled libs directory not found: ${bundledLibsDir}`);
-		return;
-	}
-
-	libsFunctions = [];
-	libsFiles = [];
-
-	try {
-		const files = fs.readdirSync(bundledLibsDir);
-		for (const file of files) {
-			if (file.endsWith('.glsl')) {
-				// Add to files list
-				libsFiles.push({
-					label: `lib/${file}`,
-					kind: CompletionItemKind.File,
-					detail: 'System Library',
-					insertText: `lib/${file}`
-				});
-
-				// Parse functions
-				const content = fs.readFileSync(path.join(bundledLibsDir, file), 'utf8');
-				const functionRegex = /^\s*(?:float|vec2|vec3|vec4|void|int|bool)\s+([a-zA-Z0-9_]+)\s*\(/gm;
-				let match;
-				while ((match = functionRegex.exec(content)) !== null) {
-					libsFunctions.push({
-						label: match[1],
-						kind: CompletionItemKind.Function,
-						detail: `Function from ${file}`
-					});
-				}
-			}
-		}
-	} catch (e) {
-		connection.console.error(`Error scanning libs: ${e}`);
-	}
-}
 
 // System uniforms (standard usage)
 const systemUniforms: CompletionItem[] = [

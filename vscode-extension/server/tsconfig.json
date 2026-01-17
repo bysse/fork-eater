@@ -6,6 +6,8 @@
 		"rootDir": "src",
 		"lib": ["es2020"],
 		"sourceMap": true,
+		"resolveJsonModule": true,
+		"esModuleInterop": true,
 		"strict": true
 	},
 	"include": ["src"]
