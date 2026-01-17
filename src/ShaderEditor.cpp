@@ -342,7 +342,8 @@ void ShaderEditor::renderMainLayout() {
 
     ImGui::BeginChild("PreviewPanel", rightContentSize, true, noNavFlags);
     GLuint finalTexture = m_shaderManager->getFramebufferTexture(m_selectedShader);
-    m_previewPanel->render(finalTexture, m_timeline->getCurrentTime(), m_renderScaleFactor);
+    std::pair<float, float> uvScale = m_shaderManager->getFramebufferUVScale(m_selectedShader);
+    m_previewPanel->render(finalTexture, m_timeline->getCurrentTime(), m_renderScaleFactor, uvScale);
     ImGui::EndChild();
     
     ImGui::EndChild(); // End RightSide

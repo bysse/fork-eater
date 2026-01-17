@@ -485,12 +485,27 @@ void ShaderManager::renderToFramebuffer(const std::string& name, int width, int 
         scaledHeight = static_cast<int>(height * renderScaleFactor);
     }
 
+    // Always ensure framebuffer is allocated at full resolution (or larger)
+    // to avoid reallocations when switching modes
+    int targetAllocWidth = width;
+    int targetAllocHeight = height;
+
     auto it = m_framebuffers.find(name);
     if (it == m_framebuffers.end()) {
-        m_framebuffers[name] = std::make_unique<Framebuffer>(scaledWidth, scaledHeight);
-    } else if (it->second->getWidth() != scaledWidth || it->second->getHeight() != scaledHeight) {
-        // Resize framebuffer if dimensions changed
-        it->second->resize(scaledWidth, scaledHeight);
+        m_framebuffers[name] = std::make_unique<Framebuffer>(targetAllocWidth, targetAllocHeight);
+    } else if (it->second->getWidth() != targetAllocWidth || it->second->getHeight() != targetAllocHeight) {
+        // Only resize if the full resolution target changes
+        it->second->resize(targetAllocWidth, targetAllocHeight);
+    }
+    
+    // Calculate valid UV region for this frame
+    if (width > 0 && height > 0) {
+        m_framebufferScales[name] = {
+            static_cast<float>(scaledWidth) / static_cast<float>(targetAllocWidth),
+            static_cast<float>(scaledHeight) / static_cast<float>(targetAllocHeight)
+        };
+    } else {
+        m_framebufferScales[name] = {1.0f, 1.0f};
     }
 
     // Set texture filtering
@@ -498,7 +513,7 @@ void ShaderManager::renderToFramebuffer(const std::string& name, int width, int 
     m_framebuffers[name]->setFilter(GL_LINEAR);
 
     m_framebuffers[name]->bind();
-    glViewport(0, 0, scaledWidth, scaledHeight); // Set viewport to scaled dimensions
+    glViewport(0, 0, scaledWidth, scaledHeight); // Set viewport to scaled dimensions (renders to bottom-left corner)
     useShader(name);
     setUniform("u_time", time);
     setUniform("iTime", time);
@@ -577,6 +592,14 @@ GLuint ShaderManager::getFramebufferTexture(const std::string& name) {
         return it->second->getTextureId();
     }
     return 0;
+}
+
+std::pair<float, float> ShaderManager::getFramebufferUVScale(const std::string& name) {
+    auto it = m_framebufferScales.find(name);
+    if (it != m_framebufferScales.end()) {
+        return it->second;
+    }
+    return {1.0f, 1.0f};
 }
 
 void ShaderManager::clearShaders() {

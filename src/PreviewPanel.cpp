@@ -26,11 +26,11 @@ bool PreviewPanel::initialize() {
     return true;
 }
 
-void PreviewPanel::render(GLuint textureId, float time, float renderScaleFactor) {
-    renderPreviewPanel(textureId, time, renderScaleFactor);
+void PreviewPanel::render(GLuint textureId, float time, float renderScaleFactor, std::pair<float, float> uvScale) {
+    renderPreviewPanel(textureId, time, renderScaleFactor, uvScale);
 }
 
-void PreviewPanel::renderPreviewPanel(GLuint textureId, float time, float renderScaleFactor) {
+void PreviewPanel::renderPreviewPanel(GLuint textureId, float time, float renderScaleFactor, std::pair<float, float> uvScale) {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -67,7 +67,13 @@ void PreviewPanel::renderPreviewPanel(GLuint textureId, float time, float render
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + offset.y);
         
         // Display the rendered texture
-        ImGui::Image((void*)(intptr_t)textureId, previewSize, ImVec2(0, 1), ImVec2(1, 0));
+        // uv0 is Top-Left, uv1 is Bottom-Right
+        // Texture coordinate system: (0,0) is bottom-left, (1,1) is top-right
+        // Our texture has valid data in [0, uvScale.x] x [0, uvScale.y]
+        // We want to map:
+        // ImGui Top-Left -> Texture Top-Left of valid region -> (0, uvScale.y)
+        // ImGui Bottom-Right -> Texture Bottom-Right of valid region -> (uvScale.x, 0)
+        ImGui::Image((void*)(intptr_t)textureId, previewSize, ImVec2(0, uvScale.second), ImVec2(uvScale.first, 0));
     } else {
         ImGui::Text("No shader selected");
         ImGui::Text("Select a shader from the file list to preview");

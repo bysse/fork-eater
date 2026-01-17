@@ -66,6 +66,9 @@ public:
     // Get texture ID of a framebuffer
     GLuint getFramebufferTexture(const std::string& name);
 
+    // Get the UV scale of the framebuffer texture (useful when rendering a sub-region)
+    std::pair<float, float> getFramebufferUVScale(const std::string& name);
+
     // Set uniform helpers
     void setUniform(const std::string& name, float value);
     void setUniform(const std::string& name, const float* value, int count);
@@ -95,6 +98,7 @@ public:
 private:
     std::unordered_map<std::string, std::shared_ptr<ShaderProgram>> m_shaders;
     std::unordered_map<std::string, std::unique_ptr<Framebuffer>> m_framebuffers;
+    std::unordered_map<std::string, std::pair<float, float>> m_framebufferScales;
     std::string m_currentShader;
     std::function<void(const std::string&, bool, const std::string&)> m_compilationCallback;
     GLuint m_quadVAO;

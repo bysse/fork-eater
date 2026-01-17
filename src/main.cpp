@@ -219,6 +219,12 @@ public:
         m_testExitCode = exitCode;
     }
     
+    void setRenderScaleFactor(float scale) {
+        if (m_shaderEditor) {
+            m_shaderEditor->setRenderScaleFactor(scale);
+        }
+    }
+    
     void setDumpFramebuffer(const std::string& passName, const std::string& outputPath) {
         m_dumpFramebuffer = true;
         m_dumpPassName = passName;
@@ -356,6 +362,8 @@ int main(int argc, char* argv[]) {
     bool disableDpiScaling = false;
     bool overrideRenderScaleMode = false;
     RenderScaleMode customRenderScaleMode = RenderScaleMode::Resolution;
+    bool overrideRenderScale = false;
+    float customRenderScale = 1.0f;
     
     // Parse command line arguments
     for (int i = 1; i < argc; i++) {
@@ -380,6 +388,20 @@ int main(int argc, char* argv[]) {
             }
             overrideRenderScaleMode = true;
             i++; // Skip mode argument
+        }
+        else if (arg == "--render-scale" && i + 1 < argc) {
+             try {
+                customRenderScale = std::stof(argv[i + 1]);
+                if (customRenderScale <= 0.0f || customRenderScale > 1.0f) {
+                    LOG_ERROR("Render scale must be between 0.0 and 1.0");
+                    return 1;
+                }
+                overrideRenderScale = true;
+                i++; // Skip the scale value
+            } catch (const std::exception&) {
+                LOG_ERROR("Invalid render scale: {}", argv[i + 1]);
+                return 1;
+            }
         }
         else if (arg == "--test") {
             testMode = true;
@@ -527,6 +549,11 @@ int main(int argc, char* argv[]) {
                  (customRenderScaleMode == RenderScaleMode::Chunk ? "Chunk" : "Resolution"));
     }
 
+    if (overrideRenderScale) {
+        app.setRenderScaleFactor(customRenderScale);
+        LOG_INFO("Render scale set to {} via command line", customRenderScale);
+    }
+
     if (overrideScaling || disableDpiScaling) {
         
         if (disableDpiScaling) {
@@ -566,6 +593,8 @@ void printUsage(const char* programName) {
     LOG_INFO("Options:");
     LOG_INFO("  --new [path] [-t template]  Create new shader project");
     LOG_INFO("  --templates                 List available shader templates");
+    LOG_INFO("  --render-scale-mode MODE    Set render scale mode (chunk, resolution)");
+    LOG_INFO("  --render-scale FACTOR       Set initial render scale factor (0.0 - 1.0)");
     LOG_INFO("  --test [exit_code]          Run in test mode (exit after one render loop)");
     LOG_INFO("  --debug, -d                 Enable debug output with colors");
     LOG_INFO("  --scale FACTOR              Set UI scale factor (e.g., 1.0, 1.5, 2.0)");

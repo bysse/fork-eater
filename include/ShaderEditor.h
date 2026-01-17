@@ -53,6 +53,9 @@ public:
     // Get render scale factor
     float getRenderScaleFactor() const { return m_renderScaleFactor; }
 
+    // Set render scale factor
+    void setRenderScaleFactor(float factor) { m_renderScaleFactor = factor; }
+
     // Set screen size
     void setScreenSize(int width, int height);
 

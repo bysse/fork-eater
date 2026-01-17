@@ -28,7 +28,7 @@ public:
     bool initialize();
     
     // Render the preview panel
-    void render(GLuint textureId, float time, float renderScaleFactor);
+    void render(GLuint textureId, float time, float renderScaleFactor, std::pair<float, float> uvScale = {1.0f, 1.0f});
     
     // Aspect ratio settings
     AspectMode getAspectMode() const { return m_aspectMode; }
@@ -48,7 +48,7 @@ private:
     GLuint m_previewVBO;
     
     // Private methods
-    void renderPreviewPanel(GLuint textureId, float time, float renderScaleFactor);
+    void renderPreviewPanel(GLuint textureId, float time, float renderScaleFactor, std::pair<float, float> uvScale);
     ImVec2 calculatePreviewSize(ImVec2 availableSize);
     void setupPreviewQuad();
     void cleanupPreview();
