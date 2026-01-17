@@ -9,9 +9,14 @@
 
 // Constants
 static const char* const SHADER_PROJECT_MANIFEST_FILENAME = "4k-eater.project";
+static const char* const SHADER_PROJECT_LOCAL_FILENAME = ".4k-eater.local";
 
 // Forward declarations
 class ShaderManager;
+
+struct LocalProjectState {
+    float renderScale = 1.0f;
+};
 
 struct ShaderPass {
     std::string name;
@@ -91,6 +96,10 @@ public:
     bool loadState(std::shared_ptr<ShaderManager> shaderManager);
     bool saveState(std::shared_ptr<ShaderManager> shaderManager) const;
     void applyUniformsToShader(const std::string& passName, std::shared_ptr<ShaderManager::ShaderProgram> shader);
+
+    // Local state management (.4k-eater.local)
+    bool loadLocalState(LocalProjectState& state) const;
+    bool saveLocalState(const LocalProjectState& state) const;
 
 private:
     ShaderProjectManifest m_manifest;

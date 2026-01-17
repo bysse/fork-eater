@@ -4,5 +4,6 @@ external/imgui
 .vscode
 *.log
 tmp
+.4k-eater.local
 *.vsix
 node_modules

@@ -156,6 +156,13 @@ void ShaderEditor::render() {
                     ss << "Render scale factor changed to: " << std::fixed << std::setprecision(2) << m_renderScaleFactor;
                     LOG_INFO(ss.str());
                     lastLoggedScale = m_renderScaleFactor;
+
+                    // Save local project state
+                    if (m_currentProject && m_currentProject->isLoaded()) {
+                        LocalProjectState localState;
+                        localState.renderScale = m_renderScaleFactor;
+                        m_currentProject->saveLocalState(localState);
+                    }
                 }
                 
                 // Add the FPS and the render scale factor that was used for THIS frame
@@ -484,6 +491,13 @@ bool ShaderEditor::loadProjectFromPath(const std::string& projectPath) {
             LOG_INFO("Loaded shader project: {}", m_currentProject->getManifest().name);
             m_leftPanel->setCurrentProject(m_currentProject);
             
+            // Load local project state
+            LocalProjectState localState;
+            if (m_currentProject->loadLocalState(localState)) {
+                m_renderScaleFactor = localState.renderScale;
+                LOG_INFO("Loaded local project state (render scale: {})", m_renderScaleFactor);
+            }
+
             // Auto-select the first enabled pass for immediate rendering
             const auto& passes = m_currentProject->getPasses();
             for (const auto& pass : passes) {

@@ -493,3 +493,48 @@ bool ShaderProject::createShadersFromTemplate(const ShaderTemplate& shaderTempla
 
     return true;
 }
+
+bool ShaderProject::loadLocalState(LocalProjectState& state) const {
+    std::string localPath = m_projectPath + "/" + SHADER_PROJECT_LOCAL_FILENAME;
+    if (!fs::exists(localPath)) {
+        return false;
+    }
+
+    std::ifstream file(localPath);
+    if (!file.is_open()) {
+        LOG_WARN("Cannot open local project file: {}", localPath);
+        return false;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        size_t pos = line.find('=');
+        if (pos != std::string::npos) {
+            std::string key = line.substr(0, pos);
+            std::string value = line.substr(pos + 1);
+            
+            if (key == "render_scale") {
+                try {
+                    state.renderScale = std::stof(value);
+                } catch (...) {
+                    LOG_WARN("Failed to parse render_scale from local state: {}", value);
+                }
+            }
+        }
+    }
+    return true;
+}
+
+bool ShaderProject::saveLocalState(const LocalProjectState& state) const {
+    std::string localPath = m_projectPath + "/" + SHADER_PROJECT_LOCAL_FILENAME;
+    std::ofstream file(localPath);
+    if (!file.is_open()) {
+        LOG_ERROR("Cannot create local project file: {}", localPath);
+        return false;
+    }
+
+    file << "# Fork Eater Local Project Properties\n";
+    file << "render_scale=" << state.renderScale << "\n";
+    return true;
+}
