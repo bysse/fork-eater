@@ -157,7 +157,9 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
 
             // Skip system uniforms
             if (nameStr == "u_time" || nameStr == "u_resolution" || nameStr == "u_mouse" || 
-                nameStr == "iTime" || nameStr == "iResolution" || nameStr == "iMouse") {
+                nameStr == "iTime" || nameStr == "iResolution" || nameStr == "iMouse" ||
+                nameStr == "u_progressive_fill" || nameStr == "u_render_phase" ||
+                nameStr == "u_renderChunkFactor" || nameStr == "u_time_offset" || nameStr == "u_chunk_stride") {
                 it = matches.suffix().first;
                 continue;
             }
