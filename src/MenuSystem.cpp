@@ -69,16 +69,6 @@ void MenuSystem::renderRenderMenu() {
     if (ImGui::MenuItem("1920x1080")) {
         if (onScreenSizeChanged) onScreenSizeChanged(1920, 1080);
     }
-
-    ImGui::Separator();
-    
-    ImGui::Text("Render Scale Mode:");
-    Settings& settings = Settings::getInstance();
-    const char* scaleModes[] = { "Resolution", "Chunk" };
-    int currentMode = static_cast<int>(settings.getRenderScaleMode());
-    if (ImGui::Combo("##rendermode", &currentMode, scaleModes, IM_ARRAYSIZE(scaleModes))) {
-        settings.setRenderScaleMode(static_cast<RenderScaleMode>(currentMode));
-    }
 }
 
 void MenuSystem::renderSettingsWindow() {
@@ -172,22 +162,6 @@ void MenuSystem::renderSettingsWindow() {
         float lowRenderTreshold25 = settings.getLowFPSRenderThreshold25();
         if (ImGui::SliderFloat("25% Render Threshold", &lowRenderTreshold25, 0.0f, 60.0f, "%.2f")) {
             settings.setLowFPSRenderThreshold25(lowRenderTreshold25);
-        }
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Text("Render Scaling Mode");
-        const char* renderScaleModes[] = { "Resolution (Standard)", "Chunk (Progressive)" };
-        int currentRenderMode = static_cast<int>(settings.getRenderScaleMode());
-        if (ImGui::Combo("Scale Mode", &currentRenderMode, renderScaleModes, IM_ARRAYSIZE(renderScaleModes))) {
-            settings.setRenderScaleMode(static_cast<RenderScaleMode>(currentRenderMode));
-        }
-
-        if (ImGui::IsItemHovered()) {
-            ImGui::BeginTooltip();
-            ImGui::Text("Resolution: Scales the internal resolution of the render target.");
-            ImGui::Text("Chunk: Renders chunks of the frame over multiple passes to maintain interactivity.");
-            ImGui::EndTooltip();
         }
 
         ImGui::Spacing();

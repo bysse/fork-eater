@@ -80,7 +80,7 @@ private:
     float m_highFPSThreshold = 50.0f;
     float m_lowFPSRenderThreshold50 = 10.0f; // FPS below this will trigger 50% render scale
     float m_lowFPSRenderThreshold25 = 5.0f;  // FPS below this will trigger 25% render scale
-    RenderScaleMode m_renderScaleMode = RenderScaleMode::Resolution;
+    RenderScaleMode m_renderScaleMode = RenderScaleMode::Auto;
     
     // Cache detected DPI scale
     float m_detectedDPIScale = 1.0f;

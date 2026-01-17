@@ -38,7 +38,7 @@ ShaderPreprocessor::PreprocessResult ShaderPreprocessor::preprocess(const std::s
     }
     
     // Conditional Chunk Logic Injection
-    if (scaleMode == RenderScaleMode::Chunk && filePath.find(".frag") != std::string::npos) {
+    if ((scaleMode == RenderScaleMode::Chunk || scaleMode == RenderScaleMode::Auto) && filePath.find(".frag") != std::string::npos) {
         std::string chunkUniforms = R"(
 // Chunk rendering uniforms
 uniform bool u_progressive_fill;

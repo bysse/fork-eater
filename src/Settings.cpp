@@ -278,12 +278,6 @@ void Settings::loadFromFile() {
             else if (mode == "disabled") m_dpiScaleMode = DPIScaleMode::Disabled;
         }
 
-        if (settings.count("render_scale_mode")) {
-            std::string mode = settings["render_scale_mode"];
-            if (mode == "resolution") m_renderScaleMode = RenderScaleMode::Resolution;
-            else if (mode == "chunk") m_renderScaleMode = RenderScaleMode::Chunk;
-        }
-        
         if (settings.count("ui_scale_factor")) {
             m_uiScaleFactor = std::stof(settings["ui_scale_factor"]);
         }
@@ -343,13 +337,6 @@ void Settings::saveToFile() {
         }
         
         file << "dpi_scale_mode=" << modeStr << "\n";
-
-        std::string renderModeStr;
-        switch (m_renderScaleMode) {
-            case RenderScaleMode::Resolution: renderModeStr = "resolution"; break;
-            case RenderScaleMode::Chunk: renderModeStr = "chunk"; break;
-        }
-        file << "render_scale_mode=" << renderModeStr << "\n";
 
         file << "ui_scale_factor=" << m_uiScaleFactor << "\n";
         file << "font_scale_factor=" << m_fontScaleFactor << "\n";

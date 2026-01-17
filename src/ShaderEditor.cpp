@@ -77,8 +77,16 @@ void ShaderEditor::render() {
                     width = m_screenWidth;
                     height = m_screenHeight;
                 }
+
+                // Determine effective render scale mode
+                RenderScaleMode settingMode = Settings::getInstance().getRenderScaleMode();
+                RenderScaleMode effectiveMode = settingMode;
+                if (settingMode == RenderScaleMode::Auto) {
+                    effectiveMode = m_timeline->isPlaying() ? RenderScaleMode::Resolution : RenderScaleMode::Chunk;
+                }
+
                 auto startTime = glfwGetTime();
-                m_shaderManager->renderToFramebuffer(pass.name, width, height, m_timeline->getCurrentTime(), m_renderScaleFactor);
+                m_shaderManager->renderToFramebuffer(pass.name, width, height, m_timeline->getCurrentTime(), m_renderScaleFactor, effectiveMode);
                 glFinish(); // Wait for GPU to finish
                 auto endTime = glfwGetTime();
                 auto duration = endTime - startTime;

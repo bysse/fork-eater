@@ -2,5 +2,6 @@
 
 enum class RenderScaleMode {
     Resolution,
-    Chunk
+    Chunk,
+    Auto
 };

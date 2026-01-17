@@ -61,7 +61,7 @@ public:
     void useShader(const std::string& name);
     
     // Render to framebuffer
-    void renderToFramebuffer(const std::string& name, int width, int height, float time, float renderScaleFactor);
+    void renderToFramebuffer(const std::string& name, int width, int height, float time, float renderScaleFactor, RenderScaleMode scaleMode);
 
     // Get texture ID of a framebuffer
     GLuint getFramebufferTexture(const std::string& name);

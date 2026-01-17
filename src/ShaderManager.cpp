@@ -469,9 +469,7 @@ std::string ShaderManager::remapErrorLog(const std::string& log, const std::vect
     return output.str();
 }
 
-void ShaderManager::renderToFramebuffer(const std::string& name, int width, int height, float time, float renderScaleFactor) {
-    RenderScaleMode scaleMode = Settings::getInstance().getRenderScaleMode();
-    
+void ShaderManager::renderToFramebuffer(const std::string& name, int width, int height, float time, float renderScaleFactor, RenderScaleMode scaleMode) {
     int scaledWidth, scaledHeight;
     bool chunkMode = (scaleMode == RenderScaleMode::Chunk);
 
