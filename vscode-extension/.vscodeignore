@@ -1,0 +1,36 @@
+# Editor and Git
+.vscode/**
+.gitignore
+.gitattributes
+.editorconfig
+
+# Build Scripts and Config
+Makefile
+scripts/**
+tsconfig.json
+client/tsconfig.json
+server/tsconfig.json
+
+# Source Code (exclude in favor of compiled output)
+client/src/**
+server/src/**
+**/*.ts
+**/*.map
+
+# Tests
+test/**
+**/*.test.js
+
+# Documentation in node_modules (reduce file count)
+node_modules/**/README.md
+node_modules/**/changelog.md
+node_modules/**/LICENSE
+node_modules/**/test/**
+client/node_modules/**/README.md
+client/node_modules/**/changelog.md
+client/node_modules/**/LICENSE
+client/node_modules/**/test/**
+server/node_modules/**/README.md
+server/node_modules/**/changelog.md
+server/node_modules/**/LICENSE
+server/node_modules/**/test/**
