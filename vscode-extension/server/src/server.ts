@@ -103,6 +103,10 @@ const systemUniforms: CompletionItem[] = [
 	{ label: 'FragColor', kind: CompletionItemKind.Variable, detail: 'vec4: Output color' }
 ];
 
+const switchFlags: CompletionItem[] = [
+	{ label: 'FORK_DISABLE_MOUSE_LOOK', kind: CompletionItemKind.EnumMember, detail: 'Disable mouse-based camera rotation [camera.glsl]' }
+];
+
 // Uniform declaration suggestions (includes type)
 const uniformTypeSuggestions: CompletionItem[] = [
 	{ label: 'float u_time', kind: CompletionItemKind.Snippet, detail: 'Standard time uniform', insertText: 'float u_time;' },
@@ -202,12 +206,41 @@ connection.onCompletion(
 
 				return items;
 			}
+			if (line.includes('switch(')) {
+				return switchFlags;
+			}
 			if (trimmedLine === '#pragma') {
 				return [
 					{ label: 'include', kind: CompletionItemKind.Keyword, insertText: ' include(' },
-					{ label: 'switch', kind: CompletionItemKind.Keyword, insertText: ' switch(' }
+					{ label: 'switch', kind: CompletionItemKind.Keyword, insertText: ' switch(' },
+					{ label: 'label', kind: CompletionItemKind.Keyword, insertText: ' label(' },
+					{ label: 'range', kind: CompletionItemKind.Keyword, insertText: ' range(' }
 				];
 			}
+		}
+
+		// Pragma argument completions
+		if (trimmedLine.startsWith('#pragma label(') || trimmedLine.startsWith('#pragma range(')) {
+			// Extract uniforms from current document
+			const uniformRegex = /uniform\s+(?:float|vec2|vec3|vec4)\s+([a-zA-Z0-9_]+);/g;
+			let match;
+			const uniforms: CompletionItem[] = [];
+			while ((match = uniformRegex.exec(content)) !== null) {
+				uniforms.push({ label: match[1], kind: CompletionItemKind.Variable });
+			}
+			return uniforms;
+		}
+
+		if (trimmedLine.startsWith('#pragma switch(')) {
+			if (trimmedLine.includes(',')) {
+				return [
+					{ label: 'true', kind: CompletionItemKind.Keyword },
+					{ label: 'false', kind: CompletionItemKind.Keyword },
+					{ label: 'on', kind: CompletionItemKind.Keyword },
+					{ label: 'off', kind: CompletionItemKind.Keyword }
+				];
+			}
+			return switchFlags;
 		}
 
 		// Uniform declaration suggestions

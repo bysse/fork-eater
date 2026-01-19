@@ -14,10 +14,28 @@ public:
         int fileLine = 0;           // 1-based line number in the original file
     };
 
+    struct SwitchInfo {
+        std::string name;
+        bool defaultValue = false;
+    };
+
+    struct UniformRange {
+        std::string name;
+        float min = 0.0f;
+        float max = 1.0f;
+    };
+
+    struct LabelInfo {
+        std::string name;
+        std::string label;
+    };
+
     struct PreprocessResult {
         std::string source;
         std::vector<std::string> includedFiles;
-        std::vector<std::string> switchFlags;
+        std::vector<SwitchInfo> switchFlags;
+        std::vector<UniformRange> uniformRanges;
+        std::vector<LabelInfo> labels;
         std::vector<LineMapping> lineMappings;
     };
 
@@ -34,7 +52,9 @@ private:
     std::string preprocessRecursive(const std::string& filePath,
                                     std::vector<std::string>& includeStack,
                                     std::set<std::string>& uniqueIncludedFiles,
-                                    std::vector<std::string>& switchFlags,
+                                    std::vector<SwitchInfo>& switchFlags,
+                                    std::vector<UniformRange>& uniformRanges,
+                                    std::vector<LabelInfo>& labels,
                                     std::vector<LineMapping>& lineMappings,
                                     int& currentLine);
 
@@ -43,7 +63,9 @@ private:
                                  const std::string& filePath,
                                  std::vector<std::string>& includeStack,
                                  std::set<std::string>& uniqueIncludedFiles,
-                                 std::vector<std::string>& switchFlags,
+                                 std::vector<SwitchInfo>& switchFlags,
+                                 std::vector<UniformRange>& uniformRanges,
+                                 std::vector<LabelInfo>& labels,
                                  std::vector<LineMapping>& lineMappings,
                                  int& currentLine);
 };

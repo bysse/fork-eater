@@ -2,12 +2,16 @@
 
 */
 
-#pragma switch(FORK_DISABLE_MOUSE_LOOK)
+#pragma group("Camera")
+#pragma switch(USE_CAMERA, on)
+#pragma label(USE_CAMERA, "Enable")
+#pragma switch(USE_ORBITAL_CAMERA)
+#pragma label(USE_ORBITAL_CAMERA, "Free look / Orbital")
+#pragma endgroup()
 
-#ifdef FORK_DISABLE_MOUSE_LOOK
-#else
+#ifdef USE_CAMERA
 
-#define FORK_CAMERA_MOUSE_SENSITIVITY 0.1
+#define FORK_CAMERA_MOUSE_SENSITIVITY 3.14
 #define FORK_CAMERA_FOV 1.5
 
 mat2 fork_rot(float a) {
@@ -16,9 +20,9 @@ mat2 fork_rot(float a) {
 }
 #endif
 
-void camera4kLook(vec3 camera, vec3 target, vec2 uv, vec4 iMouse, inout vec3 rd) {
-#ifdef FORK_DISABLE_MOUSE_LOOK
-#else
+
+void freeLookCamera4k(vec3 camera, vec3 target, vec2 uv, vec4 iMouse, inout vec3 rd) {
+#ifdef USE_CAMERA
     vec3 ro = camera;
     
     vec3 fwd = normalize(target - camera);           
@@ -43,14 +47,12 @@ void camera4kLook(vec3 camera, vec3 target, vec2 uv, vec4 iMouse, inout vec3 rd)
 #endif
 }
 
-void camera4kOrbital(vec3 camera, vec3 target, vec2 uv, vec4 iMouse, inout vec3 rd) {
-#ifdef FORK_DISABLE_MOUSE_LOOK
-#else
-    vec2 mouse = 2.0 * iMouse.xy / iResolution.xy - 1.0;
-    
+
+void orbitalCamera4k(vec3 camera, vec3 target, vec2 uv, vec4 iMouse, inout vec3 rd) {
+#ifdef USE_CAMERA
     vec3 p = camera - target;
-    p.xz *= rot(-mouse.x * FORK_MOUSE_SENSITIVITY);
-    p.yz *= rot(-mouse.y * FORK_MOUSE_SENSITIVITY);
+    p.xz *= fork_rot(-iMouse.x * FORK_CAMERA_MOUSE_SENSITIVITY);
+    p.yz *= fork_rot(-iMouse.y * FORK_CAMERA_MOUSE_SENSITIVITY);
         
     vec3 ro = target + p;    
     vec3 fwd = normalize(target - ro);
@@ -58,5 +60,16 @@ void camera4kOrbital(vec3 camera, vec3 target, vec2 uv, vec4 iMouse, inout vec3 
     vec3 up = cross(fwd, right);
     
     rd = normalize(uv.x * right + uv.y * up + FORK_CAMERA_FOV * fwd);
+#endif
+}
+
+
+void camera4k(vec3 camera, vec3 target, vec2 uv, vec4 iMouse, inout vec3 rd) {
+#ifdef USE_CAMERA
+    #ifdef USE_ORBITAL_CAMERA
+        orbitalCamera4k(camera, target, uv, iMouse, rd);
+    #else
+        freeLookCamera4k(camera, target, uv, iMouse, rd);
+    #endif
 #endif
 }

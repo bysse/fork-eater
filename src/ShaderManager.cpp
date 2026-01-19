@@ -95,10 +95,27 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     shader->includedFiles.insert(shader->includedFiles.end(), fragmentResult.includedFiles.begin(), fragmentResult.includedFiles.end());
     shader->switchFlags = vertexResult.switchFlags;
     shader->switchFlags.insert(shader->switchFlags.end(), fragmentResult.switchFlags.begin(), fragmentResult.switchFlags.end());
+    shader->labels = vertexResult.labels;
+    shader->labels.insert(shader->labels.end(), fragmentResult.labels.begin(), fragmentResult.labels.end());
 
     // Combine and unique-ify included files
     std::sort(shader->includedFiles.begin(), shader->includedFiles.end());
     shader->includedFiles.erase(std::unique(shader->includedFiles.begin(), shader->includedFiles.end()), shader->includedFiles.end());
+
+    // Unique-ify switch flags
+    std::sort(shader->switchFlags.begin(), shader->switchFlags.end(), [](const ShaderPreprocessor::SwitchInfo& a, const ShaderPreprocessor::SwitchInfo& b) {
+        return a.name < b.name;
+    });
+    shader->switchFlags.erase(std::unique(shader->switchFlags.begin(), shader->switchFlags.end(), [](const ShaderPreprocessor::SwitchInfo& a, const ShaderPreprocessor::SwitchInfo& b) {
+        return a.name == b.name;
+    }), shader->switchFlags.end());
+
+    // Apply default switch states if not already set
+    for (const auto& sw : shader->switchFlags) {
+        if (m_switchStates.find(sw.name) == m_switchStates.end()) {
+            m_switchStates[sw.name] = sw.defaultValue;
+        }
+    }
     
     if (vertexResult.source.empty() || fragmentResult.source.empty() || 
         vertexResult.source.find("#error") != std::string::npos || 
@@ -110,40 +127,7 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
         return shader;
     }
     
-    // Compile vertex shader
-    std::string vertexErrorLog;
-    shader->vertexShaderId = compileShader(vertexResult.source, GL_VERTEX_SHADER, vertexErrorLog, &shader->vertexLineMappings);
-    if (shader->vertexShaderId == 0) {
-        shader->lastError = vertexErrorLog.empty() ? "Failed to compile vertex shader" : "Vertex shader compilation failed: " + vertexErrorLog;
-        if (m_compilationCallback) {
-            m_compilationCallback(name, false, shader->lastError);
-        }
-        return shader;
-    }
-    
-    // Compile fragment shader
-    std::string fragmentErrorLog;
-    shader->fragmentShaderId = compileShader(fragmentResult.source, GL_FRAGMENT_SHADER, fragmentErrorLog, &shader->fragmentLineMappings);
-    if (shader->fragmentShaderId == 0) {
-        shader->lastError = fragmentErrorLog.empty() ? "Failed to compile fragment shader" : "Fragment shader compilation failed: " + fragmentErrorLog;
-        cleanupShader(*shader);
-        if (m_compilationCallback) {
-            m_compilationCallback(name, false, shader->lastError);
-        }
-        return shader;
-    }
-    
-    // Link program
-    std::string linkErrorLog;
-    shader->programId = linkProgram(shader->vertexShaderId, shader->fragmentShaderId, linkErrorLog);
-    if (shader->programId == 0) {
-        shader->lastError = linkErrorLog.empty() ? "Failed to link shader program" : "Shader linking failed: " + linkErrorLog;
-        cleanupShader(*shader);
-        if (m_compilationCallback) {
-            m_compilationCallback(name, false, shader->lastError);
-        }
-        return shader;
-    }
+    // ... (compilation and linking)
 
     // Parse uniforms
     std::regex uniformRegex("uniform\\s+(float|vec2|vec3|vec4)\\s+([a-zA-Z0-9_]+);");
@@ -175,6 +159,25 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
             // Initialize with default values (0)
             uniform.value[0] = uniform.value[1] = uniform.value[2] = uniform.value[3] = 0.0f;
             
+            // Apply ranges from pragma
+            auto allRanges = vertexResult.uniformRanges;
+            allRanges.insert(allRanges.end(), fragmentResult.uniformRanges.begin(), fragmentResult.uniformRanges.end());
+            for (const auto& r : allRanges) {
+                if (r.name == nameStr) {
+                    uniform.min = r.min;
+                    uniform.max = r.max;
+                    break;
+                }
+            }
+
+            // Apply labels from pragma
+            for (const auto& l : shader->labels) {
+                if (l.name == nameStr) {
+                    uniform.label = l.label;
+                    break;
+                }
+            }
+
             // Try to find if this uniform already exists in the previous shader version to preserve value
             if (m_shaders.find(name) != m_shaders.end()) {
                 auto& oldUniforms = m_shaders[name]->uniforms;

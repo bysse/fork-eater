@@ -31,7 +31,7 @@ ShaderPreprocessor::PreprocessResult ShaderPreprocessor::preprocess(const std::s
     std::vector<std::string> includeStack;
     std::set<std::string> uniqueIncludedFiles;
     int currentLine = 1;
-    result.source = preprocessRecursive(filePath, includeStack, uniqueIncludedFiles, result.switchFlags, result.lineMappings, currentLine);
+    result.source = preprocessRecursive(filePath, includeStack, uniqueIncludedFiles, result.switchFlags, result.uniformRanges, result.labels, result.lineMappings, currentLine);
 
     for (const auto& file : uniqueIncludedFiles) {
         result.includedFiles.push_back(file);
@@ -84,7 +84,9 @@ bool shouldDiscard() {
 std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
                                                     std::vector<std::string>& includeStack,
                                                     std::set<std::string>& uniqueIncludedFiles,
-                                                    std::vector<std::string>& switchFlags,
+                                                    std::vector<SwitchInfo>& switchFlags,
+                                                    std::vector<UniformRange>& uniformRanges,
+                                                    std::vector<LabelInfo>& labels,
                                                     std::vector<LineMapping>& lineMappings,
                                                     int& currentLine) {
     LOG_DEBUG("Preprocessing file: {}", filePath);
@@ -106,7 +108,7 @@ std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
         return "#error " + errorMsg + "\n";
     }
 
-    std::string result = preprocessSource(source, filePath, includeStack, uniqueIncludedFiles, switchFlags, lineMappings, currentLine);
+    std::string result = preprocessSource(source, filePath, includeStack, uniqueIncludedFiles, switchFlags, uniformRanges, labels, lineMappings, currentLine);
 
     includeStack.pop_back();
     return result;
@@ -116,7 +118,9 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
                                                  const std::string& filePath,
                                                  std::vector<std::string>& includeStack,
                                                  std::set<std::string>& uniqueIncludedFiles,
-                                                 std::vector<std::string>& switchFlags,
+                                                 std::vector<SwitchInfo>& switchFlags,
+                                                 std::vector<UniformRange>& uniformRanges,
+                                                 std::vector<LabelInfo>& labels,
                                                  std::vector<LineMapping>& lineMappings,
                                                  int& currentLine) {
     LOG_DEBUG("Processing source for: {}", filePath);
@@ -143,7 +147,10 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
     ss.str(content.str());
     
     std::regex includeRegex(R"x(#pragma\s+include\s*(?:\(\s*)?(?:<([^>]+)>|"([^"]+)"|([^\s\)"<]+))(?:\s*\))?)x");
-    std::regex switchRegex(R"x(#pragma\s+switch\s*\(([^)]+)\))x");
+    std::regex switchRegex(R"x(#pragma\s+switch\s*(?:\(\s*)?(?:"([^"]+)"|'([^']+)'|([^\s\),]+))(?:\s*,\s*(true|false|on|off))?(?:\s*\))?)x");
+    std::regex rangeRegex(R"x(#pragma\s+range\s*\(\s*([a-zA-Z0-9_]+)\s*,\s*([-+]?[0-9]*\.?[0-9]+)\s*,\s*([-+]?[0-9]*\.?[0-9]+)\s*\))x");
+    std::regex labelRegex(R"x(#pragma\s+label\s*\(\s*([a-zA-Z0-9_]+)\s*,\s*["']([^"']+)["']\s*\))x");
+
     int fileLineNumber = 0;
     
     while (std::getline(ss, line)) {
@@ -153,13 +160,37 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
         // Scan for all switches on the line
         auto switchBegin = std::sregex_iterator(line.begin(), line.end(), switchRegex);
         auto switchEnd = std::sregex_iterator();
-        bool foundSwitch = false;
         
         for (std::sregex_iterator i = switchBegin; i != switchEnd; ++i) {
             std::smatch match = *i;
-            if (match.size() == 2) {
-                switchFlags.push_back(match[1].str());
-                foundSwitch = true;
+            if (match.size() >= 5) {
+                std::string name;
+                if (!match[1].str().empty()) name = match[1].str();
+                else if (!match[2].str().empty()) name = match[2].str();
+                else name = match[3].str();
+                
+                std::string defaultStr = match[4].str();
+                bool defaultValue = (defaultStr == "true" || defaultStr == "on");
+                
+                switchFlags.push_back({name, defaultValue});
+            }
+        }
+
+        // Scan for ranges
+        auto rangeBegin = std::sregex_iterator(line.begin(), line.end(), rangeRegex);
+        for (std::sregex_iterator i = rangeBegin; i != switchEnd; ++i) {
+            std::smatch match = *i;
+            if (match.size() == 4) {
+                uniformRanges.push_back({match[1].str(), std::stof(match[2].str()), std::stof(match[3].str())});
+            }
+        }
+
+        // Scan for labels
+        auto labelBegin = std::sregex_iterator(line.begin(), line.end(), labelRegex);
+        for (std::sregex_iterator i = labelBegin; i != switchEnd; ++i) {
+            std::smatch match = *i;
+            if (match.size() == 3) {
+                labels.push_back({match[1].str(), match[2].str()});
             }
         }
 
@@ -214,7 +245,7 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
                         includedContent = "#error " + errorMsg + "\n";
                     } else {
                         includeStack.push_back(embeddedName);
-                        includedContent = preprocessSource(libContent, embeddedName, includeStack, uniqueIncludedFiles, switchFlags, lineMappings, currentLine);
+                        includedContent = preprocessSource(libContent, embeddedName, includeStack, uniqueIncludedFiles, switchFlags, uniformRanges, labels, lineMappings, currentLine);
                         includeStack.pop_back();
                     }
                 } else if (!libInclude.empty()) {
@@ -228,7 +259,7 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
                     // Filesystem include
                     std::filesystem::path currentDirPath = std::filesystem::path(filePath).parent_path();
                     std::string includePath = (currentDirPath / includeFileName).string();
-                    includedContent = preprocessRecursive(includePath, includeStack, uniqueIncludedFiles, switchFlags, lineMappings, currentLine);
+                    includedContent = preprocessRecursive(includePath, includeStack, uniqueIncludedFiles, switchFlags, uniformRanges, labels, lineMappings, currentLine);
                 }
                 preprocessedSource << includedContent;
             } else {
@@ -237,9 +268,10 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
                 preprocessedSource << "#error " + errorMsg + "\n";
                 lineMappings.push_back({currentLine++, filePath, fileLineNumber});
             }
-        } else if (foundSwitch) {
-            // Line contained switches and no include (or include took precedence).
-            // We consume the line.
+        } else if (std::sregex_iterator(line.begin(), line.end(), switchRegex) != switchEnd ||
+                   std::sregex_iterator(line.begin(), line.end(), rangeRegex) != switchEnd ||
+                   std::sregex_iterator(line.begin(), line.end(), labelRegex) != switchEnd) {
+            // Line contained pragmas that we parsed above, so we consume it.
         } else {
             preprocessedSource << line << "\n";
             lineMappings.push_back({currentLine++, filePath, fileLineNumber});

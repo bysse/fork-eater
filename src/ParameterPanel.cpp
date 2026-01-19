@@ -8,26 +8,45 @@ ParameterPanel::ParameterPanel(std::shared_ptr<ShaderManager> shaderManager, std
 
 void ParameterPanel::render(const std::string& shaderName) {
     auto shader = m_shaderManager->getShader(shaderName);
-    if (shader && !shader->uniforms.empty()) {
+    if (!shader) {
+        ImGui::Text("Shader not found.");
+        return;
+    }
+
+    bool hasUniforms = false;
+    for (const auto& uniform : shader->uniforms) {
+        if (uniform.name != "iTime" && uniform.name != "iResolution" && uniform.name != "iMouse") {
+            hasUniforms = true;
+            break;
+        }
+    }
+
+    if (!hasUniforms && shader->switchFlags.empty()) {
+        ImGui::Text("No parameters found.");
+        return;
+    }
+
+    if (hasUniforms) {
         for (auto& uniform : shader->uniforms) {
             // Skip system uniforms
             if (uniform.name == "iTime" || uniform.name == "iResolution" || uniform.name == "iMouse") {
                 continue;
             }
 
+            std::string label = uniform.label.empty() ? uniform.name : uniform.label;
             bool valueChanged = false;
             switch (uniform.type) {
                 case GL_FLOAT:
-                    valueChanged = ImGui::SliderFloat(uniform.name.c_str(), uniform.value, 0.0f, 1.0f);
+                    valueChanged = ImGui::SliderFloat(label.c_str(), uniform.value, uniform.min, uniform.max);
                     break;
                 case GL_FLOAT_VEC2:
-                    valueChanged = ImGui::SliderFloat2(uniform.name.c_str(), uniform.value, 0.0f, 1.0f);
+                    valueChanged = ImGui::SliderFloat2(label.c_str(), uniform.value, uniform.min, uniform.max);
                     break;
                 case GL_FLOAT_VEC3:
-                    valueChanged = ImGui::SliderFloat3(uniform.name.c_str(), uniform.value, 0.0f, 1.0f);
+                    valueChanged = ImGui::SliderFloat3(label.c_str(), uniform.value, uniform.min, uniform.max);
                     break;
                 case GL_FLOAT_VEC4:
-                    valueChanged = ImGui::SliderFloat4(uniform.name.c_str(), uniform.value, 0.0f, 1.0f);
+                    valueChanged = ImGui::SliderFloat4(label.c_str(), uniform.value, uniform.min, uniform.max);
                     break;
             }
 
@@ -51,26 +70,34 @@ void ParameterPanel::render(const std::string& shaderName) {
                 m_shaderProject->saveState(m_shaderManager);
             }
         }
+    }
 
-        if (!shader->switchFlags.empty()) {
-            ImGui::Separator();
-            for (const auto& flag : shader->switchFlags) {
-                bool enabled = m_shaderManager->getSwitchState(flag);
-                if (ImGui::Checkbox(flag.c_str(), &enabled)) {
-                    m_shaderManager->setSwitchState(flag, enabled);
-                    RenderScaleMode scaleMode = Settings::getInstance().getRenderScaleMode();
-                    if (m_shaderManager->reloadShader(shaderName, scaleMode)) {
-                        auto newShader = m_shaderManager->getShader(shaderName);
-                        if (newShader && m_shaderProject) {
-                            m_shaderProject->applyUniformsToShader(shaderName, newShader);
-                            m_shaderProject->saveState(m_shaderManager);
-                        }
+    if (!shader->switchFlags.empty()) {
+        if (hasUniforms) ImGui::Separator();
+        
+        ImGui::TextDisabled("Feature Toggles:");
+        for (const auto& sw : shader->switchFlags) {
+            std::string label = sw.name;
+            for (const auto& l : shader->labels) {
+                if (l.name == sw.name) {
+                    label = l.label;
+                    break;
+                }
+            }
+
+            bool enabled = m_shaderManager->getSwitchState(sw.name);
+            if (ImGui::Checkbox(label.c_str(), &enabled)) {
+                m_shaderManager->setSwitchState(sw.name, enabled);
+                RenderScaleMode scaleMode = Settings::getInstance().getRenderScaleMode();
+                if (m_shaderManager->reloadShader(shaderName, scaleMode)) {
+                    auto newShader = m_shaderManager->getShader(shaderName);
+                    if (newShader && m_shaderProject) {
+                        m_shaderProject->applyUniformsToShader(shaderName, newShader);
+                        m_shaderProject->saveState(m_shaderManager);
                     }
                 }
             }
         }
-    } else {
-        ImGui::Text("No parameters found.");
     }
 }
 

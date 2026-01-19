@@ -21,6 +21,9 @@ struct ShaderUniform {
     std::string name;
     GLenum type;
     float value[4];
+    float min = 0.0f;
+    float max = 1.0f;
+    std::string label;
 };
 
 class ShaderManager {
@@ -37,7 +40,8 @@ public:
         std::vector<ShaderPreprocessor::LineMapping> fragmentLineMappings;
         std::vector<std::string> includedFiles;
         std::vector<ShaderUniform> uniforms;
-        std::vector<std::string> switchFlags;
+        std::vector<ShaderPreprocessor::SwitchInfo> switchFlags;
+        std::vector<ShaderPreprocessor::LabelInfo> labels;
         std::string lastError;
         bool isValid;
     };
