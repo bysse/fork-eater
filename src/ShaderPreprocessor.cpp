@@ -142,7 +142,7 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
     ss.clear();
     ss.str(content.str());
     
-    std::regex includeRegex(R"x(#pragma\s+include\s*(?:<([^>]+)>|"([^"]+)"))x");
+    std::regex includeRegex(R"x(#pragma\s+include\s*(?:\(\s*)?(?:<([^>]+)>|"([^"]+)"|([^\s\)"<]+))(?:\s*\))?)x");
     std::regex switchRegex(R"x(#pragma\s+switch\s*\(([^)]+)\))x");
     int fileLineNumber = 0;
     
@@ -164,10 +164,15 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
         }
 
         if (std::regex_search(line, matches, includeRegex)) {
-            if (matches.size() == 3) {
+            if (matches.size() >= 4) {
                 std::string libInclude = matches[1].str();
-                std::string fileInclude = matches[2].str();
-                std::string includeFileName = !libInclude.empty() ? libInclude : fileInclude;
+                std::string quoteInclude = matches[2].str();
+                std::string bareInclude = matches[3].str();
+                
+                std::string includeFileName;
+                if (!libInclude.empty()) includeFileName = libInclude;
+                else if (!quoteInclude.empty()) includeFileName = quoteInclude;
+                else includeFileName = bareInclude;
                 
                 std::string includedContent;
                 
@@ -175,10 +180,6 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
                 bool isEmbedded = !libInclude.empty();
                 if (!isEmbedded && includeFileName.rfind("lib/", 0) == 0) {
                     isEmbedded = true;
-                    // Strip "lib/" prefix for lookup if needed, but for now try exact match first
-                    // If we assume libs/utils.glsl is stored as "utils.glsl", we should strip.
-                    // But if it is stored as "lib/utils.glsl", we shouldn't.
-                    // Let's try to lookup exact first, then stripped.
                 }
 
                 bool foundInEmbedded = false;
