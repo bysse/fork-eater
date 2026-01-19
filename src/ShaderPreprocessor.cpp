@@ -149,6 +149,20 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
     while (std::getline(ss, line)) {
         ++fileLineNumber;
         std::smatch matches;
+
+        // Scan for all switches on the line
+        auto switchBegin = std::sregex_iterator(line.begin(), line.end(), switchRegex);
+        auto switchEnd = std::sregex_iterator();
+        bool foundSwitch = false;
+        
+        for (std::sregex_iterator i = switchBegin; i != switchEnd; ++i) {
+            std::smatch match = *i;
+            if (match.size() == 2) {
+                switchFlags.push_back(match[1].str());
+                foundSwitch = true;
+            }
+        }
+
         if (std::regex_search(line, matches, includeRegex)) {
             if (matches.size() == 3) {
                 std::string libInclude = matches[1].str();
@@ -222,16 +236,9 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
                 preprocessedSource << "#error " + errorMsg + "\n";
                 lineMappings.push_back({currentLine++, filePath, fileLineNumber});
             }
-        } else if (std::regex_search(line, matches, switchRegex)) {
-            if (matches.size() == 2) {
-                std::string switchName = matches[1].str();
-                switchFlags.push_back(switchName);
-            } else {
-                std::string errorMsg = "Invalid switch directive: " + line;
-                if (onMessage) onMessage(errorMsg);
-                preprocessedSource << "#error " + errorMsg + "\n";
-                lineMappings.push_back({currentLine++, filePath, fileLineNumber});
-            }
+        } else if (foundSwitch) {
+            // Line contained switches and no include (or include took precedence).
+            // We consume the line.
         } else {
             preprocessedSource << line << "\n";
             lineMappings.push_back({currentLine++, filePath, fileLineNumber});
