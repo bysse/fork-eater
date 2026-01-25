@@ -27,10 +27,34 @@ void ParameterPanel::render(const std::string& shaderName) {
     }
 
     if (hasUniforms) {
+        std::string currentGroup = "";
+        bool inGroup = false;
+
+        // Group uniforms by group name, but preserve order as best as possible?
+        // Actually, uniforms are stored in order of appearance.
+        // If we just iterate, we will encounter items in different groups if they are interleaved.
+        // But usually, grouped items are contiguous.
+        
         for (auto& uniform : shader->uniforms) {
             // Skip system uniforms
             if (uniform.name == "iTime" || uniform.name == "iResolution" || uniform.name == "iMouse") {
                 continue;
+            }
+
+            // Check if group changed
+            if (uniform.group != currentGroup) {
+                if (inGroup) {
+                    ImGui::Unindent();
+                    inGroup = false;
+                }
+                
+                currentGroup = uniform.group;
+                
+                if (!currentGroup.empty()) {
+                    ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "%s", currentGroup.c_str());
+                    ImGui::Indent();
+                    inGroup = true;
+                }
             }
 
             std::string label = uniform.label.empty() ? uniform.name : uniform.label;
@@ -70,13 +94,38 @@ void ParameterPanel::render(const std::string& shaderName) {
                 m_shaderProject->saveState(m_shaderManager);
             }
         }
+        
+        if (inGroup) {
+            ImGui::Unindent();
+        }
     }
 
     if (!shader->switchFlags.empty()) {
         if (hasUniforms) ImGui::Separator();
         
         ImGui::TextDisabled("Feature Toggles:");
+        
+        std::string currentGroup = "";
+        bool inGroup = false;
+
         for (const auto& sw : shader->switchFlags) {
+            
+             // Check if group changed
+            if (sw.group != currentGroup) {
+                if (inGroup) {
+                    ImGui::Unindent();
+                    inGroup = false;
+                }
+                
+                currentGroup = sw.group;
+                
+                if (!currentGroup.empty()) {
+                    ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "%s", currentGroup.c_str());
+                    ImGui::Indent();
+                    inGroup = true;
+                }
+            }
+
             std::string label = sw.name;
             for (const auto& l : shader->labels) {
                 if (l.name == sw.name) {
@@ -97,6 +146,10 @@ void ParameterPanel::render(const std::string& shaderName) {
                     }
                 }
             }
+        }
+        
+        if (inGroup) {
+             ImGui::Unindent();
         }
     }
 }

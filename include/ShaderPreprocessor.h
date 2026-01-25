@@ -17,6 +17,7 @@ public:
     struct SwitchInfo {
         std::string name;
         bool defaultValue = false;
+        std::string group;
     };
 
     struct UniformRange {
@@ -30,6 +31,11 @@ public:
         std::string label;
     };
 
+    struct GroupChange {
+        int line; // Line number in the preprocessed source
+        std::string groupName;
+    };
+
     struct PreprocessResult {
         std::string source;
         std::vector<std::string> includedFiles;
@@ -37,6 +43,7 @@ public:
         std::vector<UniformRange> uniformRanges;
         std::vector<LabelInfo> labels;
         std::vector<LineMapping> lineMappings;
+        std::vector<GroupChange> groupChanges;
     };
 
     // Callback for logging errors/warnings during preprocessing
@@ -56,6 +63,8 @@ private:
                                     std::vector<UniformRange>& uniformRanges,
                                     std::vector<LabelInfo>& labels,
                                     std::vector<LineMapping>& lineMappings,
+                                    std::vector<GroupChange>& groupChanges,
+                                    std::string& currentGroup,
                                     int& currentLine);
 
     // Helper for preprocessing source content (used by preprocessRecursive and for embedded libs)
@@ -67,5 +76,7 @@ private:
                                  std::vector<UniformRange>& uniformRanges,
                                  std::vector<LabelInfo>& labels,
                                  std::vector<LineMapping>& lineMappings,
+                                 std::vector<GroupChange>& groupChanges,
+                                 std::string& currentGroup,
                                  int& currentLine);
 };

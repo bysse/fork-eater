@@ -56,6 +56,26 @@ You can then use this define in your shader code for conditional logic:
 
 Toggling the switch in the UI will trigger an automatic shader reload with the define either present or absent.
 
+### Grouping Parameters: `#pragma group()`
+
+You can group related parameters (uniforms and switches) in the UI using `#pragma group()`.
+
+**Usage:**
+
+```glsl
+#pragma group("Color Settings")
+uniform vec3 u_color;
+uniform float u_intensity;
+#pragma endgroup()
+
+#pragma group("Effect Settings")
+#pragma switch(ENABLE_NOISE)
+uniform float u_noiseScale;
+#pragma endgroup()
+```
+
+Parameters defined between `#pragma group("Name")` and `#pragma endgroup()` will be visually grouped under the specified label in the Parameters panel.
+
 ## System Uniforms
 
 Fork Eater provides several built-in uniforms that are automatically available in your fragment shaders. For consistency with different shader sources, both `u_` (Unreal-style) and `i_` (Shadertoy-style) prefixes are supported.
@@ -71,6 +91,13 @@ Fork Eater provides several built-in uniforms that are automatically available i
   - `.xy`: The normalized mouse coordinates (from bottom-left).
   - `.z`: 1.0 if the left mouse button is pressed, 0.0 otherwise.
   - `.w`: 1.0 if the right mouse button is pressed, 0.0 otherwise. (Currently `.w` is the same as `.z`)
+  - **Note**: These values are only updated when interacting with the preview panel.
+
+- `uniform vec2 u_mouse_rel;`
+  - Relative, integrated mouse coordinates.
+  - Useful for infinite scrolling or navigation.
+  - Values are normalized [0, 1] and wrap around (sawtooth wave).
+  - Only updates when clicking and dragging in the preview panel.
 
 ## Development Workflow
 

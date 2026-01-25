@@ -24,6 +24,7 @@ struct ShaderUniform {
     float min = 0.0f;
     float max = 1.0f;
     std::string label;
+    std::string group;
 };
 
 class ShaderManager {
@@ -78,6 +79,11 @@ public:
     void setUniform(const std::string& name, const float* value, int count);
     void setUniform(const std::string& name, int value);
     void setUniform(const std::string& name, bool value);
+
+    // Mouse input helpers
+    void setMousePosition(float x, float y);
+    void setMouseClickState(bool clicked);
+    void updateIntegratedMouse(float dx, float dy);
     
     // Get all shader names
     std::vector<std::string> getShaderNames() const;
@@ -110,6 +116,7 @@ private:
     std::unordered_map<std::string, bool> m_errorLogged;
     std::unordered_map<std::string, bool> m_switchStates;
     float m_mouseUniform[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    float m_mouseIntegrated[2] = {0.5f, 0.5f}; // Start at center
     
     // Helper functions
     GLuint compileShader(const std::string& source, GLenum shaderType, std::string& outErrorLog, const std::vector<ShaderPreprocessor::LineMapping>* lineMappings = nullptr);

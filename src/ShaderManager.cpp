@@ -11,6 +11,7 @@
 #include <vector>
 #include <regex> // Required for regex_search
 #include <filesystem> // Required for path manipulation
+#include <cmath>
 
 // Helper function to read a file's content
 static std::string readFileContent(const std::string& filePath) {
@@ -173,6 +174,7 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
 
             // Skip system uniforms
             if (nameStr == "u_time" || nameStr == "u_resolution" || nameStr == "u_mouse" || 
+                nameStr == "u_mouse_rel" ||
                 nameStr == "iTime" || nameStr == "iResolution" || nameStr == "iMouse" ||
                 nameStr == "u_progressive_fill" || nameStr == "u_render_phase" ||
                 nameStr == "u_renderChunkFactor" || nameStr == "u_time_offset" || nameStr == "u_chunk_stride") {
@@ -209,6 +211,29 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
                     break;
                 }
             }
+
+            // Apply groups from pragma
+            // We need to determine the line number of this uniform
+            int uniformLine = 0;
+            // Iterate through newlines up to current match position
+            auto prefix = matches.prefix();
+            uniformLine = std::count(shaderCode.begin(), shaderCode.begin() + std::distance(shaderCode.cbegin(), it) + prefix.length(), '\n') + 1;
+            
+            // Find the active group at this line
+            std::string activeGroup = "";
+            
+            // Combine group changes from vertex and fragment
+            std::vector<ShaderPreprocessor::GroupChange> allGroupChanges = vertexResult.groupChanges;
+            // Adjust fragment line numbers? No, uniforms are only parsed from fragment shader in this loop
+            // Wait, this loop iterates 'shaderCode' which is shader->preprocessedFragmentSource.
+            // So we only look at fragmentResult.groupChanges.
+            
+            for (const auto& change : fragmentResult.groupChanges) {
+                if (change.line <= uniformLine) {
+                    activeGroup = change.groupName;
+                }
+            }
+            uniform.group = activeGroup;
 
             // Try to find if this uniform already exists in the previous shader version to preserve value
             if (m_shaders.find(name) != m_shaders.end()) {
@@ -311,6 +336,24 @@ void ShaderManager::setUniform(const std::string& name, int value) {
 
 void ShaderManager::setUniform(const std::string& name, bool value) {
     setUniform(name, value ? 1 : 0);
+}
+
+void ShaderManager::setMousePosition(float x, float y) {
+    m_mouseUniform[0] = x;
+    m_mouseUniform[1] = y;
+}
+
+void ShaderManager::setMouseClickState(bool clicked) {
+    m_mouseUniform[2] = clicked ? 1.0f : 0.0f;
+}
+
+void ShaderManager::updateIntegratedMouse(float dx, float dy) {
+    m_mouseIntegrated[0] += dx;
+    m_mouseIntegrated[1] += dy;
+    
+    // Wrap around logic (frac)
+    m_mouseIntegrated[0] -= std::floor(m_mouseIntegrated[0]);
+    m_mouseIntegrated[1] -= std::floor(m_mouseIntegrated[1]);
 }
 
 std::vector<std::string> ShaderManager::getShaderNames() const {
@@ -622,16 +665,58 @@ void ShaderManager::renderToFramebuffer(const std::string& name, int width, int 
         }
     }
 
-    ImGuiIO& io = ImGui::GetIO();
-    bool mouseDown = io.MouseDown[0];
-    if (mouseDown) {
-        m_mouseUniform[0] = io.MousePos.x / (float)width;
-        m_mouseUniform[1] = io.MousePos.y / (float)height;
-    }
-    m_mouseUniform[2] = mouseDown ? 1.0f : 0.0f;
     m_mouseUniform[3] = 0.0f;
-    setUniform("iMouse", m_mouseUniform, 4);
+    
+    // iMouse: Shadertoy expects pixel coordinates
+    float iMouse[4] = {
+        m_mouseUniform[0] * width,
+        m_mouseUniform[1] * height,
+        m_mouseUniform[2] * width,  // Click drag start / current click state X (simplified)
+        m_mouseUniform[3] * height  // Click drag start / current click state Y (simplified)
+    };
+    // Note: Proper Shadertoy iMouse behavior for .zw is complex (click origin vs current click).
+    // For now we just scale the current normalized click state (which is 0 or 1) by resolution 
+    // to give something non-zero when clicked, or better:
+    // If we want exact Shadertoy behavior, we need to track click origin. 
+    // But given m_mouseUniform stores {x, y, click, 0}, 
+    // let's at least make .xy pixel coordinates.
+    // For .zw, if click is 1, let's just replicate .xy (drag behavior approximation) or keep as state.
+    // Standard Shadertoy: xy = current pixel coords (if LB down), zw = click origin pixel coords.
+    // Current app architecture only gives us current pos and click state.
+    // So let's just scale .xy. For .z, if clicked (m_mouseUniform[2] > 0), we can't recover origin easily without state.
+    // Let's just scale the boolean click state for now so it's not tiny? 
+    // Actually, Shadertoy uses .z > 0 to indicate click. So keeping it as 1.0 might be confusing if user expects pixels.
+    // However, usually people check iMouse.z > 0.0. 
+    // Let's stick to scaling x and y.
+    
+    // Better approximation given current state:
+    // xy = current pos (pixels)
+    // zw = current pos (pixels) if clicked, else -abs(current pos)?? No, that's too much logic here.
+    // Let's just pass scaled X/Y in xy and leave zw as normalized click state for now, 
+    // OR just scaled xy in zw too if clicked?
+    
+    // Let's match the request "set iMouse to be compatible with ShaderToy".
+    // Minimal compat: .xy are pixels.
+    iMouse[0] = m_mouseUniform[0] * width;
+    iMouse[1] = m_mouseUniform[1] * height;
+    
+    // For .z, if we treat m_mouseUniform[2] as "is clicked" (1.0),
+    // we can put the current pixel X in .z if clicked, else -1?
+    // Fork Eater's m_mouseUniform[2] is 1.0 if down, 0.0 if up.
+    if (m_mouseUniform[2] > 0.5f) {
+        iMouse[2] = iMouse[0];
+        iMouse[3] = iMouse[1];
+    } else {
+        // In Shadertoy, .zw are negative when mouse is up (containing last click pos).
+        // We don't track last click pos here easily.
+        // Let's just set to 0 or negative.
+        iMouse[2] = -0.0f; // or just 0
+        iMouse[3] = -0.0f; 
+    }
+
+    setUniform("iMouse", iMouse, 4);
     setUniform("u_mouse", m_mouseUniform, 4);
+    setUniform("u_mouse_rel", m_mouseIntegrated, 2);
 
     glBindVertexArray(m_quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);

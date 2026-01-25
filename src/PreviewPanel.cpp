@@ -66,6 +66,8 @@ void PreviewPanel::renderPreviewPanel(GLuint textureId, float time, float render
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset.x);
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + offset.y);
         
+        ImVec2 imageStartPos = ImGui::GetCursorScreenPos();
+
         // Display the rendered texture
         // uv0 is Top-Left, uv1 is Bottom-Right
         // Texture coordinate system: (0,0) is bottom-left, (1,1) is top-right
@@ -74,6 +76,45 @@ void PreviewPanel::renderPreviewPanel(GLuint textureId, float time, float render
         // ImGui Top-Left -> Texture Top-Left of valid region -> (0, uvScale.y)
         // ImGui Bottom-Right -> Texture Bottom-Right of valid region -> (uvScale.x, 0)
         ImGui::Image((void*)(intptr_t)textureId, previewSize, ImVec2(0, uvScale.second), ImVec2(uvScale.first, 0));
+
+        // Interaction
+        ImGui::SetCursorScreenPos(imageStartPos);
+        ImGui::InvisibleButton("##preview_input", previewSize);
+        
+        if (ImGui::IsItemActive()) {
+            ImVec2 mousePos = ImGui::GetMousePos();
+            ImVec2 rectMin = ImGui::GetItemRectMin();
+            ImVec2 rectSize = ImGui::GetItemRectSize();
+            
+            float u = (mousePos.x - rectMin.x) / rectSize.x;
+            float v = (mousePos.y - rectMin.y) / rectSize.y;
+            
+            // Invert Y to match expected coordinate system (0.0 at top is standard for this project based on previous implementation)
+            // Previous: io.MousePos.y / height. ImGui 0 is top.
+            // So we keep v as is (0 at top).
+            // Actually, let's double check if we need to clamp.
+            u = std::max(0.0f, std::min(1.0f, u));
+            v = std::max(0.0f, std::min(1.0f, v));
+            
+            m_shaderManager->setMousePosition(u, v);
+            m_shaderManager->setMouseClickState(true);
+
+            // Calculate relative movement for u_mouse_rel
+            ImVec2 delta = ImGui::GetIO().MouseDelta;
+            if (rectSize.x > 0 && rectSize.y > 0) {
+                // ImGui Y is down, but our UV Y is up (0 at bottom in standard GL, 
+                // but here 0 is top of rect in ImGui). 
+                // Wait, if I move mouse UP (negative delta.y), I want my coords to go UP.
+                // In standard UV (0 at bottom), UP means INCREASING Y.
+                // So negative delta.y -> positive change in Y.
+                float dx = delta.x / rectSize.x;
+                float dy = -delta.y / rectSize.y;
+                m_shaderManager->updateIntegratedMouse(dx, dy);
+            }
+
+        } else {
+            m_shaderManager->setMouseClickState(false);
+        }
     } else {
         ImGui::Text("No shader selected");
         ImGui::Text("Select a shader from the file list to preview");

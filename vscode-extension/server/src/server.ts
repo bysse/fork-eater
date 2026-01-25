@@ -99,6 +99,7 @@ const systemUniforms: CompletionItem[] = [
 	{ label: 'iResolution', kind: CompletionItemKind.Variable, detail: 'vec3: Shadertoy compatibility' },
 	{ label: 'u_mouse', kind: CompletionItemKind.Variable, detail: 'vec4: Mouse coordinates' },
 	{ label: 'iMouse', kind: CompletionItemKind.Variable, detail: 'vec4: Shadertoy compatibility' },
+	{ label: 'u_mouse_rel', kind: CompletionItemKind.Variable, detail: 'vec2: Relative mouse (wrap-around)' },
 	{ label: 'TexCoord', kind: CompletionItemKind.Variable, detail: 'vec2: Texture coordinates' },
 	{ label: 'FragColor', kind: CompletionItemKind.Variable, detail: 'vec4: Output color' }
 ];
@@ -112,6 +113,7 @@ const uniformTypeSuggestions: CompletionItem[] = [
 	{ label: 'float u_time', kind: CompletionItemKind.Snippet, detail: 'Standard time uniform', insertText: 'float u_time;' },
 	{ label: 'vec2 u_resolution', kind: CompletionItemKind.Snippet, detail: 'Standard resolution uniform', insertText: 'vec2 u_resolution;' },
 	{ label: 'vec4 u_mouse', kind: CompletionItemKind.Snippet, detail: 'Standard mouse uniform', insertText: 'vec4 u_mouse;' },
+	{ label: 'vec2 u_mouse_rel', kind: CompletionItemKind.Snippet, detail: 'Relative mouse uniform', insertText: 'vec2 u_mouse_rel;' },
 	
 	// Shadertoy compatibility
 	{ label: 'float iTime', kind: CompletionItemKind.Snippet, detail: 'Shadertoy time', insertText: 'float iTime;' },
@@ -214,7 +216,9 @@ connection.onCompletion(
 					{ label: 'include', kind: CompletionItemKind.Keyword, insertText: ' include(' },
 					{ label: 'switch', kind: CompletionItemKind.Keyword, insertText: ' switch(' },
 					{ label: 'label', kind: CompletionItemKind.Keyword, insertText: ' label(' },
-					{ label: 'range', kind: CompletionItemKind.Keyword, insertText: ' range(' }
+					{ label: 'range', kind: CompletionItemKind.Keyword, insertText: ' range(' },
+					{ label: 'group', kind: CompletionItemKind.Keyword, insertText: ' group(' },
+					{ label: 'endgroup', kind: CompletionItemKind.Keyword, insertText: ' endgroup(' }
 				];
 			}
 		}
