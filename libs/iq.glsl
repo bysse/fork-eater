@@ -69,13 +69,7 @@ float sdBoxFrame( vec3 p, vec3 b, float e )
    return sqrt(d)*sign(s);
  }
 
- float sdCone( vec3 p, vec2 c, float h )
- {
-   float q = length(p.xz);
-   return max(dot(c.xy,vec2(q,p.y)),-h-p.y);
- }
-
- float sdCone( vec3 p, vec2 c )
+ float sdConeInfinite( vec3 p, vec2 c )
  {
      // c is the sin/cos of the angle
      vec2 q = vec2( length(p.xz), -p.y );
@@ -150,7 +144,7 @@ float sdBoxFrame( vec3 p, vec3 b, float e )
  }
 
 
-Rhombus - exact   (https://www.shadertoy.com/view/tlVGDc)
+// Rhombus - exact   (https://www.shadertoy.com/view/tlVGDc)
 
 float sdRhombus( vec3 p, float la, float lb, float h, float ra )
 {

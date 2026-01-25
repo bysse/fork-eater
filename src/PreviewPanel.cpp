@@ -87,11 +87,8 @@ void PreviewPanel::renderPreviewPanel(GLuint textureId, float time, float render
             ImVec2 rectSize = ImGui::GetItemRectSize();
             
             float u = (mousePos.x - rectMin.x) / rectSize.x;
-            float v = (mousePos.y - rectMin.y) / rectSize.y;
+            float v = 1.0f - (mousePos.y - rectMin.y) / rectSize.y;
             
-            // Invert Y to match expected coordinate system (0.0 at top is standard for this project based on previous implementation)
-            // Previous: io.MousePos.y / height. ImGui 0 is top.
-            // So we keep v as is (0 at top).
             // Actually, let's double check if we need to clamp.
             u = std::max(0.0f, std::min(1.0f, u));
             v = std::max(0.0f, std::min(1.0f, v));

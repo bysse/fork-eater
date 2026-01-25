@@ -5,6 +5,7 @@
 #include <memory>
 #include <functional>
 #include <vector>
+#include <map>
 
 #include "ShaderPreprocessor.h"
 #include "RenderScaleMode.h"
@@ -43,6 +44,7 @@ public:
         std::vector<ShaderUniform> uniforms;
         std::vector<ShaderPreprocessor::SwitchInfo> switchFlags;
         std::vector<ShaderPreprocessor::LabelInfo> labels;
+        std::map<std::string, GLenum> systemUniformTypes;
         std::string lastError;
         bool isValid;
     };
@@ -116,7 +118,7 @@ private:
     std::unordered_map<std::string, bool> m_errorLogged;
     std::unordered_map<std::string, bool> m_switchStates;
     float m_mouseUniform[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-    float m_mouseIntegrated[2] = {0.5f, 0.5f}; // Start at center
+    float m_mouseIntegrated[2] = {0.0f, 0.0f}; // Start at center
     
     // Helper functions
     GLuint compileShader(const std::string& source, GLenum shaderType, std::string& outErrorLog, const std::vector<ShaderPreprocessor::LineMapping>* lineMappings = nullptr);

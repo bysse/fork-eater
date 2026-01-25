@@ -21,7 +21,7 @@ mat2 fork_rot(float a) {
 #endif
 
 
-void freeLookCamera4k(vec3 camera, vec3 target, vec2 uv, vec4 iMouse, inout vec3 rd) {
+void freeLookCamera4k(inout vec3 camera, vec3 target, vec2 uv, vec2 mouse, inout vec3 rd) {
 #ifdef USE_CAMERA
     vec3 ro = camera;
     
@@ -33,8 +33,8 @@ void freeLookCamera4k(vec3 camera, vec3 target, vec2 uv, vec4 iMouse, inout vec3
     float theta = atan(raw_rd.x, raw_rd.z); // Horizontal angle
     float phi = asin(raw_rd.y);             // Vertical angle
     
-    theta += -iMouse.x * FORK_CAMERA_MOUSE_SENSITIVITY;
-    phi   += -iMouse.y * FORK_CAMERA_MOUSE_SENSITIVITY;
+    theta += -mouse.x * FORK_CAMERA_MOUSE_SENSITIVITY;
+    phi   += -mouse.y * FORK_CAMERA_MOUSE_SENSITIVITY;
     
     phi = clamp(phi, -1.5, 1.5); 
     
@@ -48,13 +48,35 @@ void freeLookCamera4k(vec3 camera, vec3 target, vec2 uv, vec4 iMouse, inout vec3
 }
 
 
-void orbitalCamera4k(vec3 camera, vec3 target, vec2 uv, vec4 iMouse, inout vec3 rd) {
+void orbitalCamera4k(inout vec3 camera, vec3 target, vec2 uv, vec2 mouse, inout vec3 rd) {
 #ifdef USE_CAMERA
+    // Orbital rotation using spherical coordinates logic
     vec3 p = camera - target;
-    p.xz *= fork_rot(-iMouse.x * FORK_CAMERA_MOUSE_SENSITIVITY);
-    p.yz *= fork_rot(-iMouse.y * FORK_CAMERA_MOUSE_SENSITIVITY);
+    float r = length(p);
+    
+    // Initial angles based on the input camera position
+    // pitch (phi) - angle from Y axis (0 to PI)
+    // yaw (theta) - angle in XZ plane
+    float phi = acos(p.y / r);
+    float theta = atan(p.x, p.z);
+    
+    // Update angles based on mouse
+    // Mouse X controls Yaw (theta)
+    // Mouse Y controls Pitch (phi)
+    theta += -mouse.x * FORK_CAMERA_MOUSE_SENSITIVITY;
+    phi   += -mouse.y * FORK_CAMERA_MOUSE_SENSITIVITY;
+    
+    // Clamp pitch to avoid flipping at poles (0.01 to PI-0.01)
+    phi = clamp(phi, 0.01, 3.14159 - 0.01);
+    
+    // Convert back to Cartesian
+    p.x = r * sin(phi) * sin(theta);
+    p.y = r * cos(phi);
+    p.z = r * sin(phi) * cos(theta);
         
-    vec3 ro = target + p;    
+    vec3 ro = target + p;
+    camera = ro; // Update camera position output
+    
     vec3 fwd = normalize(target - ro);
     vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), fwd));
     vec3 up = cross(fwd, right);
@@ -64,12 +86,12 @@ void orbitalCamera4k(vec3 camera, vec3 target, vec2 uv, vec4 iMouse, inout vec3 
 }
 
 
-void camera4k(vec3 camera, vec3 target, vec2 uv, vec4 iMouse, inout vec3 rd) {
+void camera4k(inout vec3 camera, vec3 target, vec2 uv, vec2 mouse, inout vec3 rd) {
 #ifdef USE_CAMERA
     #ifdef USE_ORBITAL_CAMERA
-        orbitalCamera4k(camera, target, uv, iMouse, rd);
+        orbitalCamera4k(camera, target, uv, mouse, rd);
     #else
-        freeLookCamera4k(camera, target, uv, iMouse, rd);
+        freeLookCamera4k(camera, target, uv, mouse, rd);
     #endif
 #endif
 }

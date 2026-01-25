@@ -172,20 +172,25 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
             std::string typeStr = matches[1].str();
             std::string nameStr = matches[2].str();
 
+            GLenum type = GL_FLOAT;
+            if (typeStr == "vec2") type = GL_FLOAT_VEC2;
+            else if (typeStr == "vec3") type = GL_FLOAT_VEC3;
+            else if (typeStr == "vec4") type = GL_FLOAT_VEC4;
+
             // Skip system uniforms
             if (nameStr == "u_time" || nameStr == "u_resolution" || nameStr == "u_mouse" || 
                 nameStr == "u_mouse_rel" ||
                 nameStr == "iTime" || nameStr == "iResolution" || nameStr == "iMouse" ||
                 nameStr == "u_progressive_fill" || nameStr == "u_render_phase" ||
                 nameStr == "u_renderChunkFactor" || nameStr == "u_time_offset" || nameStr == "u_chunk_stride") {
+                
+                if (nameStr == "u_mouse" || nameStr == "iMouse") {
+                    shader->systemUniformTypes[nameStr] = type;
+                }
+
                 it = matches.suffix().first;
                 continue;
             }
-            
-            GLenum type = GL_FLOAT;
-            if (typeStr == "vec2") type = GL_FLOAT_VEC2;
-            else if (typeStr == "vec3") type = GL_FLOAT_VEC3;
-            else if (typeStr == "vec4") type = GL_FLOAT_VEC4;
             
             ShaderUniform uniform;
             uniform.name = nameStr;
@@ -348,12 +353,18 @@ void ShaderManager::setMouseClickState(bool clicked) {
 }
 
 void ShaderManager::updateIntegratedMouse(float dx, float dy) {
-    m_mouseIntegrated[0] += dx;
-    m_mouseIntegrated[1] += dy;
+    // Accumulate relative changes.
+    // dx/dy are normalized deltas relative to 0..1 range.
+    // In -1..1 range (width 2), moving full width should add 2.0.
+    m_mouseIntegrated[0] += dx * 2.0f;
+    m_mouseIntegrated[1] += dy * 2.0f;
     
-    // Wrap around logic (frac)
-    m_mouseIntegrated[0] -= std::floor(m_mouseIntegrated[0]);
-    m_mouseIntegrated[1] -= std::floor(m_mouseIntegrated[1]);
+    // Wrap around logic for -1..1 range
+    for (int i = 0; i < 2; ++i) {
+        float val = (m_mouseIntegrated[i] + 1.0f) * 0.5f;
+        val -= std::floor(val);
+        m_mouseIntegrated[i] = val * 2.0f - 1.0f;
+    }
 }
 
 std::vector<std::string> ShaderManager::getShaderNames() const {
@@ -667,55 +678,41 @@ void ShaderManager::renderToFramebuffer(const std::string& name, int width, int 
 
     m_mouseUniform[3] = 0.0f;
     
-    // iMouse: Shadertoy expects pixel coordinates
-    float iMouse[4] = {
-        m_mouseUniform[0] * width,
-        m_mouseUniform[1] * height,
-        m_mouseUniform[2] * width,  // Click drag start / current click state X (simplified)
-        m_mouseUniform[3] * height  // Click drag start / current click state Y (simplified)
-    };
-    // Note: Proper Shadertoy iMouse behavior for .zw is complex (click origin vs current click).
-    // For now we just scale the current normalized click state (which is 0 or 1) by resolution 
-    // to give something non-zero when clicked, or better:
-    // If we want exact Shadertoy behavior, we need to track click origin. 
-    // But given m_mouseUniform stores {x, y, click, 0}, 
-    // let's at least make .xy pixel coordinates.
-    // For .zw, if click is 1, let's just replicate .xy (drag behavior approximation) or keep as state.
-    // Standard Shadertoy: xy = current pixel coords (if LB down), zw = click origin pixel coords.
-    // Current app architecture only gives us current pos and click state.
-    // So let's just scale .xy. For .z, if clicked (m_mouseUniform[2] > 0), we can't recover origin easily without state.
-    // Let's just scale the boolean click state for now so it's not tiny? 
-    // Actually, Shadertoy uses .z > 0 to indicate click. So keeping it as 1.0 might be confusing if user expects pixels.
-    // However, usually people check iMouse.z > 0.0. 
-    // Let's stick to scaling x and y.
-    
-    // Better approximation given current state:
-    // xy = current pos (pixels)
-    // zw = current pos (pixels) if clicked, else -abs(current pos)?? No, that's too much logic here.
-    // Let's just pass scaled X/Y in xy and leave zw as normalized click state for now, 
-    // OR just scaled xy in zw too if clicked?
-    
-    // Let's match the request "set iMouse to be compatible with ShaderToy".
-    // Minimal compat: .xy are pixels.
+    // iMouse: Shadertoy expects pixel coordinates (0 at bottom)
+    float iMouse[4] = {0, 0, 0, 0};
     iMouse[0] = m_mouseUniform[0] * width;
     iMouse[1] = m_mouseUniform[1] * height;
     
-    // For .z, if we treat m_mouseUniform[2] as "is clicked" (1.0),
-    // we can put the current pixel X in .z if clicked, else -1?
-    // Fork Eater's m_mouseUniform[2] is 1.0 if down, 0.0 if up.
     if (m_mouseUniform[2] > 0.5f) {
         iMouse[2] = iMouse[0];
         iMouse[3] = iMouse[1];
     } else {
-        // In Shadertoy, .zw are negative when mouse is up (containing last click pos).
-        // We don't track last click pos here easily.
-        // Let's just set to 0 or negative.
-        iMouse[2] = -0.0f; // or just 0
-        iMouse[3] = -0.0f; 
+        iMouse[2] = 0.0f;
+        iMouse[3] = 0.0f; 
     }
 
-    setUniform("iMouse", iMouse, 4);
-    setUniform("u_mouse", m_mouseUniform, 4);
+    // u_mouse: map 0..1 to -1..1
+    float u_mouse[4] = {
+        m_mouseUniform[0] * 2.0f - 1.0f,
+        m_mouseUniform[1] * 2.0f - 1.0f,
+        m_mouseUniform[2],
+        m_mouseUniform[3]
+    };
+
+    // Helper to set mouse uniform with correct dimension
+    auto setMouseUniform = [&](const std::string& paramName, float* data) {
+        int count = 4;
+        auto shaderPtr = getShader(name);
+        if (shaderPtr && shaderPtr->systemUniformTypes.count(paramName)) {
+            GLenum type = shaderPtr->systemUniformTypes[paramName];
+            if (type == GL_FLOAT_VEC2) count = 2;
+            else if (type == GL_FLOAT_VEC3) count = 3;
+        }
+        setUniform(paramName, data, count);
+    };
+
+    setMouseUniform("iMouse", iMouse);
+    setMouseUniform("u_mouse", u_mouse);
     setUniform("u_mouse_rel", m_mouseIntegrated, 2);
 
     glBindVertexArray(m_quadVAO);

@@ -87,16 +87,20 @@ Fork Eater provides several built-in uniforms that are automatically available i
   - The resolution of the viewport in pixels.
 
 - `uniform vec4 u_mouse;` / `uniform vec4 iMouse;`
-  - The mouse coordinates, normalized to the range [0, 1].
-  - `.xy`: The normalized mouse coordinates (from bottom-left).
-  - `.z`: 1.0 if the left mouse button is pressed, 0.0 otherwise.
-  - `.w`: 1.0 if the right mouse button is pressed, 0.0 otherwise. (Currently `.w` is the same as `.z`)
-  - **Note**: These values are only updated when interacting with the preview panel.
+  - The mouse coordinates.
+  - `u_mouse`:
+    - `.xy`: The normalized mouse coordinates in the range **[-1, 1]** (Center is (0,0), Top-Right is (1,1)).
+    - `.z`: 1.0 if the left mouse button is pressed, 0.0 otherwise.
+    - `.w`: 0.0 (Reserved).
+    - **Note**: These values are only updated when interacting with the preview panel.
+  - `iMouse`:
+    - `.xy`: Mouse position in **pixels** (Shadertoy compatible).
+    - `.zw`: Click/Drag information (Shadertoy compatible).
 
 - `uniform vec2 u_mouse_rel;`
   - Relative, integrated mouse coordinates.
   - Useful for infinite scrolling or navigation.
-  - Values are normalized [0, 1] and wrap around (sawtooth wave).
+  - Values are normalized in the range **[-1, 1]** and wrap around.
   - Only updates when clicking and dragging in the preview panel.
 
 ## Development Workflow
