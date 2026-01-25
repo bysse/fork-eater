@@ -1,12 +1,12 @@
-#pragma include("<utils.glsl>")
 #version 330 core
-layout (location = 0) in vec2 aPos;
-layout (location = 1) in vec2 aTexCoord;
+out vec4 FragColor;
+in vec2 TexCoord;
+uniform vec2 u_resolution;
+uniform float u_time;
 
-out vec2 TexCoord;
+#pragma include(<utils.glsl>)
 
-void main()
-{
-    gl_Position = vec4(aPos, 0.0, 1.0);
-    TexCoord = aTexCoord;
+void main() {
+    float c = circle(TexCoord, 0.5);
+    FragColor = vec4(vec3(c), 1.0);
 }

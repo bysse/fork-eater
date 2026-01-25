@@ -127,7 +127,39 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
         return shader;
     }
     
-    // ... (compilation and linking)
+    std::string errorLog;
+    shader->vertexShaderId = compileShader(vertexResult.source, GL_VERTEX_SHADER, errorLog, &vertexResult.lineMappings);
+    if (!shader->vertexShaderId) {
+        shader->lastError = errorLog;
+        if (m_compilationCallback) {
+            m_compilationCallback(name, false, shader->lastError);
+        }
+        return shader;
+    }
+    
+    shader->fragmentShaderId = compileShader(fragmentResult.source, GL_FRAGMENT_SHADER, errorLog, &fragmentResult.lineMappings);
+    if (!shader->fragmentShaderId) {
+        shader->lastError = errorLog;
+        glDeleteShader(shader->vertexShaderId);
+        shader->vertexShaderId = 0;
+        if (m_compilationCallback) {
+            m_compilationCallback(name, false, shader->lastError);
+        }
+        return shader;
+    }
+    
+    shader->programId = linkProgram(shader->vertexShaderId, shader->fragmentShaderId, errorLog);
+    if (!shader->programId) {
+        shader->lastError = errorLog;
+        glDeleteShader(shader->vertexShaderId);
+        glDeleteShader(shader->fragmentShaderId);
+        shader->vertexShaderId = 0;
+        shader->fragmentShaderId = 0;
+        if (m_compilationCallback) {
+            m_compilationCallback(name, false, shader->lastError);
+        }
+        return shader;
+    }
 
     // Parse uniforms
     std::regex uniformRegex("uniform\\s+(float|vec2|vec3|vec4)\\s+([a-zA-Z0-9_]+);");
