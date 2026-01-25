@@ -140,28 +140,28 @@ void MenuSystem::renderSettingsWindow() {
         ImGui::Separator();
         ImGui::Text("Timeline Settings");
 
-        float lowTreshold = settings.getLowFPSThreshold();
-        if (ImGui::SliderFloat("Low FPS Treshold", &lowTreshold, 0.0f, 1000.0f, "%.2f")) {
-            settings.setLowFPSThreshold(lowTreshold);
+        int lowThreshold = static_cast<int>(settings.getLowFPSThreshold());
+        if (ImGui::SliderInt("Low FPS Threshold", &lowThreshold, 1, 60)) {
+            settings.setLowFPSThreshold(static_cast<float>(lowThreshold));
         }
 
-        float highTreshold = settings.getHighFPSThreshold();
-        if (ImGui::SliderFloat("High FPS Treshold", &highTreshold, 0.0f, 1000.0f, "%.2f")) {
-            settings.setHighFPSThreshold(highTreshold);
+        int highThreshold = static_cast<int>(settings.getHighFPSThreshold());
+        if (ImGui::SliderInt("High FPS Threshold", &highThreshold, 1, 60)) {
+            settings.setHighFPSThreshold(static_cast<float>(highThreshold));
         }
 
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Text("Low FPS Rendering");
 
-        float lowRenderTreshold50 = settings.getLowFPSRenderThreshold50();
-        if (ImGui::SliderFloat("50% Render Threshold", &lowRenderTreshold50, 0.0f, 60.0f, "%.2f")) {
-            settings.setLowFPSRenderThreshold50(lowRenderTreshold50);
+        int lowRenderThreshold50 = static_cast<int>(settings.getLowFPSRenderThreshold50());
+        if (ImGui::SliderInt("50% Render Threshold", &lowRenderThreshold50, 1, 60)) {
+            settings.setLowFPSRenderThreshold50(static_cast<float>(lowRenderThreshold50));
         }
 
-        float lowRenderTreshold25 = settings.getLowFPSRenderThreshold25();
-        if (ImGui::SliderFloat("25% Render Threshold", &lowRenderTreshold25, 0.0f, 60.0f, "%.2f")) {
-            settings.setLowFPSRenderThreshold25(lowRenderTreshold25);
+        int lowRenderThreshold25 = static_cast<int>(settings.getLowFPSRenderThreshold25());
+        if (ImGui::SliderInt("25% Render Threshold", &lowRenderThreshold25, 1, 60)) {
+            settings.setLowFPSRenderThreshold25(static_cast<float>(lowRenderThreshold25));
         }
 
         ImGui::Spacing();

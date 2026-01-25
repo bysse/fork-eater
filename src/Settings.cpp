@@ -190,7 +190,7 @@ void Settings::applyToImGui() {
 }
 
 void Settings::setHighFPSThreshold(float threshold) {
-    threshold = std::max(0.0f, std::min(1000.0f, threshold));
+    threshold = std::max(1.0f, std::min(60.0f, threshold));
     if (std::abs(m_highFPSThreshold - threshold) > 0.01f) {
         m_highFPSThreshold = threshold;
         save();
@@ -199,7 +199,7 @@ void Settings::setHighFPSThreshold(float threshold) {
 }
 
 void Settings::setLowFPSThreshold(float threshold) {
-    threshold = std::max(0.0f, std::min(1000.0f, threshold));
+    threshold = std::max(1.0f, std::min(60.0f, threshold));
     if (std::abs(m_lowFPSThreshold - threshold) > 0.01f) {
         m_lowFPSThreshold = threshold;
         save();
@@ -208,7 +208,7 @@ void Settings::setLowFPSThreshold(float threshold) {
 }
 
 void Settings::setLowFPSRenderThreshold25(float threshold) {
-    threshold = std::max(0.0f, std::min(1000.0f, threshold));
+    threshold = std::max(1.0f, std::min(60.0f, threshold));
     if (std::abs(m_lowFPSRenderThreshold25 - threshold) > 0.01f) {
         m_lowFPSRenderThreshold25 = threshold;
         save();
@@ -217,7 +217,7 @@ void Settings::setLowFPSRenderThreshold25(float threshold) {
 }
 
 void Settings::setLowFPSRenderThreshold50(float threshold) {
-    threshold = std::max(0.0f, std::min(1000.0f, threshold));
+    threshold = std::max(1.0f, std::min(60.0f, threshold));
     if (std::abs(m_lowFPSRenderThreshold50 - threshold) > 0.01f) {
         m_lowFPSRenderThreshold50 = threshold;
         save();
