@@ -1,6 +1,34 @@
 {
   "libsFunctions": [
     {
+      "label": "fork_rot",
+      "kind": 3,
+      "detail": "mat2 fork_rot(float a) [camera.glsl]",
+      "insertText": "fork_rot",
+      "documentation": "mat2 fork_rot(float a)"
+    },
+    {
+      "label": "freeLookCamera4k",
+      "kind": 3,
+      "detail": "void freeLookCamera4k(inout vec3 camera, vec3 target, vec2 uv, vec2 mouse, inout vec3 rd) [camera.glsl]",
+      "insertText": "freeLookCamera4k",
+      "documentation": "void freeLookCamera4k(inout vec3 camera, vec3 target, vec2 uv, vec2 mouse, inout vec3 rd)"
+    },
+    {
+      "label": "orbitalCamera4k",
+      "kind": 3,
+      "detail": "void orbitalCamera4k(inout vec3 camera, vec3 target, vec2 uv, vec2 mouse, inout vec3 rd) [camera.glsl]",
+      "insertText": "orbitalCamera4k",
+      "documentation": "void orbitalCamera4k(inout vec3 camera, vec3 target, vec2 uv, vec2 mouse, inout vec3 rd)"
+    },
+    {
+      "label": "camera4k",
+      "kind": 3,
+      "detail": "void camera4k(inout vec3 camera, vec3 target, vec2 uv, vec2 mouse, inout vec3 rd) [camera.glsl]",
+      "insertText": "camera4k",
+      "documentation": "void camera4k(inout vec3 camera, vec3 target, vec2 uv, vec2 mouse, inout vec3 rd)"
+    },
+    {
       "label": "hash11",
       "kind": 3,
       "detail": "float hash11(float p) [hash.glsl]",
@@ -730,6 +758,12 @@
     }
   ],
   "libsFiles": [
+    {
+      "label": "camera.glsl",
+      "kind": 17,
+      "detail": "System Library: camera.glsl",
+      "insertText": "camera.glsl"
+    },
     {
       "label": "hash.glsl",
       "kind": 17,
