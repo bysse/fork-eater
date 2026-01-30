@@ -347,8 +347,9 @@ int main(int argc, char* argv[]) {
     EmbeddedLibraries::initialize();
     Application app;
     bool testMode = false;
-    int testExitCode = 0;
     bool newProject = false;
+    bool exportLibs = false;
+    int testExitCode = 0;
     bool debugMode = false;
     bool dumpFramebuffer = false;
     std::string dumpPassName;
@@ -421,18 +422,13 @@ int main(int argc, char* argv[]) {
         }
         else if (arg == "--new") {
             newProject = true;
-            // Check if next argument is a path
             if (i + 1 < argc && argv[i + 1][0] != '-') {
                 shaderProjectPath = argv[i + 1];
-                i++; // Skip the next argument as it's the path
-            } else {
-                shaderProjectPath = "."; // Use current directory
+                i++;
             }
         }
-        else if (arg == "-t" && i + 1 < argc) {
-            // Template selection (only valid with --new)
-            templateName = argv[i + 1];
-            i++; // Skip the template name
+        else if (arg == "--export-libs") {
+            exportLibs = true;
         }
         else if (arg == "--scale" && i + 1 < argc) {
             // Custom UI scaling factor
@@ -509,6 +505,11 @@ int main(int argc, char* argv[]) {
             LOG_ERROR("Failed to create new project in: {}", shaderProjectPath);
             return 1;
         }
+
+        if (exportLibs) {
+            newProj.exportLibraries();
+        }
+
         LOG_IMPORTANT("Successfully created new shader project in: {}", shaderProjectPath);
         return 0; // Exit after creating project
     }
@@ -516,6 +517,20 @@ int main(int argc, char* argv[]) {
     // If no path specified and not in test mode, use current directory
     if (shaderProjectPath.empty() && !testMode) {
         shaderProjectPath = ".";
+    }
+
+    // Handle --export-libs for an existing project
+    if (exportLibs && !newProject) {
+        ShaderProject proj;
+        if (proj.loadFromDirectory(shaderProjectPath)) {
+            if (proj.exportLibraries()) {
+                return 0;
+            }
+            return 1;
+        } else {
+            LOG_ERROR("Failed to load project from {} to export libraries", shaderProjectPath);
+            return 1;
+        }
     }
     
     // If not in test mode, validate that manifest exists
@@ -592,6 +607,7 @@ void printUsage(const char* programName) {
     LOG_INFO("Usage: {} [options] [shader_directory]", programName);
     LOG_INFO("Options:");
     LOG_INFO("  --new [path] [-t template]  Create new shader project");
+    LOG_INFO("  --export-libs               Export bundled libraries to project's libs/ folder");
     LOG_INFO("  --templates                 List available shader templates");
     LOG_INFO("  --render-scale-mode MODE    Set render scale mode (chunk, resolution)");
     LOG_INFO("  --render-scale FACTOR       Set initial render scale factor (0.0 - 1.0)");

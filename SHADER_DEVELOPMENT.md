@@ -107,18 +107,23 @@ Fork Eater provides several built-in uniforms that are automatically available i
 
 Here is a typical workflow for creating and developing a new shader project from scratch.
 
-### 1. Create a New Project
+### Creating a New Project
 
 Open a terminal in the Fork Eater project root and use the `--new` command-line flag to create a new shader project. You can optionally specify a template with `-t`.
 
 ```bash
-# Create a new project named "MyCoolShader" using the "simple" template
 ./run.sh --new project/MyCoolShader -t simple
 ```
 
-This will create a new directory `project/MyCoolShader` containing a `4k-eater.project` manifest and a `shaders/` subdirectory with the template files.
+You can also export all bundled GLSL libraries to your project's `libs/` folder using the `--export-libs` flag:
 
-### 2. Open the Project
+```bash
+./run.sh --new project/MyCoolShader --export-libs
+```
+
+This is useful for seeing how the libraries work or if you want to modify them for your specific project.
+
+### Project Structure
 
 Launch Fork Eater and provide the path to your new project directory.
 

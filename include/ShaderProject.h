@@ -101,6 +101,9 @@ public:
     bool loadLocalState(LocalProjectState& state) const;
     bool saveLocalState(const LocalProjectState& state) const;
 
+    // Library management
+    bool exportLibraries() const;
+
 private:
     ShaderProjectManifest m_manifest;
     std::string m_projectPath;

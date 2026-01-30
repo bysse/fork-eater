@@ -8,3 +8,4 @@ Below is a list of documented application features. Each file provides a detaile
 
 *   [Timeline FPS Indicator](./features/timeline-fps-indicator.md)
 *   [Render Scaling](./features/render-scaling.md)
+*   [Library Export](./features/library-export.md)

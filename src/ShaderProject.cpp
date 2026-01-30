@@ -1,6 +1,7 @@
 #include "ShaderProject.h"
 #include "ShaderManager.h"
 #include "ShaderTemplates.h"
+#include "GeneratedShaderLibraries.h"
 #include <fstream>
 #include <sstream>
 #include <filesystem>
@@ -537,4 +538,46 @@ bool ShaderProject::saveLocalState(const LocalProjectState& state) const {
     file << "# Fork Eater Local Project Properties\n";
     file << "render_scale=" << state.renderScale << "\n";
     return true;
+}
+
+bool ShaderProject::exportLibraries() const {
+    if (m_projectPath.empty()) {
+        LOG_ERROR("Project path is empty, cannot export libraries");
+        return false;
+    }
+
+    std::string libsDirPath = m_projectPath + "/libs";
+    try {
+        if (!fs::exists(libsDirPath)) {
+            fs::create_directories(libsDirPath);
+        }
+
+        EmbeddedLibraries::initialize();
+        
+        LOG_INFO("Exporting {} bundled libraries to: {}", EmbeddedLibraries::g_libs.size(), libsDirPath);
+
+        for (const auto& [name, content] : EmbeddedLibraries::g_libs) {
+            std::string outputPath = libsDirPath + "/" + name;
+            
+            // Ensure subdirectories exist if the lib name contains them
+            fs::path outPath(outputPath);
+            if (outPath.has_parent_path()) {
+                fs::create_directories(outPath.parent_path());
+            }
+
+            std::ofstream outFile(outputPath, std::ios::binary);
+            if (!outFile.is_open()) {
+                LOG_ERROR("Failed to create library file: {}", outputPath);
+                continue;
+            }
+            outFile.write(content.first, static_cast<std::streamsize>(content.second));
+            LOG_DEBUG("Exported: {}", name);
+        }
+        
+        LOG_IMPORTANT("Successfully exported bundled libraries to {}", libsDirPath);
+        return true;
+    } catch (const std::exception& e) {
+        LOG_ERROR("Failed to export libraries: {}", e.what());
+        return false;
+    }
 }

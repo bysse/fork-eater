@@ -37,6 +37,9 @@ cd build && ./fork-eater
 # Dump framebuffer to image
 ./fork-eater --dump-framebuffer <pass_name> <output_path.png>
 
+# Export bundled libraries to project
+./fork-eater <project_path> --export-libs
+
 # Help command
 ./fork-eater --help
 ```
