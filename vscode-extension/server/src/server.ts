@@ -65,7 +65,7 @@ hasDiagnosticRelatedInformationCapability = !!(
 			// Tell the client that this server supports code completion.
 			completionProvider: {
 				resolveProvider: true,
-				triggerCharacters: ['(', ' '] 
+				triggerCharacters: ['(', ' ', '/', '<', '"'] 
 			}
 		}
 	};
@@ -190,11 +190,19 @@ connection.onCompletion(
 		
 		// Pragma completion
 		if (trimmedLine.startsWith('#pragma')) {
-			if (line.includes('include(')) {
+			if (/#pragma\s+include/.test(line)) {
 				const currentFilePath = fileURLToPath(textDocumentPosition.textDocument.uri);
 				const currentFileDir = path.dirname(currentFilePath);
 				
-				let items = [...libsFiles]; // Always include system libs
+				// Include system libs
+				let items = [...libsFiles]; 
+				
+				// Also include system libs with lib/ prefix for better matching when user types "lib/"
+				items = items.concat(libsFiles.map(item => ({
+					...item,
+					label: `lib/${item.label}`,
+					insertText: `lib/${item.insertText}`
+				})));
 
 				// Scan local directory
 				items = items.concat(scanDirectoryForIncludes(currentFileDir, currentFileDir, 'Local'));
@@ -208,10 +216,10 @@ connection.onCompletion(
 
 				return items;
 			}
-			if (line.includes('switch(')) {
+			if (/#pragma\s+switch/.test(line)) {
 				return switchFlags;
 			}
-			if (trimmedLine === '#pragma') {
+			if (/^#pragma\s*$/.test(trimmedLine)) {
 				return [
 					{ label: 'include', kind: CompletionItemKind.Keyword, insertText: ' include(' },
 					{ label: 'switch', kind: CompletionItemKind.Keyword, insertText: ' switch(' },
@@ -224,7 +232,7 @@ connection.onCompletion(
 		}
 
 		// Pragma argument completions
-		if (trimmedLine.startsWith('#pragma label(') || trimmedLine.startsWith('#pragma range(')) {
+		if (/#pragma\s+(label|range)\s*\(/.test(trimmedLine)) {
 			// Extract uniforms from current document
 			const uniformRegex = /uniform\s+(?:float|vec2|vec3|vec4)\s+([a-zA-Z0-9_]+);/g;
 			let match;
@@ -235,7 +243,7 @@ connection.onCompletion(
 			return uniforms;
 		}
 
-		if (trimmedLine.startsWith('#pragma switch(')) {
+		if (/#pragma\s+switch\s*\(/.test(trimmedLine)) {
 			if (trimmedLine.includes(',')) {
 				return [
 					{ label: 'true', kind: CompletionItemKind.Keyword },
