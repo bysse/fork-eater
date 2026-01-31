@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Fork Eater Project Manifest",
+  "description": "Project configuration for Fork Eater shader editor",
+  "type": "object",
+  "required": ["name", "passes"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name of the shader project"
+    },
+    "description": {
+      "type": "string",
+      "description": "A description of the project"
+    },
+    "version": {
+      "type": "string",
+      "description": "Project version string (e.g. 1.0)",
+      "default": "1.0"
+    },
+    "timelineLength": {
+      "type": "number",
+      "description": "Duration of the timeline in seconds",
+      "minimum": 0,
+      "default": 120.0
+    },
+    "bpm": {
+      "type": "number",
+      "description": "Beats per minute for music synchronization",
+      "minimum": 0,
+      "default": 120.0
+    },
+    "beatsPerBar": {
+      "type": "integer",
+      "description": "Time signature (beats per bar)",
+      "minimum": 1,
+      "default": 4
+    },
+    "passes": {
+      "type": "array",
+      "description": "List of shader rendering passes",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "vertexShader", "fragmentShader"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Unique identifier for this pass"
+          },
+          "vertexShader": {
+            "type": "string",
+            "description": "Path to the vertex shader file (relative to shaders/)"
+          },
+          "fragmentShader": {
+            "type": "string",
+            "description": "Path to the fragment shader file (relative to shaders/)"
+          },
+          "inputs": {
+            "type": "array",
+            "description": "Input textures from other passes or assets",
+            "items": {
+              "type": "string"
+            }
+          },
+          "output": {
+            "type": "string",
+            "description": "Name of the output buffer (if not rendering to screen)"
+          },
+          "width": {
+            "type": "integer",
+            "description": "Custom width for this pass (0 for viewport size)",
+            "minimum": 0
+          },
+          "height": {
+            "type": "integer",
+            "description": "Custom height for this pass (0 for viewport size)",
+            "minimum": 0
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether this pass is active",
+            "default": true
+          }
+        }
+      }
+    }
+  }
+}

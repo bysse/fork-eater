@@ -19,6 +19,9 @@
 	],
 	"main": "./client/out/extension",
 	"contributes": {
+		"files.associations": {
+			"4k-eater.project": "json"
+		},
 		"languages": [
 			{
 				"id": "glsl",
@@ -28,6 +31,12 @@
 					".frag"
 				],
 				"configuration": "./language-configuration.json"
+			}
+		],
+		"jsonValidation": [
+			{
+				"fileMatch": "4k-eater.project",
+				"url": "./schemas/project-schema.json"
 			}
 		]
 	},
