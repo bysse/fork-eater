@@ -1,0 +1,16 @@
+{
+  "beatsPerBar": 4,
+  "bpm": 120.0,
+  "description": "A test shader for showcasing all features",
+  "name": "New Shader Project",
+  "passes": [
+    {
+      "enabled": true,
+      "fragmentShader": "first.frag",
+      "name": "main",
+      "vertexShader": "simple.vert"
+    }
+  ],
+  "timelineLength": 30.0,
+  "version": "1.0"
+}

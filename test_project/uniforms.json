@@ -1,0 +1,21 @@
+{
+  "switches": {
+    "USE_BLUE": false
+  },
+  "uniforms": {
+    "main": {
+      "u_renderChunkFactor": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "u_time_offset": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  }
+}
