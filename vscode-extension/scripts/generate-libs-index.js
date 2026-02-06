@@ -35,28 +35,62 @@ files.forEach(file => {
 
     // Parse functions
     // Regex to capture return type, function name, and args
-    // Matches "type name(args)" at the start of a line
-    // Handling simplified GLSL function signatures
-    const regex = /^([a-zA-Z0-9_]+)\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)/gm;
+    const funcRegex = /^([a-zA-Z0-9_]+)\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)/gm;
     let match;
 
-    while ((match = regex.exec(content)) !== null) {
-        const returnType = match[1];
-        const funcName = match[2];
-        const args = match[3];
-        const signature = `${returnType} ${funcName}(${args})`;
+    const lines = content.split('\n');
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const funcMatch = /^([a-zA-Z0-9_]+)\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)/.exec(line);
+        
+        if (funcMatch) {
+            const returnType = funcMatch[1];
+            const funcName = funcMatch[2];
+            const args = funcMatch[3];
+            const signature = `${returnType} ${funcName}(${args})`;
 
-        // Skip main function and keywords
-        if (funcName === 'main') continue;
-        if (['return', 'if', 'else', 'while', 'for', 'switch'].includes(returnType)) continue;
+            // Skip main function and keywords
+            if (funcName === 'main') continue;
+            if (['return', 'if', 'else', 'while', 'for', 'switch'].includes(returnType)) continue;
 
-        libsFunctions.push({
-            label: funcName,
-            kind: KIND_FUNCTION,
-            detail: `${signature} [${file}]`,
-            insertText: funcName,
-            documentation: signature
-        });
+            // Look for comments above the function
+            let documentation = signature;
+            const docLines = [];
+            let j = i - 1;
+            
+            while (j >= 0) {
+                const prevLine = lines[j].trim();
+                if (prevLine.startsWith('//')) {
+                    // If it's a separator line like //////, stop here
+                    if (/^\/\/[-=/!]{3,}/.test(prevLine)) break;
+                    
+                    docLines.unshift(prevLine.replace(/^\/\/\s*/, ''));
+                    j--;
+                } else if (prevLine === '') {
+                    // Stop if we hit an empty line after finding some comments
+                    if (docLines.length > 0) break;
+                    j--;
+                } else {
+                    break;
+                }
+            }
+            
+            if (docLines.length > 0) {
+                documentation = docLines.join('\n') + '\n\n' + signature;
+            }
+
+            libsFunctions.push({
+                label: funcName,
+                kind: KIND_FUNCTION,
+                detail: `${signature} [${file}]`,
+                insertText: funcName,
+                documentation: {
+                    kind: 'markdown',
+                    value: documentation
+                }
+            });
+        }
     }
 });
 

@@ -18,7 +18,7 @@ mat2 fork_rot(float a) {
 }
 #endif
 
-
+// Free look camera implementation
 void freeLookCamera4k(inout vec3 camera, vec3 target, vec2 uv, vec2 mouse, inout vec3 rd) {
 #ifdef USE_CAMERA
     vec3 ro = camera;
@@ -45,7 +45,7 @@ void freeLookCamera4k(inout vec3 camera, vec3 target, vec2 uv, vec2 mouse, inout
 #endif
 }
 
-
+// Orbital camera implementation
 void orbitalCamera4k(inout vec3 camera, vec3 target, vec2 uv, vec2 mouse, inout vec3 rd) {
 #ifdef USE_CAMERA
     // Orbital rotation using spherical coordinates logic
@@ -84,6 +84,7 @@ void orbitalCamera4k(inout vec3 camera, vec3 target, vec2 uv, vec2 mouse, inout 
 }
 
 
+// Main camera function that selects the appropriate camera type based on preprocessor directives
 void camera4k(inout vec3 camera, vec3 target, vec2 uv, vec2 mouse, inout vec3 rd) {
 #ifdef USE_CAMERA
     #ifdef USE_ORBITAL_CAMERA
