@@ -18,12 +18,25 @@ public:
         std::string name;
         bool defaultValue = false;
         std::string group;
+        std::string label;
+        std::string labelOn;
+    };
+
+    struct SliderInfo {
+        std::string name;
+        int min = 0;
+        int max = 10;
+        int defaultValue = 0;
+        std::string group;
+        std::string label;
     };
 
     struct UniformRange {
         std::string name;
         float min = 0.0f;
         float max = 1.0f;
+        std::string label;
+        int line = -1;
     };
 
     struct LabelInfo {
@@ -40,6 +53,7 @@ public:
         std::string source;
         std::vector<std::string> includedFiles;
         std::vector<SwitchInfo> switchFlags;
+        std::vector<SliderInfo> sliders;
         std::vector<UniformRange> uniformRanges;
         std::vector<LabelInfo> labels;
         std::vector<LineMapping> lineMappings;
@@ -60,6 +74,7 @@ private:
                                     std::vector<std::string>& includeStack,
                                     std::set<std::string>& uniqueIncludedFiles,
                                     std::vector<SwitchInfo>& switchFlags,
+                                    std::vector<SliderInfo>& sliders,
                                     std::vector<UniformRange>& uniformRanges,
                                     std::vector<LabelInfo>& labels,
                                     std::vector<LineMapping>& lineMappings,
@@ -73,6 +88,7 @@ private:
                                  std::vector<std::string>& includeStack,
                                  std::set<std::string>& uniqueIncludedFiles,
                                  std::vector<SwitchInfo>& switchFlags,
+                                 std::vector<SliderInfo>& sliders,
                                  std::vector<UniformRange>& uniformRanges,
                                  std::vector<LabelInfo>& labels,
                                  std::vector<LineMapping>& lineMappings,

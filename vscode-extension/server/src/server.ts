@@ -223,6 +223,7 @@ connection.onCompletion(
 				return [
 					{ label: 'include', kind: CompletionItemKind.Keyword, insertText: ' include(' },
 					{ label: 'switch', kind: CompletionItemKind.Keyword, insertText: ' switch(' },
+					{ label: 'slider', kind: CompletionItemKind.Keyword, insertText: ' slider(' },
 					{ label: 'label', kind: CompletionItemKind.Keyword, insertText: ' label(' },
 					{ label: 'range', kind: CompletionItemKind.Keyword, insertText: ' range(' },
 					{ label: 'group', kind: CompletionItemKind.Keyword, insertText: ' group(' },
@@ -232,19 +233,24 @@ connection.onCompletion(
 		}
 
 		// Pragma argument completions
-		if (/#pragma\s+(label|range)\s*\(/.test(trimmedLine)) {
+		if (/#pragma\s+(label|range|slider|switch)\s*\(/.test(trimmedLine)) {
 			// Extract uniforms from current document
 			const uniformRegex = /uniform\s+(?:float|vec2|vec3|vec4)\s+([a-zA-Z0-9_]+);/g;
+			// Extract compile-time parameters (from switches and sliders)
+			const paramRegex = /#pragma\s+(?:switch|slider)\s*\(\s*([a-zA-Z0-9_]+)/g;
+			
+			const items: CompletionItem[] = [];
 			let match;
-			const uniforms: CompletionItem[] = [];
+			
 			while ((match = uniformRegex.exec(content)) !== null) {
-				uniforms.push({ label: match[1], kind: CompletionItemKind.Variable });
+				items.push({ label: match[1], kind: CompletionItemKind.Variable, detail: 'Uniform' });
 			}
-			return uniforms;
-		}
-
-		if (/#pragma\s+switch\s*\(/.test(trimmedLine)) {
-			if (trimmedLine.includes(',')) {
+			
+			while ((match = paramRegex.exec(content)) !== null) {
+				items.push({ label: match[1], kind: CompletionItemKind.Enum, detail: 'Compile-time Parameter' });
+			}
+			
+			if (/#pragma\s+switch\s*\(/.test(trimmedLine) && trimmedLine.includes(',')) {
 				return [
 					{ label: 'true', kind: CompletionItemKind.Keyword },
 					{ label: 'false', kind: CompletionItemKind.Keyword },
@@ -252,7 +258,8 @@ connection.onCompletion(
 					{ label: 'off', kind: CompletionItemKind.Keyword }
 				];
 			}
-			return switchFlags;
+
+			return items;
 		}
 
 		// Uniform declaration suggestions

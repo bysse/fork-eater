@@ -43,6 +43,7 @@ public:
         std::vector<std::string> includedFiles;
         std::vector<ShaderUniform> uniforms;
         std::vector<ShaderPreprocessor::SwitchInfo> switchFlags;
+        std::vector<ShaderPreprocessor::SliderInfo> sliders;
         std::vector<ShaderPreprocessor::LabelInfo> labels;
         std::map<std::string, GLenum> systemUniformTypes;
         std::string lastError;
@@ -107,6 +108,11 @@ public:
     void setSwitchState(const std::string& name, bool enabled);
     const std::unordered_map<std::string, bool>& getSwitchStates() const;
 
+    // Slider state management (compile-time sliders)
+    int getSliderState(const std::string& name) const;
+    void setSliderState(const std::string& name, int value);
+    const std::unordered_map<std::string, int>& getSliderStates() const;
+
 private:
     std::unordered_map<std::string, std::shared_ptr<ShaderProgram>> m_shaders;
     std::unordered_map<std::string, std::unique_ptr<Framebuffer>> m_framebuffers;
@@ -117,6 +123,7 @@ private:
     GLuint m_quadVBO;
     std::unordered_map<std::string, bool> m_errorLogged;
     std::unordered_map<std::string, bool> m_switchStates;
+    std::unordered_map<std::string, int> m_sliderStates;
     float m_mouseUniform[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     float m_mouseIntegrated[2] = {0.0f, 0.0f}; // Start at center
     

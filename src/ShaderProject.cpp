@@ -189,6 +189,11 @@ bool ShaderProject::loadState(std::shared_ptr<ShaderManager> shaderManager) {
                 shaderManager->setSwitchState(switchName, value.get<bool>());
             }
         }
+        if (j.contains("sliders")) {
+            for (auto& [sliderName, value] : j["sliders"].items()) {
+                shaderManager->setSliderState(sliderName, value.get<int>());
+            }
+        }
     } catch (const json::parse_error& e) {
         LOG_ERROR("Error parsing uniforms JSON: {}", e.what());
         return false;
@@ -208,6 +213,7 @@ bool ShaderProject::saveState(std::shared_ptr<ShaderManager> shaderManager) cons
     json j;
     j["uniforms"] = m_uniformValues;
     j["switches"] = shaderManager->getSwitchStates();
+    j["sliders"] = shaderManager->getSliderStates();
     file << j.dump(2);
     return true;
 }

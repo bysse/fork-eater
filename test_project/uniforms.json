@@ -1,20 +1,17 @@
 {
+  "sliders": {
+    "ITERATIONS": 2.25
+  },
   "switches": {
     "USE_BLUE": false
   },
   "uniforms": {
     "main": {
-      "u_renderChunkFactor": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
+      "brightness": [
+        0.7160000205039978
       ],
-      "u_time_offset": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
+      "speed": [
+        2.190000057220459
       ]
     }
   }

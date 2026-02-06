@@ -96,6 +96,8 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     shader->includedFiles.insert(shader->includedFiles.end(), fragmentResult.includedFiles.begin(), fragmentResult.includedFiles.end());
     shader->switchFlags = vertexResult.switchFlags;
     shader->switchFlags.insert(shader->switchFlags.end(), fragmentResult.switchFlags.begin(), fragmentResult.switchFlags.end());
+    shader->sliders = vertexResult.sliders;
+    shader->sliders.insert(shader->sliders.end(), fragmentResult.sliders.begin(), fragmentResult.sliders.end());
     shader->labels = vertexResult.labels;
     shader->labels.insert(shader->labels.end(), fragmentResult.labels.begin(), fragmentResult.labels.end());
 
@@ -111,10 +113,25 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
         return a.name == b.name;
     }), shader->switchFlags.end());
 
+    // Unique-ify sliders
+    std::sort(shader->sliders.begin(), shader->sliders.end(), [](const ShaderPreprocessor::SliderInfo& a, const ShaderPreprocessor::SliderInfo& b) {
+        return a.name < b.name;
+    });
+    shader->sliders.erase(std::unique(shader->sliders.begin(), shader->sliders.end(), [](const ShaderPreprocessor::SliderInfo& a, const ShaderPreprocessor::SliderInfo& b) {
+        return a.name == b.name;
+    }), shader->sliders.end());
+
     // Apply default switch states if not already set
     for (const auto& sw : shader->switchFlags) {
         if (m_switchStates.find(sw.name) == m_switchStates.end()) {
             m_switchStates[sw.name] = sw.defaultValue;
+        }
+    }
+    
+    // Apply default slider states if not already set
+    for (const auto& sl : shader->sliders) {
+        if (m_sliderStates.find(sl.name) == m_sliderStates.end()) {
+            m_sliderStates[sl.name] = sl.defaultValue;
         }
     }
     
@@ -199,31 +216,43 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
             uniform.value[0] = uniform.value[1] = uniform.value[2] = uniform.value[3] = 0.0f;
             
             // Apply ranges from pragma
-            auto allRanges = vertexResult.uniformRanges;
-            allRanges.insert(allRanges.end(), fragmentResult.uniformRanges.begin(), fragmentResult.uniformRanges.end());
-            for (const auto& r : allRanges) {
-                if (r.name == nameStr) {
-                    uniform.min = r.min;
-                    uniform.max = r.max;
-                    break;
+            // Use both for named matches, but only fragment for positional matches since we are parsing fragment uniforms
+            const auto& fragmentRanges = fragmentResult.uniformRanges;
+            const auto& vertexRanges = vertexResult.uniformRanges;
+            
+            // Determine the line number of this uniform in preprocessed source
+            auto prefix = matches.prefix();
+            int uniformLine = std::count(shaderCode.begin(), shaderCode.begin() + std::distance(shaderCode.cbegin(), it) + prefix.length(), '\n') + 1;
+
+            auto applyRange = [&](const std::vector<ShaderPreprocessor::UniformRange>& ranges, bool positional) {
+                for (const auto& r : ranges) {
+                    if (r.name == nameStr || (positional && r.line != -1 && r.line == uniformLine)) {
+                        uniform.min = r.min;
+                        uniform.max = r.max;
+                        if (!r.label.empty()) {
+                            uniform.label = r.label;
+                        }
+                        return true;
+                    }
                 }
+                return false;
+            };
+
+            if (!applyRange(fragmentRanges, true)) {
+                applyRange(vertexRanges, false); // Only named ranges from vertex stage
             }
 
-            // Apply labels from pragma
-            for (const auto& l : shader->labels) {
-                if (l.name == nameStr) {
-                    uniform.label = l.label;
-                    break;
+            // Apply labels from pragma (legacy label-only pragma)
+            if (uniform.label.empty()) {
+                for (const auto& l : shader->labels) {
+                    if (l.name == nameStr) {
+                        uniform.label = l.label;
+                        break;
+                    }
                 }
             }
 
             // Apply groups from pragma
-            // We need to determine the line number of this uniform
-            int uniformLine = 0;
-            // Iterate through newlines up to current match position
-            auto prefix = matches.prefix();
-            uniformLine = std::count(shaderCode.begin(), shaderCode.begin() + std::distance(shaderCode.cbegin(), it) + prefix.length(), '\n') + 1;
-            
             // Find the active group at this line
             std::string activeGroup = "";
             
@@ -407,11 +436,29 @@ const std::unordered_map<std::string, bool>& ShaderManager::getSwitchStates() co
     return m_switchStates;
 }
 
+int ShaderManager::getSliderState(const std::string& name) const {
+    auto it = m_sliderStates.find(name);
+    if (it != m_sliderStates.end()) {
+        return it->second;
+    }
+    return 0;
+}
+
+void ShaderManager::setSliderState(const std::string& name, int value) {
+    m_sliderStates[name] = value;
+}
+
+const std::unordered_map<std::string, int>& ShaderManager::getSliderStates() const {
+    return m_sliderStates;
+}
+
 GLuint ShaderManager::compileShader(const std::string& source, GLenum shaderType, std::string& outErrorLog, const std::vector<ShaderPreprocessor::LineMapping>* lineMappings) {
     outErrorLog.clear();
     std::string finalSource = source;
     const char* stageName = (shaderType == GL_VERTEX_SHADER) ? "Vertex" :
                             (shaderType == GL_FRAGMENT_SHADER) ? "Fragment" : "Unknown";
+    
+    // Inject switch #defines
     for (const auto& [name, enabled] : m_switchStates) {
         if (enabled) {
             size_t versionPos = finalSource.find("#version");
@@ -420,6 +467,19 @@ GLuint ShaderManager::compileShader(const std::string& source, GLenum shaderType
                 if (eolPos != std::string::npos) {
                     finalSource.insert(eolPos + 1, "#define " + name + "\n");
                 }
+            }
+        }
+    }
+
+    // Inject slider #defines
+    for (const auto& [name, value] : m_sliderStates) {
+        size_t versionPos = finalSource.find("#version");
+        if (versionPos != std::string::npos) {
+            size_t eolPos = finalSource.find('\n', versionPos);
+            if (eolPos != std::string::npos) {
+                std::stringstream ss;
+                ss << "#define " << name << " " << value << "\n";
+                finalSource.insert(eolPos + 1, ss.str());
             }
         }
     }

@@ -100,8 +100,54 @@ void ParameterPanel::render(const std::string& shaderName) {
         }
     }
 
-    if (!shader->switchFlags.empty()) {
+    if (!shader->sliders.empty()) {
         if (hasUniforms) ImGui::Separator();
+        
+        ImGui::TextDisabled("Compile-time Parameters:");
+        
+        std::string currentGroup = "";
+        bool inGroup = false;
+
+        for (const auto& sl : shader->sliders) {
+             // Check if group changed
+            if (sl.group != currentGroup) {
+                if (inGroup) {
+                    ImGui::Unindent();
+                    inGroup = false;
+                }
+                
+                currentGroup = sl.group;
+                
+                if (!currentGroup.empty()) {
+                    ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "%s", currentGroup.c_str());
+                    ImGui::Indent();
+                    inGroup = true;
+                }
+            }
+
+            std::string label = sl.label.empty() ? sl.name : sl.label;
+            int value = m_shaderManager->getSliderState(sl.name);
+            
+            if (ImGui::SliderInt(label.c_str(), &value, sl.min, sl.max)) {
+                m_shaderManager->setSliderState(sl.name, value);
+                RenderScaleMode scaleMode = Settings::getInstance().getRenderScaleMode();
+                if (m_shaderManager->reloadShader(shaderName, scaleMode)) {
+                    auto newShader = m_shaderManager->getShader(shaderName);
+                    if (newShader && m_shaderProject) {
+                        m_shaderProject->applyUniformsToShader(shaderName, newShader);
+                        m_shaderProject->saveState(m_shaderManager);
+                    }
+                }
+            }
+        }
+        
+        if (inGroup) {
+             ImGui::Unindent();
+        }
+    }
+
+    if (!shader->switchFlags.empty()) {
+        if (hasUniforms || !shader->sliders.empty()) ImGui::Separator();
         
         ImGui::TextDisabled("Feature Toggles:");
         
@@ -126,15 +172,12 @@ void ParameterPanel::render(const std::string& shaderName) {
                 }
             }
 
-            std::string label = sw.name;
-            for (const auto& l : shader->labels) {
-                if (l.name == sw.name) {
-                    label = l.label;
-                    break;
-                }
+            bool enabled = m_shaderManager->getSwitchState(sw.name);
+            std::string label = sw.label.empty() ? sw.name : sw.label;
+            if (enabled && !sw.labelOn.empty()) {
+                label = sw.labelOn;
             }
 
-            bool enabled = m_shaderManager->getSwitchState(sw.name);
             if (ImGui::Checkbox(label.c_str(), &enabled)) {
                 m_shaderManager->setSwitchState(sw.name, enabled);
                 RenderScaleMode scaleMode = Settings::getInstance().getRenderScaleMode();

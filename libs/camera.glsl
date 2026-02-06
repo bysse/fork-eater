@@ -3,10 +3,8 @@
 */
 
 #pragma group("Camera")
-#pragma switch(USE_CAMERA, on)
-#pragma label(USE_CAMERA, "Enable")
-#pragma switch(USE_ORBITAL_CAMERA)
-#pragma label(USE_ORBITAL_CAMERA, "Free look / Orbital")
+#pragma switch(USE_CAMERA, "Enable", "Disable")
+#pragma switch(USE_ORBITAL_CAMERA, "Free look", "Orbital")
 #pragma endgroup()
 
 #ifdef USE_CAMERA

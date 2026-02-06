@@ -35,26 +35,60 @@ You can define conditional compilation flags directly from your shader code that
 **Usage:**
 
 ```glsl
-#pragma switch(USE_FANCY_EFFECT)
+#pragma switch(USE_FANCY_EFFECT, true, "Fancy Effect: OFF", "Fancy Effect: ON")
 ```
 
-This directive does two things:
-1.  It creates a checkbox toggle labeled "USE_FANCY_EFFECT" in the Parameters panel.
-2.  When the toggle is enabled, the preprocessor will inject `#define USE_FANCY_EFFECT` at the top of your shader source code before compilation.
+**Parameters:**
+1.  **NAME**: The preprocessor macro name (e.g., `USE_FANCY_EFFECT`).
+2.  **Default Value** (Optional): `true`, `false`, `on`, or `off`. Defaults to `false`.
+3.  **Off Label** (Optional): Label displayed when the switch is disabled.
+4.  **On Label** (Optional): Label displayed when the switch is enabled.
 
-You can then use this define in your shader code for conditional logic:
+When the toggle is enabled, the preprocessor will inject `#define NAME` at the top of your shader source code before compilation. Toggling the switch triggers an automatic shader reload.
+
+### Compile-time Parameters: `#pragma slider()`
+
+For parameters that must be known at compile-time (such as loop bounds, array sizes, or constant values), you can use `#pragma slider()`. Sliders are **integer-only**.
+
+**Usage:**
 
 ```glsl
-#ifdef USE_FANCY_EFFECT
-    // Apply the fancy effect
-    color = pow(color, vec3(2.2));
-#else
-    // Normal rendering
-    color = color;
-#endif
+#pragma slider(ITERATIONS, 1, 10, "Quality Level")
 ```
 
-Toggling the switch in the UI will trigger an automatic shader reload with the define either present or absent.
+**Parameters:**
+1.  **NAME**: The preprocessor macro name.
+2.  **Min/Max**: The integer range for the UI slider.
+3.  **Label** (Optional): A quoted string for the UI display.
+
+Changing this slider will inject `#define NAME <value>` into the shader and trigger a recompilation.
+
+### Uniform Range Control: `#pragma range()`
+
+Control the range and display name of `uniform` variables in the UI.
+
+**Usage:**
+
+```glsl
+// Positional: applies to the very next uniform
+#pragma range(0.0, 1.0, "Effect Strength")
+uniform float u_strength;
+
+// Named: applies to a specific uniform by name
+#pragma range(u_density, 0.0, 100.0, "Fog Density")
+uniform float u_density;
+```
+
+### Labels: `#pragma label()`
+
+Sets a display label for any uniform, switch, or slider by name. This is useful for keeping labels separate from range or switch definitions.
+
+**Usage:**
+
+```glsl
+#pragma label(u_color, "Base Surface Color")
+uniform vec3 u_color;
+```
 
 ### Grouping Parameters: `#pragma group()`
 

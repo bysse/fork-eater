@@ -32,7 +32,7 @@ ShaderPreprocessor::PreprocessResult ShaderPreprocessor::preprocess(const std::s
     std::set<std::string> uniqueIncludedFiles;
     int currentLine = 1;
     std::string currentGroup = "";
-    result.source = preprocessRecursive(filePath, includeStack, uniqueIncludedFiles, result.switchFlags, result.uniformRanges, result.labels, result.lineMappings, result.groupChanges, currentGroup, currentLine);
+    result.source = preprocessRecursive(filePath, includeStack, uniqueIncludedFiles, result.switchFlags, result.sliders, result.uniformRanges, result.labels, result.lineMappings, result.groupChanges, currentGroup, currentLine);
 
     for (const auto& file : uniqueIncludedFiles) {
         result.includedFiles.push_back(file);
@@ -60,22 +60,50 @@ bool shouldDiscard() {
 )";
         
         // Insert uniforms and helper function after version directive
+        int insertedLines = std::count(chunkUniforms.begin(), chunkUniforms.end(), '\n');
         size_t versionPos = result.source.find("#version");
+        int insertionLine = 1;
+
         if (versionPos != std::string::npos) {
             size_t eolPos = result.source.find('\n', versionPos);
             if (eolPos != std::string::npos) {
                 result.source.insert(eolPos + 1, chunkUniforms);
+                insertionLine = 2; // Inserted after line 1
             }
         } else {
             result.source.insert(0, chunkUniforms);
+            insertionLine = 1;
         }
+
+        // Shift metadata after the injection point
+        auto shiftMetadata = [&](int fromLine, int delta) {
+            for (auto& range : result.uniformRanges) {
+                if (range.line >= fromLine) range.line += delta;
+            }
+            for (auto& change : result.groupChanges) {
+                if (change.line >= fromLine) change.line += delta;
+            }
+            for (auto& mapping : result.lineMappings) {
+                if (mapping.preprocessedLine >= fromLine) mapping.preprocessedLine += delta;
+            }
+        };
+
+        shiftMetadata(insertionLine, insertedLines);
         
         // Insert discard check at start of main
         std::regex mainRegex(R"(void\s+main\s*\(\s*\)\s*\{)");
         std::smatch matches;
         if (std::regex_search(result.source, matches, mainRegex)) {
             size_t mainPos = matches.position() + matches.length();
-            result.source.insert(mainPos, "\n    if (shouldDiscard()) discard;\n");
+            
+            // Find which line main is on to shift mappings after it
+            int mainLine = std::count(result.source.begin(), result.source.begin() + mainPos, '\n') + 1;
+            
+            std::string discardLogic = "\n    if (shouldDiscard()) discard;\n";
+            int discardLines = std::count(discardLogic.begin(), discardLogic.end(), '\n');
+            
+            result.source.insert(mainPos, discardLogic);
+            shiftMetadata(mainLine + 1, discardLines);
         }
     }
     
@@ -86,6 +114,7 @@ std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
                                                     std::vector<std::string>& includeStack,
                                                     std::set<std::string>& uniqueIncludedFiles,
                                                     std::vector<SwitchInfo>& switchFlags,
+                                                    std::vector<SliderInfo>& sliders,
                                                     std::vector<UniformRange>& uniformRanges,
                                                     std::vector<LabelInfo>& labels,
                                                     std::vector<LineMapping>& lineMappings,
@@ -111,7 +140,7 @@ std::string ShaderPreprocessor::preprocessRecursive(const std::string& filePath,
         return "#error " + errorMsg + "\n";
     }
 
-    std::string result = preprocessSource(source, filePath, includeStack, uniqueIncludedFiles, switchFlags, uniformRanges, labels, lineMappings, groupChanges, currentGroup, currentLine);
+    std::string result = preprocessSource(source, filePath, includeStack, uniqueIncludedFiles, switchFlags, sliders, uniformRanges, labels, lineMappings, groupChanges, currentGroup, currentLine);
 
     includeStack.pop_back();
     return result;
@@ -122,6 +151,7 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
                                                  std::vector<std::string>& includeStack,
                                                  std::set<std::string>& uniqueIncludedFiles,
                                                  std::vector<SwitchInfo>& switchFlags,
+                                                 std::vector<SliderInfo>& sliders,
                                                  std::vector<UniformRange>& uniformRanges,
                                                  std::vector<LabelInfo>& labels,
                                                  std::vector<LineMapping>& lineMappings,
@@ -147,13 +177,30 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
     }
 
     // Now, process the content for includes and other pragmas
-    preprocessedSource << versionDirective;
+    if (!versionDirective.empty()) {
+        preprocessedSource << versionDirective;
+        // The version directive takes up one line (it includes the newline)
+        // We only increment if this is the top-level file (currentLine == 1)
+        // because sub-files shouldn't have #version anyway, but if they do,
+        // it might be stripped or handled differently.
+        // Actually, preprocessRecursive sets currentLine.
+        if (currentLine == 1) {
+            lineMappings.push_back({currentLine++, filePath, 1}); // Map #version line
+        }
+    }
+    
     ss.clear();
     ss.str(content.str());
     
     std::regex includeRegex(R"x(#pragma\s+include\s*(?:\(\s*)?(?:<([^>]+)>|"([^"]+)"|([^\s\)"<]+))(?:\s*\))?)x");
-    std::regex switchRegex(R"x(#pragma\s+switch\s*(?:\(\s*)?(?:"([^"]+)"|'([^']+)'|([^\s\),]+))(?:\s*,\s*(true|false|on|off))?(?:\s*\))?)x");
-    std::regex rangeRegex(R"x(#pragma\s+range\s*\(\s*([a-zA-Z0-9_]+)\s*,\s*([-+]?[0-9]*\.?[0-9]+)\s*,\s*([-+]?[0-9]*\.?[0-9]+)\s*\))x");
+    // #pragma switch(NAME [, defaultValue] [, "offLabel" [, "onLabel"]])
+    std::regex switchRegex(R"x(#pragma\s+switch\s*\(\s*([a-zA-Z0-9_]+)\s*(?:,\s*(true|false|on|off))?\s*(?:,\s*["']([^"']+)["'])?\s*(?:,\s*["']([^"']+)["'])?\s*\))x");
+    // #pragma slider(NAME, min, max [, "Label"])
+    std::regex sliderRegex(R"x(#pragma\s+slider\s*\(\s*([a-zA-Z0-9_]+)\s*,\s*([-+]?[0-9]+)\s*,\s*([-+]?[0-9]+)\s*(?:,\s*["']([^"']+)["'])?\s*\))x");
+    // #pragma range(NAME, min, max [, "Label"])
+    std::regex rangeRegex(R"x(#pragma\s+range\s*\(\s*([a-zA-Z0-9_]+)\s*,\s*([-+]?[0-9]*\.?[0-9]+)\s*,\s*([-+]?[0-9]*\.?[0-9]+)\s*(?:,\s*["']([^"']+)["'])?\s*\))x");
+    // #pragma range(min, max [, "Label"])
+    std::regex rangePositionalRegex(R"x(#pragma\s+range\s*\(\s*([-+]?[0-9]*\.?[0-9]+)\s*,\s*([-+]?[0-9]*\.?[0-9]+)\s*(?:,\s*["']([^"']+)["'])?\s*\))x");
     std::regex labelRegex(R"x(#pragma\s+label\s*\(\s*([a-zA-Z0-9_]+)\s*,\s*["']([^"']+)["']\s*\))x");
     std::regex groupRegex(R"x(#pragma\s+group\s*\(\s*["']([^"']+)["']\s*\))x");
     std::regex endGroupRegex(R"x(#pragma\s+endgroup\s*(?:\(\s*\))?)x");
@@ -184,25 +231,74 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
         
         for (std::sregex_iterator i = switchBegin; i != switchEnd; ++i) {
             std::smatch match = *i;
-            if (match.size() >= 5) {
-                std::string name;
-                if (!match[1].str().empty()) name = match[1].str();
-                else if (!match[2].str().empty()) name = match[2].str();
-                else name = match[3].str();
+            if (match.size() >= 2) {
+                SwitchInfo sw;
+                sw.name = match[1].str();
                 
-                std::string defaultStr = match[4].str();
-                bool defaultValue = (defaultStr == "true" || defaultStr == "on");
+                if (match.size() >= 3 && !match[2].str().empty()) {
+                    std::string defaultStr = match[2].str();
+                    sw.defaultValue = (defaultStr == "true" || defaultStr == "on");
+                }
                 
-                switchFlags.push_back({name, defaultValue, currentGroup});
+                if (match.size() >= 4 && !match[3].str().empty()) {
+                    sw.label = match[3].str();
+                }
+
+                if (match.size() >= 5 && !match[4].str().empty()) {
+                    sw.labelOn = match[4].str();
+                }
+                
+                sw.group = currentGroup;
+                switchFlags.push_back(sw);
             }
         }
 
-        // Scan for ranges
+        // Scan for sliders
+        auto sliderBegin = std::sregex_iterator(line.begin(), line.end(), sliderRegex);
+        for (std::sregex_iterator i = sliderBegin; i != switchEnd; ++i) {
+            std::smatch match = *i;
+            if (match.size() >= 4) {
+                SliderInfo sl;
+                sl.name = match[1].str();
+                sl.min = std::stoi(match[2].str());
+                sl.max = std::stoi(match[3].str());
+                if (match.size() >= 5 && !match[4].str().empty()) {
+                    sl.label = match[4].str();
+                }
+                sl.group = currentGroup;
+                sliders.push_back(sl);
+            }
+        }
+
+        // Scan for named ranges
         auto rangeBegin = std::sregex_iterator(line.begin(), line.end(), rangeRegex);
         for (std::sregex_iterator i = rangeBegin; i != switchEnd; ++i) {
             std::smatch match = *i;
-            if (match.size() == 4) {
-                uniformRanges.push_back({match[1].str(), std::stof(match[2].str()), std::stof(match[3].str())});
+            if (match.size() >= 4) {
+                UniformRange r;
+                r.name = match[1].str();
+                r.min = std::stof(match[2].str());
+                r.max = std::stof(match[3].str());
+                if (match.size() >= 5 && !match[4].str().empty()) {
+                    r.label = match[4].str();
+                }
+                uniformRanges.push_back(r);
+            }
+        }
+        
+        // Scan for positional ranges (min, max [, "label"])
+        auto rangePosBegin = std::sregex_iterator(line.begin(), line.end(), rangePositionalRegex);
+        for (std::sregex_iterator i = rangePosBegin; i != switchEnd; ++i) {
+            std::smatch match = *i;
+            if (match.size() >= 3) {
+                UniformRange r;
+                r.min = std::stof(match[1].str());
+                r.max = std::stof(match[2].str());
+                if (match.size() >= 4 && !match[3].str().empty()) {
+                    r.label = match[3].str();
+                }
+                r.line = currentLine;
+                uniformRanges.push_back(r);
             }
         }
 
@@ -266,7 +362,7 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
                         includedContent = "#error " + errorMsg + "\n";
                     } else {
                         includeStack.push_back(embeddedName);
-                        includedContent = preprocessSource(libContent, embeddedName, includeStack, uniqueIncludedFiles, switchFlags, uniformRanges, labels, lineMappings, groupChanges, currentGroup, currentLine);
+                        includedContent = preprocessSource(libContent, embeddedName, includeStack, uniqueIncludedFiles, switchFlags, sliders, uniformRanges, labels, lineMappings, groupChanges, currentGroup, currentLine);
                         includeStack.pop_back();
                     }
                 } else if (!libInclude.empty()) {
@@ -280,7 +376,7 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
                     // Filesystem include
                     std::filesystem::path currentDirPath = std::filesystem::path(filePath).parent_path();
                     std::string includePath = (currentDirPath / includeFileName).string();
-                    includedContent = preprocessRecursive(includePath, includeStack, uniqueIncludedFiles, switchFlags, uniformRanges, labels, lineMappings, groupChanges, currentGroup, currentLine);
+                    includedContent = preprocessRecursive(includePath, includeStack, uniqueIncludedFiles, switchFlags, sliders, uniformRanges, labels, lineMappings, groupChanges, currentGroup, currentLine);
                 }
                 preprocessedSource << includedContent;
             } else {
@@ -290,7 +386,9 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
                 lineMappings.push_back({currentLine++, filePath, fileLineNumber});
             }
         } else if (std::sregex_iterator(line.begin(), line.end(), switchRegex) != switchEnd ||
+                   std::sregex_iterator(line.begin(), line.end(), sliderRegex) != switchEnd ||
                    std::sregex_iterator(line.begin(), line.end(), rangeRegex) != switchEnd ||
+                   std::sregex_iterator(line.begin(), line.end(), rangePositionalRegex) != switchEnd ||
                    std::sregex_iterator(line.begin(), line.end(), labelRegex) != switchEnd ||
                    std::regex_search(line, groupRegex) ||
                    std::regex_search(line, endGroupRegex)) {
