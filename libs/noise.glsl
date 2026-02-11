@@ -1,3 +1,5 @@
+
+// Lipschitz = 1.5
 float noise31(vec3 p) {
 	vec3 ip=floor(p);
     p-=ip;
