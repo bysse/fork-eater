@@ -1,5 +1,6 @@
 #pragma group("Raymarching vec3")
 #pragma slider(RAYMARCH_STEPS, 25, 200, "Steps")
+#pragma switch(RAYMARCH_RELAXED, "Relaxed tracing")
 #pragma endgroup()
 
 #ifndef EPS
@@ -21,7 +22,7 @@ vec3 normal(vec3 p) {
 	float d = map(p).x;
 	return normalize(vec3(
 		d - map(p-EPS.xyz).x,
-		d - map(p-EPS.yzx).x,
+		d - map(p-EPS.yxz).x,
 		d - map(p-EPS.yzx).x
 	));
 }
@@ -36,19 +37,34 @@ vec4 intersect(vec3 ro, vec3 rd) {
     // .y = dt
 	// .z = material
 	// .w = min(t) emissive
-	vec4 hit = vec4(0.1, 0., 0., 0.);
+	vec4 hit = vec4(0.1, 0.1, 0., 0.);
 
+#ifdef RAYMARCH_RELAXED
+	float prev = 0.0;
 	for (int i=0; i<RAYMARCH_STEPS; i++ ) { 		
-        hit.yzw = map(ro + rd * hit.x);
-        hit.x += hit.y;
-
-		if (abs(hit.y) < RAYMARCH_MIN_DISTANCE) {
-            break;
+		if (abs(hit.y) > RAYMARCH_MIN_DISTANCE) {
+            hit.yzw = map(ro + rd * hit.x);
+			float L_est = 1.0 / max(1.0, abs( hit.y - prev) / (hit.x - prev));
+			prev = hit.y * L_est;
+	        hit.x += hit.y * L_est;
 		}
 		if (hit.x > RAYMARCH_MAX_DISTANCE) {
 			hit.z = -1;
 			break;
 		}
-	}	
+	}
+
+#else
+	for (int i=0; i<RAYMARCH_STEPS; i++ ) { 		
+		if (abs(hit.y) > RAYMARCH_MIN_DISTANCE) {
+            hit.yzw = map(ro + rd * hit.x);
+	        hit.x += hit.y;
+		}
+		if (hit.x > RAYMARCH_MAX_DISTANCE) {
+			hit.z = -1;
+			break;
+		}
+	}
+#endif
     return hit;
 }
