@@ -1,0 +1,54 @@
+#pragma group("Raymarching vec3")
+#pragma slider(RAYMARCH_STEPS, 25, 200, "Steps")
+#pragma endgroup()
+
+#ifndef EPS
+vec3 eps = vec3(0.01, 0.0, 0.0);
+#define EPS eps
+#endif
+
+#ifndef RAYMARCH_MAX_DISTANCE
+#define RAYMARCH_MAX_DISTANCE   10000.0
+#endif
+
+#ifndef RAYMARCH_MIN_DISTANCE
+#define RAYMARCH_MIN_DISTANCE   0.02
+#endif
+
+
+// Return the normalized normal vector at point p by sampling the distance field at p and nearby points.
+vec3 normal(vec3 p) {
+	float d = map(p).x;
+	return normalize(vec3(
+		d - map(p-EPS.xyz).x,
+		d - map(p-EPS.yzx).x,
+		d - map(p-EPS.yzx).x
+	));
+}
+
+// Marches along a ray and returns a vec4 where:
+// x = distance to closest surface
+// y = closeness to the surface (negative if inside)
+// z = material id (-1.0 for none)
+// w = emissive (0.0 for none)
+vec4 intersect(vec3 ro, vec3 rd) {
+	// .x = t
+    // .y = dt
+	// .z = material
+	// .w = min(t) emissive
+	vec4 hit = vec4(0.1, 0., 0., 0.);
+
+	for (int i=0; i<RAYMARCH_STEPS; i++ ) { 		
+        hit.yzw = map(ro + rd * hit.x);
+        hit.x += hit.y;
+
+		if (abs(hit.y) < RAYMARCH_MIN_DISTANCE) {
+            break;
+		}
+		if (hit.x > RAYMARCH_MAX_DISTANCE) {
+			hit.z = -1;
+			break;
+		}
+	}	
+    return hit;
+}
