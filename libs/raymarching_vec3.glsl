@@ -1,6 +1,7 @@
 #pragma group("Raymarching vec3")
 #pragma slider(RAYMARCH_STEPS, 25, 200, "Steps")
-#pragma switch(RAYMARCH_RELAXED, "Relaxed tracing")
+#pragma slider(RAYMARCH_MAX_DISTANCE, 100, 10000, "Max Dist")
+#pragma switch(RAYMARCH_RELAXED, false, "Normal tracing", "Relaxed tracing")
 #pragma endgroup()
 
 #ifndef EPS
