@@ -1,0 +1,11 @@
+{
+  "name": "Test Range Pragma",
+  "version": "1.0",
+  "passes": [
+    {
+      "name": "main",
+      "vertexShader": "test.vert",
+      "fragmentShader": "test.frag"
+    }
+  ]
+}

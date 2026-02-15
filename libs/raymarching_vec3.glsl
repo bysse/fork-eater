@@ -1,7 +1,8 @@
 #pragma group("Raymarching vec3")
 #pragma slider(RAYMARCH_STEPS, 25, 200, "Steps")
-#pragma slider(RAYMARCH_MAX_DISTANCE, 100, 10000, "Max Dist")
+#pragma slider(RAYMARCH_MAX_DISTANCE, 5, 1000, "Max Dist")
 #pragma switch(RAYMARCH_RELAXED, false, "Normal tracing", "Relaxed tracing")
+#pragma switch(RAYMARCH_INTERNAL, false, "March positive", "March both")
 #pragma endgroup()
 
 #ifndef EPS
@@ -41,6 +42,21 @@ vec4 intersect(vec3 ro, vec3 rd) {
 	vec4 hit = vec4(0.1, 0.1, 0., 0.);
 
 #ifdef RAYMARCH_RELAXED
+#ifdef RAYMARCH_INTERNAL
+	float prev = 0.0, sgn = map(ro).x<0.0 ? -1.0 : 1.0;
+	for (int i=0; i<RAYMARCH_STEPS; i++ ) { 		
+		if (abs(hit.y) > RAYMARCH_MIN_DISTANCE) {
+            hit.yzw = map(ro + rd * hit.x);
+			float L_est = 1.0 / max(1.0, abs( sgn * hit.y - prev) / (hit.x - prev));
+			prev = sgn * hit.y * L_est;
+	        hit.x += sgn * hit.y * L_est;
+		}
+		if (hit.x > RAYMARCH_MAX_DISTANCE) {
+			hit.z = -1;
+			break;
+		}
+	}
+#else	
 	float prev = 0.0;
 	for (int i=0; i<RAYMARCH_STEPS; i++ ) { 		
 		if (abs(hit.y) > RAYMARCH_MIN_DISTANCE) {
@@ -54,18 +70,33 @@ vec4 intersect(vec3 ro, vec3 rd) {
 			break;
 		}
 	}
+#endif	
+#else
 
+#ifdef RAYMARCH_INTERNAL
+	float sgn = map(ro).x<0.0 ? -1.0 : 1.0;
+	for (int i=0; i<RAYMARCH_STEPS; i++ ) { 		
+	if (abs(hit.y) > RAYMARCH_MIN_DISTANCE) {
+		hit.yzw = map(ro + rd * hit.x);
+		hit.x += hit.y * sgn;
+	}
+	if (hit.x > RAYMARCH_MAX_DISTANCE) {
+		hit.z = -1;
+		break;
+	}
+}
 #else
 	for (int i=0; i<RAYMARCH_STEPS; i++ ) { 		
 		if (abs(hit.y) > RAYMARCH_MIN_DISTANCE) {
-            hit.yzw = map(ro + rd * hit.x);
-	        hit.x += hit.y;
+			hit.yzw = map(ro + rd * hit.x);
+			hit.x += hit.y;
 		}
 		if (hit.x > RAYMARCH_MAX_DISTANCE) {
 			hit.z = -1;
 			break;
 		}
 	}
+#endif		
 #endif
     return hit;
 }
