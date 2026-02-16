@@ -5,3 +5,10 @@ vec2 smin(vec2 res1, vec2 res2, float k) {
         mix(res2.y, res1.y, h)
     );
 }
+
+float smin( float a, float b, float k )
+{
+    k *= 4.0;
+    float h = max( k-abs(a-b), 0.0 )/k;
+    return min(a,b) - h*h*k*(1.0/4.0);
+}
