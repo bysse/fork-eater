@@ -1,6 +1,6 @@
 #pragma group("Raymarching vec3")
-#pragma slider(RAYMARCH_STEPS, 25, 200, "Steps")
-#pragma slider(RAYMARCH_MAX_DISTANCE, 5, 1000, "Max Dist")
+#pragma slider(RAYMARCH_STEPS, 25, 200, 100, "Steps")
+#pragma slider(RAYMARCH_MAX_DISTANCE, 5, 1000, 100, "Max Dist")
 #pragma switch(RAYMARCH_RELAXED, false, "Normal tracing", "Relaxed tracing")
 #pragma switch(RAYMARCH_INTERNAL, false, "March positive", "March both")
 #pragma switch(RAYMARCH_SOFT_SHADE_SIMPLE, false, "Simple softshade", "Penumbra softshade")

@@ -7,16 +7,18 @@ Fork Eater supports several custom `#pragma` directives to control how shader pa
 ### Range Control
 
 #### Named Range
-`#pragma range(uniformName, min, max [, "label"])`
-Sets the slider range for a specific uniform by name, with an optional display label.
+`#pragma range(uniformName, min, max [, defaultValue [, "label"]])`
+Sets the slider range for a specific uniform by name, with an optional display label and default value.
 *   `uniformName`: The name of the uniform.
 *   `min`, `max`: Floating point values for the slider range.
+*   `defaultValue` (Optional): The initial value for the uniform if not already saved in the project.
 *   `label` (Optional): The display name used in the Parameter Panel.
 
 #### Positional Range
-`#pragma range(min, max [, "label"])`
-Sets the slider range for the *very next* uniform declared in the shader, with an optional display label.
+`#pragma range(min, max [, defaultValue [, "label"]])`
+Sets the slider range for the *very next* uniform declared in the shader, with an optional display label and default value.
 *   `min`, `max`: Floating point values for the slider range.
+*   `defaultValue` (Optional): The initial value for the uniform if not already saved in the project.
 *   `label` (Optional): The display name used in the Parameter Panel.
 
 ### Feature Toggles and Parameters
@@ -25,15 +27,16 @@ Sets the slider range for the *very next* uniform declared in the shader, with a
 `#pragma switch(NAME [, defaultValue] [, "offLabel" [, "onLabel"]])`
 Creates a checkbox in the UI. When enabled, `#define NAME` is injected into the shader before compilation.
 *   `NAME`: The preprocessor macro name.
-*   `defaultValue` (Optional): `true`, `false`, `on`, or `off`. Defaults to `false`.
+*   `defaultValue` (Optional): `true`, `false`, `on`, `off`, `0`, or `1`. Defaults to `false`.
 *   `offLabel` (Optional): The label displayed when the switch is **OFF**.
 *   `onLabel` (Optional): The label displayed when the switch is **ON**. If not provided, `offLabel` is used for both states.
 
 #### Slider (Compile-time Integer)
-`#pragma slider(NAME, min, max [, "label"])`
+`#pragma slider(NAME, min, max [, defaultValue [, "label"]])`
 Creates an **integer** slider in the UI. When the value changes, `#define NAME <value>` is injected into the shader, triggering a recompilation.
 *   `NAME`: The preprocessor macro name.
 *   `min`, `max`: **Integer** values for the slider range.
+*   `defaultValue` (Optional): The initial integer value.
 *   `label` (Optional): The display name used in the Parameter Panel.
 
 ### Labels and Grouping

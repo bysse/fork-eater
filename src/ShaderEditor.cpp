@@ -515,6 +515,9 @@ bool ShaderEditor::loadProjectFromPath(const std::string& projectPath) {
             m_timeline->play();
             LOG_INFO("Started timeline playback automatically");
             
+            // Save initial state (to capture any new defaults from pragmas)
+            m_currentProject->saveState(m_shaderManager);
+            
             success = true;
         } else {
             LOG_ERROR("Failed to load shaders from project: {}", projectPath);

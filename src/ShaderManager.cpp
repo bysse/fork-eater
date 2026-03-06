@@ -131,7 +131,11 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
     // Apply default slider states if not already set
     for (const auto& sl : shader->sliders) {
         if (m_sliderStates.find(sl.name) == m_sliderStates.end()) {
-            m_sliderStates[sl.name] = sl.defaultValue;
+            if (sl.hasDefaultValue) {
+                m_sliderStates[sl.name] = sl.defaultValue;
+            } else {
+                m_sliderStates[sl.name] = sl.defaultValue; // Will be 0 by default, but keeping consistency
+            }
         }
     }
     
@@ -196,7 +200,7 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
 
             // Skip system uniforms
             if (nameStr == "u_time" || nameStr == "u_resolution" || nameStr == "u_mouse" || 
-                nameStr == "u_mouse_rel" ||
+                nameStr == "u_mouse_rel" || nameStr == "u_fork_cam_mouse" ||
                 nameStr == "iTime" || nameStr == "iResolution" || nameStr == "iMouse" ||
                 nameStr == "u_progressive_fill" || nameStr == "u_render_phase" ||
                 nameStr == "u_renderChunkFactor" || nameStr == "u_time_offset" || nameStr == "u_chunk_stride") {
@@ -212,7 +216,7 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
             ShaderUniform uniform;
             uniform.name = nameStr;
             uniform.type = type;
-            // Initialize with default values (0)
+            // Initialize with default values (0), will be overridden by applyRange if available
             uniform.value[0] = uniform.value[1] = uniform.value[2] = uniform.value[3] = 0.0f;
             
             // Apply ranges from pragma
@@ -229,6 +233,9 @@ std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::loadShader(
                     if (r.name == nameStr || (positional && r.line != -1 && r.line == uniformLine)) {
                         uniform.min = r.min;
                         uniform.max = r.max;
+                        if (r.hasDefaultValue) {
+                            uniform.value[0] = uniform.value[1] = uniform.value[2] = uniform.value[3] = r.defaultValue;
+                        }
                         if (!r.label.empty()) {
                             uniform.label = r.label;
                         }
@@ -774,6 +781,7 @@ void ShaderManager::renderToFramebuffer(const std::string& name, int width, int 
     setMouseUniform("iMouse", iMouse);
     setMouseUniform("u_mouse", u_mouse);
     setUniform("u_mouse_rel", m_mouseIntegrated, 2);
+    setUniform("u_fork_cam_mouse", m_mouseIntegrated, 2);
 
     glBindVertexArray(m_quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);

@@ -194,13 +194,13 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
     
     std::regex includeRegex(R"x(#pragma\s+include\s*(?:\(\s*)?(?:<([^>]+)>|"([^"]+)"|([^\s\)"<]+))(?:\s*\))?)x");
     // #pragma switch(NAME [, defaultValue] [, "offLabel" [, "onLabel"]])
-    std::regex switchRegex(R"x(#pragma\s+switch\s*\(\s*([a-zA-Z0-9_]+)\s*(?:,\s*(true|false|on|off))?\s*(?:,\s*["']([^"']+)["'])?\s*(?:,\s*["']([^"']+)["'])?\s*\))x");
-    // #pragma slider(NAME, min, max [, "Label"])
-    std::regex sliderRegex(R"x(#pragma\s+slider\s*\(\s*([a-zA-Z0-9_]+)\s*,\s*([-+]?[0-9]+)\s*,\s*([-+]?[0-9]+)\s*(?:,\s*["']([^"']+)["'])?\s*\))x");
-    // #pragma range(NAME, min, max [, "Label"])
-    std::regex rangeRegex(R"x(#pragma\s+range\s*\(\s*([a-zA-Z0-9_]+)\s*,\s*([-+]?[0-9]*\.?[0-9]+)\s*,\s*([-+]?[0-9]*\.?[0-9]+)\s*(?:,\s*["']([^"']+)["'])?\s*\))x");
-    // #pragma range(min, max [, "Label"])
-    std::regex rangePositionalRegex(R"x(#pragma\s+range\s*\(\s*([-+]?[0-9]*\.?[0-9]+)\s*,\s*([-+]?[0-9]*\.?[0-9]+)\s*(?:,\s*["']([^"']+)["'])?\s*\))x");
+    std::regex switchRegex(R"x(#pragma\s+switch\s*\(\s*([a-zA-Z0-9_]+)\s*(?:,\s*(true|false|on|off|0|1))?\s*(?:,\s*["']([^"']+)["'])?\s*(?:,\s*["']([^"']+)["'])?\s*\))x");
+    // #pragma slider(NAME, min, max [, defaultValue [, "Label"]])
+    std::regex sliderRegex(R"x(#pragma\s+slider\s*\(\s*([a-zA-Z0-9_]+)\s*,\s*([-+]?[0-9]+)\s*,\s*([-+]?[0-9]+)\s*(?:,\s*([-+]?[0-9]+))?\s*(?:,\s*["']([^"']+)["'])?\s*\))x");
+    // #pragma range(NAME, min, max [, defaultValue [, "Label"]])
+    std::regex rangeRegex(R"x(#pragma\s+range\s*\(\s*([a-zA-Z0-9_]+)\s*,\s*([-+]?[0-9]*\.?[0-9]+)\s*,\s*([-+]?[0-9]*\.?[0-9]+)\s*(?:,\s*([-+]?[0-9]*\.?[0-9]+))?\s*(?:,\s*["']([^"']+)["'])?\s*\))x");
+    // #pragma range(min, max [, defaultValue [, "Label"]])
+    std::regex rangePositionalRegex(R"x(#pragma\s+range\s*\(\s*([-+]?[0-9]*\.?[0-9]+)\s*,\s*([-+]?[0-9]*\.?[0-9]+)\s*(?:,\s*([-+]?[0-9]*\.?[0-9]+))?\s*(?:,\s*["']([^"']+)["'])?\s*\))x");
     std::regex labelRegex(R"x(#pragma\s+label\s*\(\s*([a-zA-Z0-9_]+)\s*,\s*["']([^"']+)["']\s*\))x");
     std::regex groupRegex(R"x(#pragma\s+group\s*\(\s*["']([^"']+)["']\s*\))x");
     std::regex endGroupRegex(R"x(#pragma\s+endgroup\s*(?:\(\s*\))?)x");
@@ -237,7 +237,7 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
                 
                 if (match.size() >= 3 && !match[2].str().empty()) {
                     std::string defaultStr = match[2].str();
-                    sw.defaultValue = (defaultStr == "true" || defaultStr == "on");
+                    sw.defaultValue = (defaultStr == "true" || defaultStr == "on" || defaultStr == "1");
                 }
                 
                 if (match.size() >= 4 && !match[3].str().empty()) {
@@ -262,8 +262,14 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
                 sl.name = match[1].str();
                 sl.min = std::stoi(match[2].str());
                 sl.max = std::stoi(match[3].str());
+                
                 if (match.size() >= 5 && !match[4].str().empty()) {
-                    sl.label = match[4].str();
+                    sl.defaultValue = std::stoi(match[4].str());
+                    sl.hasDefaultValue = true;
+                }
+
+                if (match.size() >= 6 && !match[5].str().empty()) {
+                    sl.label = match[5].str();
                 }
                 sl.group = currentGroup;
                 sliders.push_back(sl);
@@ -279,14 +285,20 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
                 r.name = match[1].str();
                 r.min = std::stof(match[2].str());
                 r.max = std::stof(match[3].str());
+
                 if (match.size() >= 5 && !match[4].str().empty()) {
-                    r.label = match[4].str();
+                    r.defaultValue = std::stof(match[4].str());
+                    r.hasDefaultValue = true;
+                }
+
+                if (match.size() >= 6 && !match[5].str().empty()) {
+                    r.label = match[5].str();
                 }
                 uniformRanges.push_back(r);
             }
         }
         
-        // Scan for positional ranges (min, max [, "label"])
+        // Scan for positional ranges (min, max [, defaultValue [, "label"]])
         auto rangePosBegin = std::sregex_iterator(line.begin(), line.end(), rangePositionalRegex);
         for (std::sregex_iterator i = rangePosBegin; i != switchEnd; ++i) {
             std::smatch match = *i;
@@ -294,8 +306,14 @@ std::string ShaderPreprocessor::preprocessSource(const std::string& source,
                 UniformRange r;
                 r.min = std::stof(match[1].str());
                 r.max = std::stof(match[2].str());
+
                 if (match.size() >= 4 && !match[3].str().empty()) {
-                    r.label = match[3].str();
+                    r.defaultValue = std::stof(match[3].str());
+                    r.hasDefaultValue = true;
+                }
+
+                if (match.size() >= 5 && !match[4].str().empty()) {
+                    r.label = match[4].str();
                 }
                 r.line = currentLine;
                 uniformRanges.push_back(r);

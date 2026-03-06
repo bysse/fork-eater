@@ -425,6 +425,12 @@ int main(int argc, char* argv[]) {
             if (i + 1 < argc && argv[i + 1][0] != '-') {
                 shaderProjectPath = argv[i + 1];
                 i++;
+                
+                // Check for optional template flag -t
+                if (i + 2 < argc && std::string(argv[i + 1]) == "-t") {
+                    templateName = argv[i + 2];
+                    i += 2;
+                }
             }
         }
         else if (arg == "--export-libs") {

@@ -40,7 +40,7 @@ You can define conditional compilation flags directly from your shader code that
 
 **Parameters:**
 1.  **NAME**: The preprocessor macro name (e.g., `USE_FANCY_EFFECT`).
-2.  **Default Value** (Optional): `true`, `false`, `on`, or `off`. Defaults to `false`.
+2.  **Default Value** (Optional): `true`, `false`, `on`, `off`, `0`, or `1`. Defaults to `false`.
 3.  **Off Label** (Optional): Label displayed when the switch is disabled.
 4.  **On Label** (Optional): Label displayed when the switch is enabled.
 
@@ -53,13 +53,14 @@ For parameters that must be known at compile-time (such as loop bounds, array si
 **Usage:**
 
 ```glsl
-#pragma slider(ITERATIONS, 1, 10, "Quality Level")
+#pragma slider(ITERATIONS, 1, 10, 5, "Quality Level")
 ```
 
 **Parameters:**
 1.  **NAME**: The preprocessor macro name.
 2.  **Min/Max**: The integer range for the UI slider.
-3.  **Label** (Optional): A quoted string for the UI display.
+3.  **Default Value** (Optional): The initial integer value.
+4.  **Label** (Optional): A quoted string for the UI display.
 
 Changing this slider will inject `#define NAME <value>` into the shader and trigger a recompilation.
 
@@ -71,13 +72,19 @@ Control the range and display name of `uniform` variables in the UI.
 
 ```glsl
 // Positional: applies to the very next uniform
-#pragma range(0.0, 1.0, "Effect Strength")
+#pragma range(0.0, 1.0, 0.5, "Effect Strength")
 uniform float u_strength;
 
 // Named: applies to a specific uniform by name
-#pragma range(u_density, 0.0, 100.0, "Fog Density")
+#pragma range(u_density, 0.0, 100.0, 10.0, "Fog Density")
 uniform float u_density;
 ```
+
+**Parameters:**
+1.  **NAME** (Optional, for named version): The name of the uniform.
+2.  **Min/Max**: Floating point values for the slider range.
+3.  **Default Value** (Optional): The initial value for the uniform if not already saved in the project.
+4.  **Label** (Optional): The display name used in the Parameter Panel.
 
 ### Labels: `#pragma label()`
 

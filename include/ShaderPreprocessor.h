@@ -27,6 +27,7 @@ public:
         int min = 0;
         int max = 10;
         int defaultValue = 0;
+        bool hasDefaultValue = false;
         std::string group;
         std::string label;
     };
@@ -35,6 +36,8 @@ public:
         std::string name;
         float min = 0.0f;
         float max = 1.0f;
+        float defaultValue = 0.0f;
+        bool hasDefaultValue = false;
         std::string label;
         int line = -1;
     };
