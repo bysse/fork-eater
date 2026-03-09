@@ -4,6 +4,7 @@
 #pragma switch(RAYMARCH_RELAXED, false, "Normal tracing", "Relaxed tracing")
 #pragma switch(RAYMARCH_INTERNAL, false, "March positive", "March both")
 #pragma switch(RAYMARCH_SOFT_SHADE_SIMPLE, false, "Simple softshade", "Penumbra softshade")
+#pragma slider(RAYMARCH_SOFT_SHADE_STEPS, 10, 100, 50, "Shade Steps")
 #pragma endgroup()
 
 #ifndef EPS
@@ -19,6 +20,9 @@ vec3 eps = vec3(0.01, 0.0, 0.0);
 #define RAYMARCH_MIN_DISTANCE   0.02
 #endif
 
+#ifndef RAYMARCH_STEP_SCALE
+#define RAYMARCH_STEP_SCALE   1.0
+#endif
 
 // Return the normalized normal vector at point p by sampling the distance field at p and nearby points.
 vec3 normal(vec3 p) {
@@ -79,7 +83,7 @@ vec4 intersect(vec3 ro, vec3 rd) {
 	for (int i=0; i<RAYMARCH_STEPS; i++ ) { 		
 	if (abs(hit.y) > RAYMARCH_MIN_DISTANCE) {
 		hit.yzw = map(ro + rd * hit.x);
-		hit.x += hit.y * sgn;
+		hit.x += hit.y * sgn * RAYMARCH_STEP_SCALE;
 	}
 	if (hit.x > RAYMARCH_MAX_DISTANCE) {
 		hit.z = -1;
@@ -90,7 +94,7 @@ vec4 intersect(vec3 ro, vec3 rd) {
 	for (int i=0; i<RAYMARCH_STEPS; i++ ) { 		
 		if (abs(hit.y) > RAYMARCH_MIN_DISTANCE) {
 			hit.yzw = map(ro + rd * hit.x);
-			hit.x += hit.y;
+			hit.x += hit.y * RAYMARCH_STEP_SCALE;
 		}
 		if (hit.x > RAYMARCH_MAX_DISTANCE) {
 			hit.z = -1;
@@ -107,7 +111,7 @@ float softshadow( in vec3 ro, in vec3 rd, float mint, float maxt, float k )
 {
     float h, res = 1.0;
     float t = mint;
-    for( int i=0; i<RAYMARCH_STEPS && t<maxt; i++ )
+    for( int i=0; i<RAYMARCH_SOFT_SHADE_STEPS && t<maxt; i++ )
     {
         h = map(ro + rd*t).x;
         if( h<mint )
@@ -122,7 +126,7 @@ float softshadow(vec3 ro, vec3 rd, float mint, float maxt, float w )
 {
     float res = 1.0;
     float t = mint;
-    for( int i=0; i<RAYMARCH_STEPS && t<maxt; i++ )
+    for( int i=0; i<RAYMARCH_SOFT_SHADE_STEPS && t<maxt; i++ )
     {
         float h = map(ro + t*rd).x;
         res = min( res, h/(w*t) );
