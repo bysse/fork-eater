@@ -12,3 +12,11 @@ float smin( float a, float b, float k )
     float h = max( k-abs(a-b), 0.0 )/k;
     return min(a,b) - h*h*k*(1.0/4.0);
 }
+
+// circular geometrical
+float smin_cg( float a, float b, float k )
+{
+    k *= 1.0/(1.0-sqrt(0.5));
+    return max(k,min(a,b)) -
+           length(max(k-vec2(a,b),0.0));
+}
