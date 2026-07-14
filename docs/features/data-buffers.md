@@ -40,6 +40,7 @@ Buffers are defined in the `buffers` section of the `4k-eater` manifest file (lo
 - **`dataType`**: (String, Optional) Only used when `type` is `"ubo"`. Specifies the underlying data format of the elements inside the UBO (`float`, `vec2`, `vec3`, `vec4`). Defaults to `"float"`.
 - **`striped`**: (Boolean, Optional) If `true`, indicates the source data is in planar / Structure of Arrays (SoA) layout (e.g. all X's, then all Y's, etc.) instead of interleaved Array of Structures (AoS) layout. 
 - **`fixedPoint`**: (String, Optional) If specified, quantizes the floating-point values in the buffer to a fixed-point integer format using Q-notation (e.g., `"Q3.12"` or `"UQ4.12"`). Stored as compact integer arrays during export, and dynamically unpacked back to `float` on-the-fly via the generated C-header helper function.
+- **`export`**: (Object, Optional) Configures the binary export options for the buffer (e.g., format, output path, coordinate striping, byte striping).
 - **`file`**: (Optional, String) Path to an external CSV or whitespace-separated data file (relative to project root).
 - **`data`**: (Optional, Array) In-line array of floating-point values.
 
@@ -134,6 +135,38 @@ static inline const float* unpack_buffer_0() {
 }
 
 #endif // BUFFER_0_H
+```
+
+### Exporting TZD Binary Buffers
+
+To export buffers directly to the custom compressed TZD binary format, you can add an `"export"` block to any buffer definition in the manifest:
+
+```json
+{
+  "name": "u_corners",
+  "type": "vec2",
+  "file": "assets/corners.csv",
+  "export": {
+    "format": "tzd",
+    "outputFile": "build/corners.tzd",
+    "stripedCoordinates": true,
+    "stripedBytes": true
+  }
+}
+```
+
+#### TZD Bitwise Layout (16-bit)
+*   **Bit 15**: Type indicator (`1` = Integer, `0` = Float). Integers are detected automatically (having only zeroes as decimals).
+*   **Bit 14**: Sign bit (`1` = Negative, `0` = Positive).
+*   **Bits 13–0**: Payload value (absolute value for integers, or absolute fraction scaled by $16384.0$ for float coordinates in the range $[-1.0, 1.0]$).
+
+#### Striping and Ordering
+*   `stripedCoordinates`: If `true`, groups components by dimension (all X components first, then all Y components) before exporting.
+*   `stripedBytes`: If `true`, splits the 16-bit words into High (MSB) and Low (LSB) bytes and groups all High bytes together first, followed by all Low bytes (e.g. `[high X, high Y, low X, low Y]`).
+
+To export all configured buffers to their target binary files, run:
+```bash
+./build/fork-eater <project_path> --export-buffers
 ```
 
 ---

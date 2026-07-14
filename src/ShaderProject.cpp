@@ -328,6 +328,15 @@ bool ShaderProject::parseManifestJson(const std::string& jsonContent) {
                 buffer.striped = bufferJson.value("striped", false);
                 buffer.precision = bufferJson.value("precision", -1);
                 
+                if (bufferJson.contains("export") && bufferJson["export"].is_object()) {
+                    auto exportJson = bufferJson["export"];
+                    buffer.hasExport = true;
+                    buffer.exportFormat = exportJson.value("format", "");
+                    buffer.exportOutputFile = exportJson.value("outputFile", "");
+                    buffer.exportStripedCoordinates = exportJson.value("stripedCoordinates", false);
+                    buffer.exportStripedBytes = exportJson.value("stripedBytes", false);
+                }
+                
                 std::string fpVal = bufferJson.value("fixedPoint", "");
                 if (!fpVal.empty()) {
                     bool isSigned = true;
@@ -477,6 +486,14 @@ std::string ShaderProject::generateManifestJson() const {
         }
         if (buffer.fixedPoint) {
             bufferJson["fixedPoint"] = buffer.fixedPointFormat;
+        }
+        if (buffer.hasExport) {
+            json exportJson;
+            exportJson["format"] = buffer.exportFormat;
+            exportJson["outputFile"] = buffer.exportOutputFile;
+            exportJson["stripedCoordinates"] = buffer.exportStripedCoordinates;
+            exportJson["stripedBytes"] = buffer.exportStripedBytes;
+            bufferJson["export"] = exportJson;
         }
         j["buffers"].push_back(bufferJson);
     }

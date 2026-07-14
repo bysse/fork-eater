@@ -43,6 +43,13 @@ struct ShaderBuffer {
     int fixedPointN = 0;
     bool fixedPointSigned = true;
     std::string fixedPointFormat = "";
+
+    // Export configuration
+    bool hasExport = false;
+    std::string exportFormat = "";
+    std::string exportOutputFile = "";
+    bool exportStripedCoordinates = false;
+    bool exportStripedBytes = false;
 };
 
 class ShaderManager {

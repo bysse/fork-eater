@@ -346,6 +346,141 @@ private:
     }
 };
 
+bool exportBufferToTZD(const ShaderProject& proj, const ShaderBuffer& buffer, const std::string& outputPath) {
+    int components = 1;
+    if (buffer.dataType == "vec2") components = 2;
+    else if (buffer.dataType == "vec3") components = 3;
+    else if (buffer.dataType == "vec4") components = 4;
+
+    size_t length = buffer.data.size() / components;
+    if (length == 0) {
+        LOG_ERROR("Buffer '{}' has no data to export.", buffer.name);
+        return false;
+    }
+
+    std::vector<uint16_t> packed(buffer.data.size(), 0);
+
+    for (size_t i = 0; i < buffer.data.size(); ++i) {
+        float val = buffer.data[i];
+        
+        // Detect if it is an integer (only zeroes as decimals)
+        bool isInteger = false;
+        if (!std::isnan(val) && !std::isinf(val)) {
+            isInteger = (val == std::floor(val));
+        }
+
+        uint16_t packedVal = 0;
+        if (isInteger) {
+            // Bit 15: 1 (Integer)
+            packedVal |= (1U << 15);
+
+            // Bit 14: Sign
+            bool isNegative = (val < 0.0f);
+            if (isNegative) {
+                packedVal |= (1U << 14);
+            }
+
+            // Bits 13-0: Magnitude
+            float absVal = std::abs(val);
+            uint32_t magnitude = static_cast<uint32_t>(absVal);
+            if (magnitude > 16383) {
+                magnitude = 16383; // Clamping to fit in 14 bits
+            }
+            packedVal |= (magnitude & 0x3FFF);
+        } else {
+            // Bit 15: 0 (Float)
+            // Bit 14: Sign
+            bool isNegative = (val < 0.0f);
+            if (isNegative) {
+                packedVal |= (1U << 14);
+            }
+
+            // Bits 13-0: Magnitude mapped to [0.0, 1.0] using 16384.0 scale
+            float absVal = std::abs(val);
+            if (absVal > 1.0f) {
+                absVal = 1.0f; // Clamped to [0.0, 1.0]
+            }
+            
+            uint32_t fractionVal = static_cast<uint32_t>(std::round(absVal * 16384.0f));
+            if (fractionVal > 16383) {
+                fractionVal = 16383; // Clamp to max 14-bit value
+            }
+            packedVal |= (fractionVal & 0x3FFF);
+        }
+        packed[i] = packedVal;
+    }
+
+    std::vector<uint8_t> outputBytes;
+    outputBytes.reserve(packed.size() * 2);
+
+    bool stripedCoords = buffer.exportStripedCoordinates;
+    bool stripedBytes = buffer.exportStripedBytes;
+
+    if (stripedBytes) {
+        if (stripedCoords) {
+            // Group high bytes of components first
+            for (int c = 0; c < components; ++c) {
+                for (size_t i = 0; i < length; ++i) {
+                    uint16_t val = packed[i * components + c];
+                    outputBytes.push_back(static_cast<uint8_t>((val >> 8) & 0xFF));
+                }
+            }
+            // Group low bytes of components next
+            for (int c = 0; c < components; ++c) {
+                for (size_t i = 0; i < length; ++i) {
+                    uint16_t val = packed[i * components + c];
+                    outputBytes.push_back(static_cast<uint8_t>(val & 0xFF));
+                }
+            }
+        } else {
+            // Interleaved coordinates, but high bytes first, then low bytes
+            for (size_t i = 0; i < packed.size(); ++i) {
+                outputBytes.push_back(static_cast<uint8_t>((packed[i] >> 8) & 0xFF));
+            }
+            for (size_t i = 0; i < packed.size(); ++i) {
+                outputBytes.push_back(static_cast<uint8_t>(packed[i] & 0xFF));
+            }
+        }
+    } else {
+        if (stripedCoords) {
+            // Group coordinates by component, no byte striping (High byte, then Low byte)
+            for (int c = 0; c < components; ++c) {
+                for (size_t i = 0; i < length; ++i) {
+                    uint16_t val = packed[i * components + c];
+                    outputBytes.push_back(static_cast<uint8_t>((val >> 8) & 0xFF));
+                    outputBytes.push_back(static_cast<uint8_t>(val & 0xFF));
+                }
+            }
+        } else {
+            // Interleaved coordinates, no byte striping (High byte, then Low byte)
+            for (size_t i = 0; i < packed.size(); ++i) {
+                outputBytes.push_back(static_cast<uint8_t>((packed[i] >> 8) & 0xFF));
+                outputBytes.push_back(static_cast<uint8_t>(packed[i] & 0xFF));
+            }
+        }
+    }
+
+    std::filesystem::path fullOutputPath = std::filesystem::path(proj.getProjectPath()) / outputPath;
+    
+    try {
+        std::filesystem::create_directories(fullOutputPath.parent_path());
+    } catch (const std::exception& e) {
+        LOG_ERROR("Failed to create directory structure for output: {}", e.what());
+        return false;
+    }
+
+    std::ofstream out(fullOutputPath, std::ios::binary);
+    if (!out.is_open()) {
+        LOG_ERROR("Failed to open binary file for writing: {}", fullOutputPath.string());
+        return false;
+    }
+    out.write(reinterpret_cast<const char*>(outputBytes.data()), outputBytes.size());
+    out.close();
+
+    LOG_SUCCESS("Successfully exported buffer '{}' to TZD binary: {} ({} bytes)", buffer.name, fullOutputPath.string(), outputBytes.size());
+    return true;
+}
+
 // Function declarations
 void printUsage(const char* programName);
 void printTemplates();
@@ -370,6 +505,7 @@ int main(int argc, char* argv[]) {
     std::string outputPath;
     bool exportBufferMode = false;
     std::string exportBufferIndexStr;
+    bool exportBuffersMode = false;
     int xres = 0;
     int yres = 0;
     std::string passName;
@@ -485,6 +621,9 @@ int main(int argc, char* argv[]) {
                 i++;
             }
         }
+        else if (arg == "--export-buffers") {
+            exportBuffersMode = true;
+        }
         else if (arg == "--export-buffer-header") {
             exportBufferMode = true;
             if (i + 1 < argc) {
@@ -580,6 +719,47 @@ int main(int argc, char* argv[]) {
     // Initialize logger early so it can be used throughout
     Logger::getInstance().initialize(debugMode);
     LOG_INFO("Fork Eater - Compiled on {} at {}", __DATE__, __TIME__);
+
+    if (exportBuffersMode) {
+        if (shaderProjectPath.empty()) {
+            shaderProjectPath = ".";
+        }
+        ShaderProject proj;
+        LOG_INFO("Loading project from: {}", shaderProjectPath);
+        if (!proj.loadFromDirectory(shaderProjectPath)) {
+            LOG_ERROR("Failed to load project from: {}", shaderProjectPath);
+            return 1;
+        }
+
+        bool success = true;
+        int exportedCount = 0;
+        for (const auto& buffer : proj.getManifest().buffers) {
+            if (buffer.hasExport) {
+                if (buffer.exportFormat == "tzd") {
+                    if (!exportBufferToTZD(proj, buffer, buffer.exportOutputFile)) {
+                        success = false;
+                    } else {
+                        exportedCount++;
+                    }
+                } else {
+                    LOG_ERROR("Unsupported export format '{}' for buffer '{}'", buffer.exportFormat, buffer.name);
+                    success = false;
+                }
+            }
+        }
+
+        if (!success) {
+            LOG_ERROR("One or more buffers failed to export.");
+            return 1;
+        }
+
+        if (exportedCount == 0) {
+            LOG_WARN("No buffers configured for export in the manifest.");
+        } else {
+            LOG_SUCCESS("Successfully exported {} buffer(s).", exportedCount);
+        }
+        return 0;
+    }
 
     if (exportBufferMode) {
         if (shaderProjectPath.empty()) {
@@ -725,7 +905,7 @@ int main(int argc, char* argv[]) {
             std::string funcName = "unpack_" + varName;
             header << "static inline const float* " << funcName << "() {\n";
             
-            bool padTo4 = (selectedBuffer->type == "ubo") || selectedBuffer->striped;
+            bool padTo4 = (selectedBuffer->type == "ubo");
             size_t destSize = length * (padTo4 ? 4 : components);
             header << "    static float dest[" << destSize << "];\n";
             
@@ -1122,6 +1302,7 @@ void printUsage(const char* programName) {
     LOG_INFO("  --render-scale-mode MODE    Set render scale mode (chunk, resolution)");
     LOG_INFO("  --render-scale FACTOR       Set initial render scale factor (0.0 - 1.0)");
     LOG_INFO("  --preprocess, -p PATH       Preprocess shader file or project directory");
+    LOG_INFO("  --export-buffers            Export all buffers configured in the manifest to their output files");
     LOG_INFO("  --export-buffer-header INDEX Export project buffer values (by manifest index) to a C-header file");
     LOG_INFO("  -o, --output PATH           Output baked/preprocessed shader or exported buffer header to path");
     LOG_INFO("  -w, --width VAL             Width (XRES) for resolution substitution");
