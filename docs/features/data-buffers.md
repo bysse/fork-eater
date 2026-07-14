@@ -137,9 +137,9 @@ static inline const float* unpack_buffer_0() {
 #endif // BUFFER_0_H
 ```
 
-### Exporting TZD Binary Buffers
+### Exporting TZD Compressed Buffers
 
-To export buffers directly to the custom compressed TZD binary format, you can add an `"export"` block to any buffer definition in the manifest:
+To export buffers using the custom compressed TZD format, add an `"export"` block to any buffer definition in the manifest:
 
 ```json
 {
@@ -148,7 +148,6 @@ To export buffers directly to the custom compressed TZD binary format, you can a
   "file": "assets/corners.csv",
   "export": {
     "format": "tzd",
-    "outputFile": "build/corners.tzd",
     "stripedCoordinates": true,
     "stripedBytes": true
   }
@@ -164,7 +163,53 @@ To export buffers directly to the custom compressed TZD binary format, you can a
 *   `stripedCoordinates`: If `true`, groups components by dimension (all X components first, then all Y components) before exporting.
 *   `stripedBytes`: If `true`, splits the 16-bit words into High (MSB) and Low (LSB) bytes and groups all High bytes together first, followed by all Low bytes (e.g. `[high X, high Y, low X, low Y]`).
 
-To export all configured buffers to their target binary files, run:
+#### Exporting to C-Header
+To export the buffer to a C-header file:
+```bash
+./build/fork-eater <project_path> --export-buffer-header INDEX -o build/buffer_corners.h
+```
+
+If `stripedBytes` is `true`, it is generated as a `uint8_t` array. If `false`, it is generated as a `uint16_t` array. The header automatically includes a zero-dependency `static inline const float* unpack_buffer_X()` helper function to reconstruct and decode the coordinates back into floats on-the-fly.
+
+#### Example Generated TZD Header Output
+
+For a striped, byte-striped `vec2` buffer `u_corners` containing `[(1.0, -0.5), (-0.75, 0.0)]`, the generated header is:
+
+```cpp
+#ifndef BUFFER_0_H
+#define BUFFER_0_H
+
+#include <stdint.h>
+
+#define BUFFER_0_LENGTH 2
+#define BUFFER_0_NAME "u_corners"
+
+// Groups high bytes [0x80, 0x70, 0x60, 0x80] and low bytes [0x01, 0x00, 0x00, 0x00]
+static const uint8_t buffer_0[8] = {
+    0x80, 0x70, 0x60, 0x80, 0x01, 0x00, 0x00, 0x00
+};
+
+static inline const float* unpack_buffer_0() {
+    static float dest[4]; // Tightly-packed 4 floats (2 elements of vec2)
+    for (int i = 0; i < BUFFER_0_LENGTH; ++i) {
+        {
+            uint16_t p = ((uint16_t)buffer_0[0 * BUFFER_0_LENGTH + i] << 8) | buffer_0[2 * BUFFER_0_LENGTH + 0 * BUFFER_0_LENGTH + i];
+            float val = (p & 0x8000) ? (float)(p & 0x3FFF) : ((float)(p & 0x3FFF) / 16384.0f);
+            dest[i * 2 + 0] = (p & 0x4000) ? -val : val;
+        }
+        {
+            uint16_t p = ((uint16_t)buffer_0[1 * BUFFER_0_LENGTH + i] << 8) | buffer_0[2 * BUFFER_0_LENGTH + 1 * BUFFER_0_LENGTH + i];
+            float val = (p & 0x8000) ? (float)(p & 0x3FFF) : ((float)(p & 0x3FFF) / 16384.0f);
+            dest[i * 2 + 1] = (p & 0x4000) ? -val : val;
+        }
+    }
+    return dest;
+}
+
+#endif // BUFFER_0_H
+```
+
+To export multiple buffers configured with an optional `"outputFile"` in their `"export"` blocks, you can run:
 ```bash
 ./build/fork-eater <project_path> --export-buffers
 ```
