@@ -659,7 +659,7 @@ bool exportBufferToHeader(const ShaderProject& proj, const ShaderBuffer& buffer,
 
     header << "#endif // " << guardName << "\n";
 
-    std::filesystem::path fullOutputPath = std::filesystem::path(proj.getProjectPath()) / outputPath;
+    std::filesystem::path fullOutputPath = std::filesystem::path(outputPath);
     try {
         std::filesystem::create_directories(fullOutputPath.parent_path());
     } catch (const std::exception& e) {
@@ -939,7 +939,8 @@ int main(int argc, char* argv[]) {
                     success = false;
                     continue;
                 }
-                if (!exportBufferToHeader(proj, buffer, idx, buffer.exportOutputFile)) {
+                std::filesystem::path resolvedPath = std::filesystem::path(proj.getProjectPath()) / buffer.exportOutputFile;
+                if (!exportBufferToHeader(proj, buffer, idx, resolvedPath.string())) {
                     success = false;
                 } else {
                     exportedCount++;
