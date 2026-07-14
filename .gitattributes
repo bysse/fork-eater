@@ -1,0 +1,45 @@
+# Set default behavior to handle all files as text and normalize line endings on commit
+* text=auto
+
+# Source code files
+*.cpp text
+*.h text
+*.hpp text
+*.c text
+*.cc text
+
+# Shaders
+*.vert text
+*.frag text
+
+# Build system
+CMakeLists.txt text
+*.cmake text
+*.json text
+
+# Scripts - shell scripts must always use LF
+*.sh text eol=lf
+
+# Scripts - Windows scripts should use CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Documentation
+*.md text
+LICENSE text
+.gitignore text
+.gitattributes text
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.a binary
+*.lib binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.exe binary
