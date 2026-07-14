@@ -628,8 +628,12 @@ int main(int argc, char* argv[]) {
         std::stringstream header;
         header << "#ifndef " << guardName << "\n";
         header << "#define " << guardName << "\n\n";
+        if (selectedBuffer->fixedPoint) {
+            header << "#include <stdint.h>\n\n";
+        }
         header << "#define " << macroName << "_LENGTH " << length << "\n";
         header << "#define " << macroName << "_NAME \"" << selectedBuffer->name << "\"\n\n";
+        
         std::vector<float> exportData = selectedBuffer->data;
         if (selectedBuffer->striped) {
             exportData.resize(selectedBuffer->data.size());
@@ -640,46 +644,128 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        header << "static const float " << varName << "[" << exportData.size() << "] = {\n    ";
-
-        for (size_t idx = 0; idx < exportData.size(); ++idx) {
-            float val = exportData[idx];
-            std::string floatStr;
-            if (std::isnan(val)) {
-                floatStr = "0.0";
-            } else if (std::isinf(val)) {
-                floatStr = (val < 0.0f) ? "-3.40282347e+38" : "3.40282347e+38";
+        if (selectedBuffer->fixedPoint) {
+            std::string intType = "int16_t";
+            int totalBits = (selectedBuffer->fixedPointSigned ? 1 : 0) + selectedBuffer->fixedPointM + selectedBuffer->fixedPointN;
+            if (selectedBuffer->fixedPointSigned) {
+                if (totalBits <= 8) intType = "int8_t";
+                else if (totalBits <= 16) intType = "int16_t";
+                else if (totalBits <= 32) intType = "int32_t";
+                else intType = "int64_t";
             } else {
-                std::ostringstream ss;
-                ss.precision(9);
-                ss << val;
-                floatStr = ss.str();
-                if (floatStr.find('.') == std::string::npos && floatStr.find('e') == std::string::npos && floatStr.find('E') == std::string::npos) {
-                    floatStr += ".0";
-                }
+                if (totalBits <= 8) intType = "uint8_t";
+                else if (totalBits <= 16) intType = "uint16_t";
+                else if (totalBits <= 32) intType = "uint32_t";
+                else intType = "uint64_t";
             }
-            header << floatStr << "f";
-            if (idx + 1 < exportData.size()) {
-                header << ", ";
-                if ((idx + 1) % 8 == 0) {
-                    header << "\n    ";
-                }
-            }
-        }
-        header << "\n};\n\n";
 
-        if (selectedBuffer->striped) {
+            double scale = std::pow(2.0, selectedBuffer->fixedPointN);
+            std::vector<int64_t> exportDataInt;
+            exportDataInt.reserve(exportData.size());
+
+            int shiftAmount = selectedBuffer->fixedPointM + selectedBuffer->fixedPointN;
+            if (shiftAmount > 62) shiftAmount = 62;
+            int64_t minVal = selectedBuffer->fixedPointSigned ? -(1LL << shiftAmount) : 0;
+            int64_t maxVal = (1LL << shiftAmount) - 1;
+            if (!selectedBuffer->fixedPointSigned && shiftAmount == 63) {
+                maxVal = -1; // all bits set
+            }
+
+            for (float val : exportData) {
+                int64_t intVal = 0;
+                if (!std::isnan(val) && !std::isinf(val)) {
+                    intVal = static_cast<int64_t>(std::round(val * scale));
+                }
+                if (intVal < minVal) intVal = minVal;
+                if (intVal > maxVal) intVal = maxVal;
+                exportDataInt.push_back(intVal);
+            }
+
+            header << "static const " << intType << " " << varName << "[" << exportDataInt.size() << "] = {\n    ";
+            for (size_t idx = 0; idx < exportDataInt.size(); ++idx) {
+                header << exportDataInt[idx];
+                if (idx + 1 < exportDataInt.size()) {
+                    header << ", ";
+                    if ((idx + 1) % 8 == 0) {
+                        header << "\n    ";
+                    }
+                }
+            }
+            header << "\n};\n\n";
+        } else {
+            header << "static const float " << varName << "[" << exportData.size() << "] = {\n    ";
+            for (size_t idx = 0; idx < exportData.size(); ++idx) {
+                float val = exportData[idx];
+                std::string floatStr;
+                if (std::isnan(val)) {
+                    floatStr = "0.0";
+                } else if (std::isinf(val)) {
+                    floatStr = (val < 0.0f) ? "-3.40282347e+38" : "3.40282347e+38";
+                } else {
+                    std::ostringstream ss;
+                    ss.precision(9);
+                    ss << val;
+                    floatStr = ss.str();
+                    if (floatStr.find('.') == std::string::npos && floatStr.find('e') == std::string::npos && floatStr.find('E') == std::string::npos) {
+                        floatStr += ".0";
+                    }
+                }
+                header << floatStr << "f";
+                if (idx + 1 < exportData.size()) {
+                    header << ", ";
+                    if ((idx + 1) % 8 == 0) {
+                        header << "\n    ";
+                    }
+                }
+            }
+            header << "\n};\n\n";
+        }
+
+        if (selectedBuffer->striped || selectedBuffer->fixedPoint) {
             std::string funcName = "unpack_" + varName;
             header << "static inline const float* " << funcName << "() {\n";
-            header << "    static float dest[" << macroName << "_LENGTH * 4];\n";
+            
+            bool padTo4 = (selectedBuffer->type == "ubo") || selectedBuffer->striped;
+            size_t destSize = length * (padTo4 ? 4 : components);
+            header << "    static float dest[" << destSize << "];\n";
+            
+            if (selectedBuffer->fixedPoint) {
+                double divisor = std::pow(2.0, selectedBuffer->fixedPointN);
+                std::ostringstream divStr;
+                divStr.precision(12);
+                divStr << divisor;
+                std::string dStr = divStr.str();
+                if (dStr.find('.') == std::string::npos && dStr.find('e') == std::string::npos && dStr.find('E') == std::string::npos) {
+                    dStr += ".0";
+                }
+                header << "    const float scale = 1.0f / " << dStr << "f;\n";
+            }
+            
             header << "    for (int i = 0; i < " << macroName << "_LENGTH; ++i) {\n";
-            for (int c = 0; c < 4; ++c) {
-                header << "        dest[i * 4 + " << c << "] = ";
+            
+            int destStride = padTo4 ? 4 : components;
+            for (int c = 0; c < destStride; ++c) {
+                header << "        dest[i * " << destStride << " + " << c << "] = ";
                 if (c < components) {
-                    if (components == 1) {
-                        header << varName << "[i];\n";
+                    std::string srcExpr;
+                    if (selectedBuffer->striped) {
+                        if (components == 1) {
+                            srcExpr = varName + "[i]";
+                        } else {
+                            srcExpr = varName + "[" + std::to_string(c) + " * " + macroName + "_LENGTH + i]";
+                        }
                     } else {
-                        header << varName << "[" << c << " * " << macroName << "_LENGTH + i];\n";
+                        if (components == 1) {
+                            srcExpr = varName + "[i]";
+                        } else {
+                            srcExpr = varName + "[i * " + std::to_string(components) + " + " + std::to_string(c) + "]";
+                        }
+                    }
+                    
+                    if (selectedBuffer->fixedPoint) {
+                        header << "(float)" << srcExpr << " * scale;\n";
+                    } else {
+                        header << srcExpr << ";\n";
                     }
                 } else {
                     header << "0.0f;\n";

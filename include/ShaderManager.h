@@ -36,6 +36,13 @@ struct ShaderBuffer {
     std::string file; // For external CSV/data files
     bool striped = false; // Whether the data is striped (planar/SoA)
     int precision = -1; // Number of mantissa bits to keep (-1 = full precision)
+    
+    // Fixed point configuration
+    bool fixedPoint = false;
+    int fixedPointM = 0;
+    int fixedPointN = 0;
+    bool fixedPointSigned = true;
+    std::string fixedPointFormat = "";
 };
 
 class ShaderManager {

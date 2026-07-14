@@ -51,6 +51,31 @@ static float quantizeFloat(float value, int mantissaBits) {
     return quantized;
 }
 
+static float quantizeFixedPoint(float value, int m, int n, bool isSigned) {
+    if (std::isnan(value) || std::isinf(value)) {
+        return value;
+    }
+    double scale = std::pow(2.0, n);
+    double scaled = std::round(static_cast<double>(value) * scale);
+    
+    int shiftAmount = m + n;
+    if (shiftAmount > 62) shiftAmount = 62;
+    
+    double minVal, maxVal;
+    if (isSigned) {
+        minVal = -static_cast<double>(1LL << shiftAmount);
+        maxVal = static_cast<double>((1LL << shiftAmount) - 1);
+    } else {
+        minVal = 0.0;
+        maxVal = static_cast<double>((1ULL << shiftAmount) - 1);
+    }
+    
+    if (scaled < minVal) scaled = minVal;
+    if (scaled > maxVal) scaled = maxVal;
+    
+    return static_cast<float>(scaled / scale);
+}
+
 ShaderProject::ShaderProject()
     : m_isLoaded(false) {
 }
@@ -303,6 +328,45 @@ bool ShaderProject::parseManifestJson(const std::string& jsonContent) {
                 buffer.striped = bufferJson.value("striped", false);
                 buffer.precision = bufferJson.value("precision", -1);
                 
+                std::string fpVal = bufferJson.value("fixedPoint", "");
+                if (!fpVal.empty()) {
+                    bool isSigned = true;
+                    size_t startIdx = 0;
+                    if (fpVal.rfind("UQ", 0) == 0) {
+                        isSigned = false;
+                        startIdx = 2;
+                    } else if (fpVal.rfind("Q", 0) == 0) {
+                        isSigned = true;
+                        startIdx = 1;
+                    } else {
+                        LOG_ERROR("Invalid fixedPoint format: '{}'. Must start with 'Q' or 'UQ'.", fpVal);
+                        return false;
+                    }
+                    
+                    size_t dotIdx = fpVal.find('.', startIdx);
+                    if (dotIdx == std::string::npos) {
+                        LOG_ERROR("Invalid fixedPoint format: '{}'. Expected '.' separating integer and fractional bits (e.g. Q3.12).", fpVal);
+                        return false;
+                    }
+                    
+                    try {
+                        int m = std::stoi(fpVal.substr(startIdx, dotIdx - startIdx));
+                        int n = std::stoi(fpVal.substr(dotIdx + 1));
+                        if (m < 0 || n < 0) {
+                            LOG_ERROR("Invalid fixedPoint bit widths in format: '{}'. Widths must be non-negative.", fpVal);
+                            return false;
+                        }
+                        buffer.fixedPoint = true;
+                        buffer.fixedPointSigned = isSigned;
+                        buffer.fixedPointM = m;
+                        buffer.fixedPointN = n;
+                        buffer.fixedPointFormat = fpVal;
+                    } catch (const std::exception& e) {
+                        LOG_ERROR("Error parsing fixedPoint format '{}': {}", fpVal, e.what());
+                        return false;
+                    }
+                }
+                
                 if (bufferJson.contains("data") && bufferJson["data"].is_array()) {
                     buffer.data = bufferJson["data"].get<std::vector<float>>();
                 }
@@ -338,6 +402,12 @@ bool ShaderProject::parseManifestJson(const std::string& jsonContent) {
                 if (buffer.precision >= 0) {
                     for (auto& val : buffer.data) {
                         val = quantizeFloat(val, buffer.precision);
+                    }
+                }
+                
+                if (buffer.fixedPoint) {
+                    for (auto& val : buffer.data) {
+                        val = quantizeFixedPoint(val, buffer.fixedPointM, buffer.fixedPointN, buffer.fixedPointSigned);
                     }
                 }
                 
@@ -404,6 +474,9 @@ std::string ShaderProject::generateManifestJson() const {
         }
         if (buffer.precision >= 0) {
             bufferJson["precision"] = buffer.precision;
+        }
+        if (buffer.fixedPoint) {
+            bufferJson["fixedPoint"] = buffer.fixedPointFormat;
         }
         j["buffers"].push_back(bufferJson);
     }

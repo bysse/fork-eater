@@ -39,6 +39,7 @@ Buffers are defined in the `buffers` section of the `4k-eater` manifest file (lo
   - Set to `ubo` to create a **Uniform Buffer Object (UBO)**.
 - **`dataType`**: (String, Optional) Only used when `type` is `"ubo"`. Specifies the underlying data format of the elements inside the UBO (`float`, `vec2`, `vec3`, `vec4`). Defaults to `"float"`.
 - **`striped`**: (Boolean, Optional) If `true`, indicates the source data is in planar / Structure of Arrays (SoA) layout (e.g. all X's, then all Y's, etc.) instead of interleaved Array of Structures (AoS) layout. 
+- **`fixedPoint`**: (String, Optional) If specified, quantizes the floating-point values in the buffer to a fixed-point integer format using Q-notation (e.g., `"Q3.12"` or `"UQ4.12"`). Stored as compact integer arrays during export, and dynamically unpacked back to `float` on-the-fly via the generated C-header helper function.
 - **`file`**: (Optional, String) Path to an external CSV or whitespace-separated data file (relative to project root).
 - **`data`**: (Optional, Array) In-line array of floating-point values.
 
@@ -96,6 +97,38 @@ static inline const float* unpack_buffer_0() {
         dest[i * 4 + 1] = buffer_0[1 * BUFFER_0_LENGTH + i];
         dest[i * 4 + 2] = 0.0f;
         dest[i * 4 + 3] = 0.0f;
+    }
+    return dest;
+}
+
+#endif // BUFFER_0_H
+```
+
+### Unpacking Function for Fixed-Point Buffers
+
+When a buffer specifies `"fixedPoint"` configuration (e.g. `"fixedPoint": "Q3.12"`), it is exported as a compact integer array to save space in the compiled executable binary. To keep things transparent to the graphics pipeline, the generated C-header helper function (`unpack_buffer_X()`) automatically scales these integers back to floating-point values on-the-fly when called:
+
+```cpp
+#ifndef BUFFER_0_H
+#define BUFFER_0_H
+
+#include <stdint.h>
+
+#define BUFFER_0_LENGTH 2
+#define BUFFER_0_NAME "u_colors"
+
+// Compact signed 16-bit integer fixed-point array
+static const int16_t buffer_0[6] = {
+    4096, -2048, 1024, 0, 6144, -8192
+};
+
+static inline const float* unpack_buffer_0() {
+    static float dest[6];
+    const float scale = 1.0f / 4096.0f; // 1 / (1 << 12)
+    for (int i = 0; i < BUFFER_0_LENGTH; ++i) {
+        dest[i * 3 + 0] = (float)buffer_0[i * 3 + 0] * scale;
+        dest[i * 3 + 1] = (float)buffer_0[i * 3 + 1] * scale;
+        dest[i * 3 + 2] = (float)buffer_0[i * 3 + 2] * scale;
     }
     return dest;
 }
